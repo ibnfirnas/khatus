@@ -1,0 +1,37 @@
+#! /bin/bash
+
+set -e
+
+#TERM=xterm-256color  # To keep unicode charcters from BARS
+
+STATUS_DIR=$HOME/var/run/status
+STATUS_FILE_WIFI=$STATUS_DIR/wifi
+STATUS_FILE_ETH=$STATUS_DIR/eth
+
+mkdir -p $STATUS_DIR
+
+# nmcli d \
+# | awk \
+#     -v file_wifi="$STATUS_FILE_WIFI" \
+#     -v file_eth="$STATUS_FILE_ETH" \
+#     '
+#     $2 == "wifi"     {wifi = $4}
+#     $2 == "ethernet" {eth=$4}
+#     END {
+#         print(wifi) > file_wifi;
+#         print(eth)  > file_eth;
+#     }
+#     '
+
+nmcli \
+    -f ACTIVE,SSID,SIGNAL \
+    -t \
+    d wifi \
+| awk \
+    -F ':' \
+    -v file_wifi="$STATUS_FILE_WIFI" \
+    '
+    BEGIN       {wifi_status = "--"}
+    $1 == "yes" {wifi_status =  $2 ":" $3 "%"}
+    END         {print wifi_status > file_wifi}
+    '

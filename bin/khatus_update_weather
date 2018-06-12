@@ -1,0 +1,28 @@
+#! /bin/bash
+
+set -e
+
+FILE_METAR_DECODED="$HOME/var/run/metar-KJFK-decoded"
+FILE_TEMP_FAHRENHEIT="${FILE_METAR_DECODED}-temp-fahrenheit"
+
+(metar -d KJFK 2>&1) > $FILE_METAR_DECODED  # TODO: Better error handling
+
+awk '
+    /METAR pattern not found in NOAA data/ {
+        failures++
+    }
+
+    /^Temperature/ {
+        celsius = $3;
+        fahrenheit = (celsius * (9 / 5)) + 32;
+    }
+
+    END {
+        if (failures > 0) {
+            print "--";
+        } else {
+            print fahrenheit;
+        }
+    }' \
+    $FILE_METAR_DECODED \
+> $FILE_TEMP_FAHRENHEIT

@@ -1,0 +1,271 @@
+#! /bin/bash
+
+set -e
+
+BIN=$HOME/bin
+STATUS_DIR=$HOME/var/run/status
+STATUS_FILE__WIFI=$STATUS_DIR/wifi
+STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF=$STATUS_DIR/notified_energy_bellow_half
+
+#load=$(cat /proc/loadavg | awk '{printf "%4.2f %4.2f %4.2f", $1, $2, $3}')
+
+fan=$(awk '/^speed:/ {printf "%4d", $2}' /proc/acpi/ibm/fan)
+
+cpu=$($BIN/khatus_cpu_usage_from_proc_since_last_check)
+
+memory=$(
+    free \
+    | awk '
+        function round(n) {return int(n + 0.5)}
+
+        $1 == "Mem:" {
+            total=$2;
+            used=$3;
+            cache=$6;
+            file = "/home/siraaj/var/run/status/memory_used_percentage";
+            curr = round(used / total * 100);
+            getline prev < file;
+            print curr > file;
+            if (curr > prev) {
+                direction = ">";
+            } else if (curr < prev) {
+                direction = "<";
+            } else {
+                direction = "=";
+            }
+            printf("%s%d%%", direction, curr);
+        }')
+
+temp=$(awk 'NR == 1 {print $1 / 1000}' /sys/class/thermal/thermal_zone0/temp)
+
+disk=$(
+    df \
+    | awk '
+        function round(n) {return int(n + 0.5)}
+
+        $1 == "/dev/mapper/kubuntu--vg-root" {
+            total = $2;
+            used  = $3;
+            file = "/home/siraaj/var/run/status/disk_space_used_percentage";
+            curr = round(used / total * 100);
+            getline prev < file;
+            print curr > file;
+            if (curr > prev) {
+                direction = ">";
+            } else if (curr < prev) {
+                direction = "<";
+            } else {
+                direction = "=";
+            }
+            printf("%s%d%%", direction, curr);
+        }')
+
+energy=$(
+    upower -e \
+    | grep battery \
+    | xargs upower -i \
+    | awk '
+        /^ +percentage: +/ {percentage=$2}
+        /^ +state: +/      {state=$2}
+        END {
+            if (state == "discharging") {
+                direction_of_change = "<"
+            } else if (state == "charging") {
+                direction_of_change = ">"
+            } else {
+                direction_of_change = "="
+            };
+            printf("%s%s", direction_of_change, percentage)
+        }')
+
+datetime=$(date +'%a, %b %d, %H:%M:%S')
+
+#volume_amixer=$(
+#    amixer get Master \
+#    | tail -1 \
+#    | awk '
+#        {
+#            level = $4;
+#            sub("^\\[", "", level);
+#            sub("\\]$", "", level);
+#            print level;
+#        }' \
+#    )
+
+#volume_amixer=$(
+#    amixer get Master \
+#    | tail -n 1 \
+#    | awk '{print $4}' \
+#    | tr -d '[]'
+#)
+
+volume_pactl=$(
+    pactl list sinks \
+    | awk '
+        /^\tMute:/ {
+            printf("%s,", $0);
+        }
+        /^\tVolume:/ {
+            for (i=2; i<=NF; i++) printf(" %s", $i);
+        }' \
+    | awk -v RS=',' '
+        /^[ \t]*Mute:/        {mute  = $2}
+        /^[ \t]*front-left:/  {left  = $4}
+        /^[ \t]*front-right:/ {right = $4}
+        END {
+            if (mute == "yes") {
+                printf("x")
+            } else {
+                printf("%s %s", left, right)
+            }
+        }
+        '
+)
+
+volume="[$volume_pactl]"
+
+wifi=$(cat $STATUS_FILE__WIFI)
+
+screen_brightness=$(
+    max=$(cat /sys/class/backlight/acpi_video0/max_brightness)
+    cur=$(cat /sys/class/backlight/acpi_video0/brightness)
+    awk -v max=$max -v cur=$cur 'BEGIN {printf("%d%%", cur/max*100)}'
+)
+
+#bluetooth_status=$(
+#    grep '^status:' /proc/acpi/ibm/bluetooth \
+#    | awk '
+#        $2 == "disabled" {printf "off"}
+#        $2 == "enabled"  {printf "on"}
+#        '
+#)
+
+bluetooth_power=$(
+    echo -e 'show \n quit' \
+    | bluetoothctl \
+    | awk '
+        /^Controller / {
+            controller = $2;
+            controllers[++ctrl_count] = controller;
+        }
+        /^\t[A-Z][A-Za-z]+:/ {
+            key = $1;
+            sub(":$", "", key);
+            val = $2;
+            for (i=3; i<=NF; i++) {
+                val = val " " $i};
+                data[controller, key] = val;
+        }
+        END {
+            # Using the 1st seen controller. Should we select specific instead?
+            power_status = data[controllers[1], "Powered"];
+            if (ctrl_count > 0) {
+                if (power_status == "no") {
+                    power_status = "off"
+                } else if (power_status == "yes") {
+                    power_status = "on"
+                } else {
+                    printf("Unexpected bluetooth power status: %s\n", power_status)\
+                        > "/dev/stderr";
+                    power_status = "ERROR"
+                }
+            } else {
+                power_status = "off"  # TODO: Perhaps use differentiated marker?
+            }
+            printf("%s", power_status);
+        }'
+)
+
+#touchpad_status=$(
+#    xinput list-props 12 \
+#    | awk '
+#        /^\tDevice Enabled \([0-9]+\):/ {
+#            status = $4;
+#            printf("%s", status);
+#        }'
+#)
+
+#color_off='\033[0m'
+#color_on_bg_gray='\033[m\033[40m'
+
+energy_direction=$(echo "$energy" | cut -b 1)
+energy_percentage=$(echo "$energy" | tr -d '<>=%')
+if [[ "$energy_direction" = '<' ]]
+then
+    if [[ $energy_percentage -le 5 ]]
+    then
+        DISPLAY=:0.0 notify-send \
+            -u critical \
+            "Energy CRITICALLY low: $energy" \
+            'CHARGE NOW!!! GO GO GO!!!'
+    elif [[ $energy_percentage -le 10 ]]
+    then
+        DISPLAY=:0.0 notify-send \
+            -u critical \
+            "Energy VERY low: $energy" \
+            'Plug it in ASAP.'
+    elif [[ $energy_percentage -le 15 ]]
+    then
+        DISPLAY=:0.0 notify-send \
+            -u critical \
+            "Energy low: $energy" \
+            'Get the charger.'
+    elif [[ $energy_percentage -le 50 ]]
+    then
+        if [[ ! -a "$STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF" ]]
+        then
+            DISPLAY=:0.0 notify-send \
+                -u normal \
+                "Energy bellow half: $energy" \
+                'Where is the charger?'
+            touch "$STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF"
+        fi
+    fi
+else
+    rm -f "$STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF"
+fi
+
+weather="$(cat ~/var/run/metar-KJFK-decoded-temp-fahrenheit)°F"
+
+signal_last_msg_age=$(
+    ls -lt --time-style=+%s $HOME/var/lib/signal/latest_message.json \
+    | awk -v now_seconds=$(date +%s) \
+    '{
+        mtime_seconds = $6;
+        seconds = now_seconds - mtime_seconds;
+        minutes = seconds / 60;
+        hours   = minutes / 60;
+        days    = hours / 24;
+        weeks   = days / 7;
+        months  = days / 30;
+        #fmt = "%.1f";
+        fmt = "%d";
+        #printf(fmt " s\n", seconds);
+        printf(fmt " m\n", minutes);
+        printf(fmt " h\n", hours);
+        printf(fmt " d\n", days);
+        printf(fmt " w\n", weeks);
+        printf(fmt " mo\n", months);
+    }' \
+    | awk '$1 >= 1' \
+    | sort -n -k 1 \
+    | head -1 \
+    | tr -d ' '
+)
+
+echo \
+"\
+ E$energy\
+ M$memory\
+ D$disk\
+ C=[$cpu  ${temp}°C ${fan}rpm]\
+ |\
+ S=$screen_brightness\
+ V=$volume\
+ B:$bluetooth_power\
+ W:$wifi\
+ |\
+ $weather\
+ \
+ $datetime \
+"
