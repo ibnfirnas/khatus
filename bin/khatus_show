@@ -256,15 +256,29 @@ signal_last_msg_age=$(
 echo \
 "\
  E$energy\
+ \
+ \
  M$memory\
+ \
+ \
  D$disk\
+ \
+ \
  C=[$cpu  ${temp}°C ${fan}rpm]\
- |\
+ \
+ \
  S=$screen_brightness\
+ \
+ \
  V=$volume\
+ \
+ \
  B:$bluetooth_power\
+ \
+ \
  W:$wifi\
- |\
+ \
+ \
  $weather\
  \
  $datetime \
