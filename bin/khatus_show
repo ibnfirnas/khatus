@@ -22,10 +22,10 @@ memory=$(
             total=$2;
             used=$3;
             cache=$6;
-            file = "/home/siraaj/var/run/status/memory_used_percentage";
+            prev_file = "/home/siraaj/var/run/status/memory_used_percentage";
             curr = round(used / total * 100);
-            getline prev < file;
-            print curr > file;
+            getline prev < prev_file;
+            print curr > prev_file;
             if (curr > prev) {
                 direction = ">";
             } else if (curr < prev) {
@@ -46,9 +46,9 @@ disk=$(
         $1 == "/dev/mapper/kubuntu--vg-root" {
             curr = $5;
             sub("%$", "", curr);
-            file = "/home/siraaj/var/run/status/disk_space_used_percentage";
-            getline prev < file;
-            print curr > file;
+            prev_file = "/home/siraaj/var/run/status/disk_space_used_percentage";
+            getline prev < prev_file;
+            print curr > prev_file;
             if (curr > prev) {
                 direction = ">";
             } else if (curr < prev) {
