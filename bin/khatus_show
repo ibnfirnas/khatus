@@ -278,6 +278,8 @@ echo \
  W:$wifi\
  \
  \
+ $signal_last_msg_age\
+ \
  $weather\
  \
  $datetime \
