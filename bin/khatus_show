@@ -44,10 +44,9 @@ disk=$(
         function round(n) {return int(n + 0.5)}
 
         $1 == "/dev/mapper/kubuntu--vg-root" {
-            total = $2;
-            used  = $3;
+            curr = $5;
+            sub("%$", "", curr);
             file = "/home/siraaj/var/run/status/disk_space_used_percentage";
-            curr = round(used / total * 100);
             getline prev < file;
             print curr > file;
             if (curr > prev) {
