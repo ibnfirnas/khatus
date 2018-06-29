@@ -59,6 +59,35 @@ disk=$(
             printf("%s%d%%", direction, curr);
         }')
 
+io_net=$(
+    awk '
+        BEGIN {
+            bytes_per_unit = 1024
+        }
+
+        NR > 2 {
+            device     = $1; sub(":$", "", device);
+            curr_read  = $2;
+            curr_write = $10;
+
+            prev_file_prefix  = "/home/siraaj/var/run/status/io_net_" device;
+            prev_read_file  = prev_file_prefix "_read";
+            prev_write_file = prev_file_prefix "_write";
+
+            getline prev_read < prev_read_file;
+            getline prev_write < prev_write_file;
+
+            diff_read  = (curr_read  - prev_read ) / bytes_per_unit;
+            diff_write = (curr_write - prev_write) / bytes_per_unit;
+
+            print curr_read  > prev_read_file;
+            print curr_write > prev_write_file;
+
+            printf("%s %0.0f▲ %0.0f▼\n", device, diff_write, diff_read);
+        }
+    ' /proc/net/dev
+)
+
 energy=$(
     upower -e \
     | grep battery \
@@ -275,7 +304,7 @@ echo \
  B:$bluetooth_power\
  \
  \
- W:$wifi\
+ W:[$wifi $(echo "$io_net" | awk '/^wlp3s0/ {print $2, $3}')]\
  \
  \
  $signal_last_msg_age\
