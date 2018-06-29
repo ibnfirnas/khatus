@@ -253,7 +253,7 @@ else
     rm -f "$STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF"
 fi
 
-weather="$(cat ~/var/run/metar-KJFK-decoded-temp-fahrenheit)°F"
+weather=$(awk 'NR == 1 {printf("%d°F", $1)}' ~/var/run/metar-KJFK-decoded-temp-fahrenheit)
 
 signal_last_msg_age=$(
     ls -lt --time-style=+%s $HOME/var/lib/signal/latest_message.json \
