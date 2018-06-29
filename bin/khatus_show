@@ -44,19 +44,27 @@ disk=$(
         function round(n) {return int(n + 0.5)}
 
         $1 == "/dev/mapper/kubuntu--vg-root" {
-            curr = $5;
-            sub("%$", "", curr);
-            prev_file = "/home/siraaj/var/run/status/disk_space_used_percentage";
-            getline prev < prev_file;
-            print curr > prev_file;
-            if (curr > prev) {
+            curr_blocks = $3;
+            curr_perc = $5; sub("%$", "", curr_perc);
+            prev_file_prefix = "/home/siraaj/var/run/status/disk_space_used";
+
+            prev_perc_file   = prev_file_prefix "_percentage";
+            prev_blocks_file = prev_file_prefix "_blocks";
+
+            getline prev_blocks < prev_blocks_file;
+            getline prev_perc   < prev_perc_file;
+
+            print curr_blocks > prev_blocks_file;
+            print curr_perc > prev_perc_file;
+            if (curr_perc > prev_perc) {
                 direction = ">";
-            } else if (curr < prev) {
+            } else if (curr_perc < prev_perc) {
                 direction = "<";
             } else {
                 direction = "=";
             }
-            printf("%s%d%%", direction, curr);
+            diff_blocks = curr_blocks - prev_blocks;
+            printf("%s[%d%% %d]", direction, curr_perc, diff_blocks);
         }')
 
 io_net=$(
