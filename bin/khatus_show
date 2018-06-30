@@ -70,7 +70,7 @@ disk=$(
 io_net=$(
     awk '
         BEGIN {
-            bytes_per_unit = 1024
+            bytes_per_unit = 1024 * 1024
         }
 
         NR > 2 {
@@ -91,7 +91,7 @@ io_net=$(
             print curr_read  > prev_read_file;
             print curr_write > prev_write_file;
 
-            printf("%s %0.0f▲ %0.0f▼\n", device, diff_write, diff_read);
+            printf("%s %0.3f▲ %0.3f▼\n", device, diff_write, diff_read);
         }
     ' /proc/net/dev
 )
