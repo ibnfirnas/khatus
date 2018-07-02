@@ -7,6 +7,8 @@ STATUS_DIR=$HOME/var/run/status
 STATUS_FILE__WIFI=$STATUS_DIR/wifi
 STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF=$STATUS_DIR/notified_energy_bellow_half
 
+SYMBOL_WIFI='📶'
+
 #load=$(cat /proc/loadavg | awk '{printf "%4.2f %4.2f %4.2f", $1, $2, $3}')
 
 fan=$(awk '/^speed:/ {printf "%4d", $2}' /proc/acpi/ibm/fan)
@@ -326,7 +328,7 @@ echo \
  D$disk\
  \
  \
- W:[$wifi $(echo "$io_net" | awk '/^wlp3s0/ {print $2, $3}')]\
+ $SYMBOL_WIFI [$wifi $(echo "$io_net" | awk '/^wlp3s0/ {print $2, $3}')]\
  \
  \
  B:$bluetooth_power\
