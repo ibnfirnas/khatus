@@ -289,6 +289,29 @@ signal_last_msg_age=$(
     | tr -d ' '
 )
 
+mpd_state=$(
+    echo 'status' \
+    | nc 127.0.0.1 6600 \
+    | awk '
+        {
+            status[$1] = $2
+        }
+
+        END {
+            state = status["state:"]
+            symbol = "-"
+            if (state == "play") {
+                symbol = "▶"
+            } else if (state == "pause") {
+                symbol = "❚❚"
+            } else if (state == "stop") {
+                symbol = "⬛"
+            }
+            printf("%s", symbol)
+        }
+        '
+)
+
 echo \
 "\
  E$energy\
@@ -314,6 +337,8 @@ echo \
  \
  W:[$wifi $(echo "$io_net" | awk '/^wlp3s0/ {print $2, $3}')]\
  \
+ \
+ $mpd_state\
  \
  $signal_last_msg_age\
  \
