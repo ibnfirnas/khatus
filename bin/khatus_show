@@ -320,23 +320,22 @@ echo \
  M$memory\
  \
  \
+ C=[$cpu  ${temp}°C ${fan}rpm]\
+ \
+ \
  D$disk\
  \
  \
- C=[$cpu  ${temp}°C ${fan}rpm]\
+ W:[$wifi $(echo "$io_net" | awk '/^wlp3s0/ {print $2, $3}')]\
+ \
+ \
+ B:$bluetooth_power\
  \
  \
  S=$screen_brightness\
  \
  \
  V=$volume\
- \
- \
- B:$bluetooth_power\
- \
- \
- W:[$wifi $(echo "$io_net" | awk '/^wlp3s0/ {print $2, $3}')]\
- \
  \
  $mpd_state\
  \
