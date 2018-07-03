@@ -342,15 +342,30 @@ mpd_state=$(
         '
 )
 
-mpd_current_file=$(
+mpd_current=$(
     echo 'currentsong' \
     | nc 127.0.0.1 6600 \
     | awk -v max_chars=10 '
-        /^file:/ {
-            file = $2
-            for (i=3; i<=NF; i++) {file = file " " $i}
-            last = split(file, parts, "/")
-            print substr(parts[last], 1, max_chars)
+        /^OK/ {
+            next
+        }
+
+        {
+            key = $1
+            val = $2
+            for (i=3; i<=NF; i++) {val = val " " $i}
+            data[key] = val
+        }
+
+        END {
+            if (data["Name:"]) {
+                out = data["Name:"]
+            } else {
+                file = data["file:"]
+                last = split(file, parts, "/")
+                out = parts[last]
+            }
+            printf("%s", substr(out, 1, max_chars))
         }
         '
 )
@@ -401,7 +416,7 @@ echo \
  \
  V=$volume\
  \
- [$mpd_state $mpd_current_file]\
+ [$mpd_state $mpd_current]\
  \
  $signal_last_msg_age\
  \
