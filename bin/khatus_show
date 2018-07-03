@@ -7,8 +7,6 @@ STATUS_DIR=$HOME/var/run/status
 STATUS_FILE__WIFI=$STATUS_DIR/wifi
 STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF=$STATUS_DIR/notified_energy_bellow_half
 
-SYMBOL_WIFI='📶'
-
 #load=$(cat /proc/loadavg | awk '{printf "%4.2f %4.2f %4.2f", $1, $2, $3}')
 
 fan=$(awk '/^speed:/ {printf "%4d", $2}' /proc/acpi/ibm/fan)
@@ -94,8 +92,8 @@ disk=$(
             printf("%s[%d%% %s]", direction, curr_perc, disk_io);
         }')
 
-io_net=$(
-    awk '
+network=$(
+    awk -v wifi_conn=$(cat $STATUS_FILE__WIFI) '
         BEGIN {
             bytes_per_unit = 1024 * 1024
         }
@@ -118,7 +116,14 @@ io_net=$(
             print curr_read  > prev_read_file;
             print curr_write > prev_write_file;
 
-            printf("%s %0.3f▲ %0.3f▼\n", device, diff_write, diff_read);
+            devices[device] = sprintf("%0.3f▲ %0.3f▼", diff_write, diff_read);
+        }
+
+        END {
+            lo   = devices["lo"]
+            #eth = devices["enp0s25"]
+            wifi = devices["wlp3s0"]
+            printf("[%s | %s %s]", lo, wifi_conn, wifi)
         }
     ' /proc/net/dev
 )
@@ -186,8 +191,6 @@ volume_pactl=$(
 )
 
 volume="[$volume_pactl]"
-
-wifi=$(cat $STATUS_FILE__WIFI)
 
 screen_brightness=$(
     max=$(cat /sys/class/backlight/acpi_video0/max_brightness)
@@ -353,7 +356,7 @@ echo \
  D$disk\
  \
  \
- $SYMBOL_WIFI [$wifi $(echo "$io_net" | awk '/^wlp3s0/ {print $2, $3}')]\
+ N:$network\
  \
  \
  B:$bluetooth_power\
