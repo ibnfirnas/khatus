@@ -342,6 +342,19 @@ mpd_state=$(
         '
 )
 
+mpd_current_file=$(
+    echo 'currentsong' \
+    | nc 127.0.0.1 6600 \
+    | awk -v max_chars=10 '
+        /^file:/ {
+            file = $2
+            for (i=3; i<=NF; i++) {file = file " " $i}
+            last = split(file, parts, "/")
+            print substr(parts[last], 1, max_chars)
+        }
+        '
+)
+
 echo \
 "\
  E$energy\
@@ -370,7 +383,7 @@ echo \
  \
  V=$volume\
  \
- $mpd_state\
+ [$mpd_state $mpd_current_file]\
  \
  $signal_last_msg_age\
  \
