@@ -355,9 +355,27 @@ mpd_current_file=$(
         '
 )
 
+graphics_card=$(
+    nvidia-smi \
+        --format=csv,noheader,nounits \
+        --query-gpu=memory.total,memory.used,temperature.gpu \
+    | awk -F ',' '
+        {
+            mem_total = $1;
+            mem_used  = $2;
+            temp      = $3;
+            mem_used_percent = (100 * mem_used) / mem_total;
+            printf("[%d%% %dC]", mem_used_percent, temp);
+        }
+        '
+)
+
 echo \
 "\
  E$energy\
+ \
+ \
+ G=$graphics_card\
  \
  \
  M$memory\
