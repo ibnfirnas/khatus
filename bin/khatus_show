@@ -40,23 +40,49 @@ memory=$(
 
 temp=$(awk 'NR == 1 {print $1 / 1000}' /sys/class/thermal/thermal_zone0/temp)
 
+disk_io=$(
+    awk '
+        {
+            bytes_per_sector = 512
+            bytes_per_unit   = 1024 * 1024
+
+            curr_sectors_read  = $3
+            curr_sectors_write = $7
+
+            prev_file_prefix        = "/home/siraaj/var/run/status/disk_io"
+            prev_sectors_read_file  = prev_file_prefix "_sectors_read"
+            prev_sectors_write_file = prev_file_prefix "_sectors_write"
+
+            getline prev_sectors_read  < prev_sectors_read_file
+            getline prev_sectors_write < prev_sectors_write_file
+
+            diff_read_sectors  = (curr_sectors_read  - prev_sectors_read)
+            diff_write_sectors = (curr_sectors_write - prev_sectors_write)
+
+            diff_read_bytes  = diff_read_sectors  * bytes_per_sector
+            diff_write_bytes = diff_write_sectors * bytes_per_sector
+
+            diff_read  = diff_read_bytes  / bytes_per_unit
+            diff_write = diff_write_bytes / bytes_per_unit
+
+            print curr_sectors_read  > prev_sectors_read_file
+            print curr_sectors_write > prev_sectors_write_file
+
+            printf("%0.3f▲ %0.3f▼\n", diff_write, diff_read);
+
+        }
+        ' /sys/block/dm-1/stat
+)
+
 disk=$(
     df \
-    | awk '
+    | awk -v disk_io="$disk_io" '
         function round(n) {return int(n + 0.5)}
 
         $1 == "/dev/mapper/kubuntu--vg-root" {
-            curr_blocks = $3;
             curr_perc = $5; sub("%$", "", curr_perc);
-            prev_file_prefix = "/home/siraaj/var/run/status/disk_space_used";
-
-            prev_perc_file   = prev_file_prefix "_percentage";
-            prev_blocks_file = prev_file_prefix "_blocks";
-
-            getline prev_blocks < prev_blocks_file;
+            prev_perc_file = "/home/siraaj/var/run/status/disk_space_used";
             getline prev_perc   < prev_perc_file;
-
-            print curr_blocks > prev_blocks_file;
             print curr_perc > prev_perc_file;
             if (curr_perc > prev_perc) {
                 direction = ">";
@@ -65,8 +91,7 @@ disk=$(
             } else {
                 direction = "=";
             }
-            diff_blocks = curr_blocks - prev_blocks;
-            printf("%s[%d%% %d]", direction, curr_perc, diff_blocks);
+            printf("%s[%d%% %s]", direction, curr_perc, disk_io);
         }')
 
 io_net=$(
