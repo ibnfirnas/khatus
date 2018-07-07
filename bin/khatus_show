@@ -120,10 +120,15 @@ network=$(
         }
 
         END {
-            lo   = devices["lo"]
-            #eth = devices["enp0s25"]
-            wifi = devices["wlp3s0"]
-            printf("[%s | %s %s]", lo, wifi_conn, wifi)
+            lo      = devices["lo"]
+            #eth    = devices["enp0s25"]
+            wifi_io = devices["wlp3s0"]
+            if (wifi_conn == "--") {
+                wifi = wifi_conn
+            } else {
+                wifi = wifi_conn " " wifi_io
+            }
+            printf("[%s | %s]", lo, wifi)
         }
     ' /proc/net/dev
 )
