@@ -98,7 +98,7 @@ network=$(
             bytes_per_unit = 1024 * 1024
         }
 
-        NR > 2 {
+        FILENAME == "/proc/net/dev" && NR > 2 {
             device     = $1; sub(":$", "", device);
             curr_read  = $2;
             curr_write = $10;
@@ -116,21 +116,50 @@ network=$(
             print curr_read  > prev_read_file;
             print curr_write > prev_write_file;
 
-            devices[device] = sprintf("%0.3f▲ %0.3f▼", diff_write, diff_read);
+            io_rates[device] = sprintf("%0.3f▲ %0.3f▼", diff_write, diff_read);
+
+            next;
+        }
+
+        /^[a-zA-Z0-9]/ {
+            interface = $1
+            interfaces[interface_count++] = interface
+        }
+
+        /^ +inet addr:/ {
+            split($2, addr, ":")
+            ipaddr = addr[2]
+            ipaddrs[interface] = ipaddr
         }
 
         END {
-            lo      = devices["lo"]
-            #eth    = devices["enp0s25"]
-            wifi_io = devices["wlp3s0"]
-            if (wifi_conn == "--") {
-                wifi = wifi_conn
-            } else {
-                wifi = wifi_conn " " wifi_io
+            canvas = ""
+            i_last = length(ipaddrs)
+            for (interface in ipaddrs) {
+                #ipaddr = ipaddrs[interface]
+
+                if (++i_curr == i_last) {
+                    sep = ""
+                } else {
+                    sep = " |"
+                }
+
+                if (interface == "wlp3s0") {
+                    curr = wifi_conn " " io_rates[interface]
+                } else if (interface == "lo") {
+                    curr = interface " " io_rates[interface]
+                } else {
+                    curr = "e" ++eth_count " " io_rates[interface]
+                }
+
+                canvas = canvas " " curr sep
             }
-            printf("[%s | %s]", lo, wifi)
+            canvas = "[" canvas "]"
+            printf("%s", canvas)
         }
-    ' /proc/net/dev
+    ' \
+    /proc/net/dev \
+    <(ifconfig)
 )
 
 energy=$(
