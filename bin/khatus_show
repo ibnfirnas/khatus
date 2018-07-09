@@ -93,73 +93,69 @@ disk=$(
         }')
 
 network=$(
-    awk -v wifi_conn=$(cat $STATUS_FILE__WIFI) '
+    ip -s addr \
+    | awk -v wifi_conn=$(cat $STATUS_FILE__WIFI) '
         BEGIN {
             bytes_per_unit = 1024 * 1024
         }
 
-        FILENAME == "/proc/net/dev" && NR > 2 {
-            device     = $1; sub(":$", "", device);
-            curr_read  = $2;
-            curr_write = $10;
-
-            prev_file_prefix  = "/home/siraaj/var/run/status/io_net_" device;
-            prev_read_file  = prev_file_prefix "_read";
-            prev_write_file = prev_file_prefix "_write";
-
-            getline prev_read < prev_read_file;
-            getline prev_write < prev_write_file;
-
-            diff_read  = (curr_read  - prev_read ) / bytes_per_unit;
-            diff_write = (curr_write - prev_write) / bytes_per_unit;
-
-            print curr_read  > prev_read_file;
-            print curr_write > prev_write_file;
-
-            io_rates[device] = sprintf("%0.3f▲ %0.3f▼", diff_write, diff_read);
-
-            next;
+        /^[0-9]/ {
+            sub(":$", "", $1)
+            sub(":$", "", $2)
+            sequence = $1
+            interface = $2
+            interfaces[sequence] = interface
         }
 
-        /^[a-zA-Z0-9]/ {
-            interface = $1
-            interfaces[interface_count++] = interface
+        /^ +inet [0-9]/ {
+            sub("/[0-9]+", "", $2)
+            addr = $2
+            addrs[interface] = addr
         }
 
-        /^ +inet addr:/ {
-            split($2, addr, ":")
-            ipaddr = addr[2]
-            ipaddrs[interface] = ipaddr
+        /^ +RX: / {transfer_direction = "r"}
+        /^ +TX: / {transfer_direction = "w"}
+
+        /^ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ *$/ {
+            io[interface, transfer_direction] = $1;
         }
 
         END {
-            canvas = ""
-            i_last = length(ipaddrs)
-            for (interface in ipaddrs) {
-                #ipaddr = ipaddrs[interface]
+            for (i=1; i<=sequence; i++) {
+                interface = interfaces[i]
+                if (addrs[interface]) {
+                    curr_read  = io[interface, "r"]
+                    curr_write = io[interface, "w"]
 
-                if (++i_curr == i_last) {
-                    sep = ""
-                } else {
-                    sep = " |"
+                    prefix = "/home/siraaj/var/run/status/io_net_" interface
+                    prev_read_file  = prefix "_read"
+                    prev_write_file = prefix "_write"
+
+                    getline prev_read < prev_read_file
+                    getline prev_write < prev_write_file
+
+                    diff_r = (curr_read  - prev_read ) / bytes_per_unit
+                    diff_w = (curr_write - prev_write) / bytes_per_unit
+
+                    print curr_read  > prev_read_file
+                    print curr_write > prev_write_file
+
+                    if (interface == "wlp3s0") {
+                        label = wifi_conn
+                    } else {
+                        label = interface
+                    }
+
+                    if (i == sequence) {
+                        sep = ""
+                    } else {
+                        sep = " | "
+                    }
+
+                    printf("%s %0.3f▲ %0.3f▼%s", label, diff_w, diff_r, sep)
                 }
-
-                if (interface == "wlp3s0") {
-                    curr = wifi_conn " " io_rates[interface]
-                } else if (interface == "lo") {
-                    curr = interface " " io_rates[interface]
-                } else {
-                    curr = "e" ++eth_count " " io_rates[interface]
-                }
-
-                canvas = canvas " " curr sep
             }
-            canvas = "[" canvas "]"
-            printf("%s", canvas)
-        }
-    ' \
-    /proc/net/dev \
-    <(ifconfig)
+        }'
 )
 
 energy=$(
@@ -439,7 +435,7 @@ echo \
  D$disk\
  \
  \
- N:$network\
+ N:[$network]\
  \
  \
  B:$bluetooth_power\
