@@ -340,7 +340,7 @@ signal_last_msg_age=$(
         months  = days / 30;
         #fmt = "%.1f";
         fmt = "%d";
-        #printf(fmt " s\n", seconds);
+        printf(fmt " s\n", seconds);
         printf(fmt " m\n", minutes);
         printf(fmt " h\n", hours);
         printf(fmt " d\n", days);
