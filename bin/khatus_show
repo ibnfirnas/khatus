@@ -99,7 +99,7 @@ network=$(
             bytes_per_unit = 1024 * 1024
         }
 
-        /^[0-9]/ {
+        /^[0-9]+:/ {
             sub(":$", "", $1)
             sub(":$", "", $2)
             sequence = $1
@@ -134,26 +134,29 @@ network=$(
                     getline prev_read < prev_read_file
                     getline prev_write < prev_write_file
 
-                    diff_r = (curr_read  - prev_read ) / bytes_per_unit
-                    diff_w = (curr_write - prev_write) / bytes_per_unit
+                    diff_read    = (curr_read  - prev_read ) / bytes_per_unit
+                    diff_written = (curr_write - prev_write) / bytes_per_unit
 
                     print curr_read  > prev_read_file
                     print curr_write > prev_write_file
 
-                    if (interface == "wlp3s0") {
-                        label = wifi_conn
-                    } else {
-                        label = interface
-                    }
-
-                    if (i == sequence) {
-                        sep = ""
-                    } else {
-                        sep = " | "
-                    }
-
-                    printf("%s %0.3f▲ %0.3f▼%s", label, diff_w, diff_r, sep)
+                    io_stat = sprintf("%0.3f▲ %0.3f▼", diff_written, diff_read)
+                } else {
+                    io_stat = "--"
                 }
+
+                label = substr(interface, 1, 1)
+                if (interface == "wlp3s0") {
+                    label = label ":" wifi_conn
+                }
+
+                if (i == sequence) {
+                    sep = ""
+                } else {
+                    sep = " | "
+                }
+
+                printf("%s:%s%s", label, io_stat, sep)
             }
         }'
 )
