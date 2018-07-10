@@ -393,6 +393,8 @@ mpd_current=$(
         END {
             if (data["Name:"]) {
                 out = data["Name:"]
+            } else if (data["Title:"]) {
+                out = data["Title:"]
             } else {
                 file = data["file:"]
                 last = split(file, parts, "/")
