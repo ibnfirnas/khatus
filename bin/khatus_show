@@ -422,30 +422,21 @@ echo \
 "\
  E$energy\
  \
- \
  G=$graphics_card\
- \
  \
  M$memory\
  \
- \
  C=[$cpu  ${temp}°C ${fan}rpm]\
- \
  \
  L=$load\
  \
- \
  D$disk\
- \
  \
  N:[$network]\
  \
- \
  B:$bluetooth_power\
  \
- \
  S=$screen_brightness\
- \
  \
  V=$volume\
  \
