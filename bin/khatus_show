@@ -326,31 +326,31 @@ fi
 
 weather=$(awk 'NR == 1 {printf("%d°F", $1)}' ~/var/run/metar-KJFK-decoded-temp-fahrenheit)
 
-signal_last_msg_age=$(
-    ls -lt --time-style=+%s $HOME/var/lib/signal/latest_message.json \
-    | awk -v now_seconds=$(date +%s) \
-    '{
-        mtime_seconds = $6;
-        seconds = now_seconds - mtime_seconds;
-        minutes = seconds / 60;
-        hours   = minutes / 60;
-        days    = hours / 24;
-        weeks   = days / 7;
-        months  = days / 30;
-        #fmt = "%.1f";
-        fmt = "%d";
-        printf(fmt " s\n", seconds);
-        printf(fmt " m\n", minutes);
-        printf(fmt " h\n", hours);
-        printf(fmt " d\n", days);
-        printf(fmt " w\n", weeks);
-        printf(fmt " mo\n", months);
-    }' \
-    | awk '$1 >= 1' \
-    | sort -n -k 1 \
-    | head -1 \
-    | tr -d ' '
-)
+#signal_last_msg_age=$(
+#    ls -lt --time-style=+%s $HOME/var/lib/signal/latest_message.json \
+#    | awk -v now_seconds=$(date +%s) \
+#    '{
+#        mtime_seconds = $6;
+#        seconds = now_seconds - mtime_seconds;
+#        minutes = seconds / 60;
+#        hours   = minutes / 60;
+#        days    = hours / 24;
+#        weeks   = days / 7;
+#        months  = days / 30;
+#        #fmt = "%.1f";
+#        fmt = "%d";
+#        printf(fmt " s\n", seconds);
+#        printf(fmt " m\n", minutes);
+#        printf(fmt " h\n", hours);
+#        printf(fmt " d\n", days);
+#        printf(fmt " w\n", weeks);
+#        printf(fmt " mo\n", months);
+#    }' \
+#    | awk '$1 >= 1' \
+#    | sort -n -k 1 \
+#    | head -1 \
+#    | tr -d ' '
+#)
 
 mpd_state=$(
     echo 'status' \
@@ -443,8 +443,6 @@ echo \
  V=$volume\
  \
  [$mpd_state $mpd_current]\
- \
- $signal_last_msg_age\
  \
  $weather\
  \
