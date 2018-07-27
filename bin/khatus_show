@@ -22,7 +22,7 @@ memory=$(
             total=$2;
             used=$3;
             cache=$6;
-            prev_file = "/home/siraaj/var/run/status/memory_used_percentage";
+            prev_file = ENVIRON["HOME"] "/var/run/status/memory_used_percentage";
             curr = round(used / total * 100);
             getline prev < prev_file;
             print curr > prev_file;
@@ -47,7 +47,7 @@ disk_io=$(
             curr_sectors_read  = $3
             curr_sectors_write = $7
 
-            prev_file_prefix        = "/home/siraaj/var/run/status/disk_io"
+            prev_file_prefix        = ENVIRON["HOME"] "/var/run/status/disk_io"
             prev_sectors_read_file  = prev_file_prefix "_sectors_read"
             prev_sectors_write_file = prev_file_prefix "_sectors_write"
 
@@ -79,7 +79,7 @@ disk=$(
 
         $1 == "/dev/mapper/kubuntu--vg-root" {
             curr_perc = $5; sub("%$", "", curr_perc);
-            prev_perc_file = "/home/siraaj/var/run/status/disk_space_used";
+            prev_perc_file = ENVIRON["HOME"] "/var/run/status/disk_space_used";
             getline prev_perc   < prev_perc_file;
             print curr_perc > prev_perc_file;
             if (curr_perc > prev_perc) {
@@ -131,7 +131,7 @@ network=$(
                     curr_read  = io[interface, "r"]
                     curr_write = io[interface, "w"]
 
-                    prefix = "/home/siraaj/var/run/status/io_net_" interface
+                    prefix = ENVIRON["HOME"] "/var/run/status/io_net_" interface
                     prev_read_file  = prefix "_read"
                     prev_write_file = prefix "_write"
 
