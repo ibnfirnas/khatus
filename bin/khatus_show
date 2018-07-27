@@ -6,6 +6,9 @@ BIN=$HOME/bin
 STATUS_DIR=$HOME/var/run/status
 STATUS_FILE__WIFI=$STATUS_DIR/wifi
 STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF=$STATUS_DIR/notified_energy_bellow_half
+DISK_IO_DEVICE='dm-1'
+DISK_SPACE_DEVICE='/dev/mapper/kubuntu--vg-root'
+
 
 load=$(awk '{printf("%4.2f", $1)}' /proc/loadavg)
 
@@ -69,15 +72,18 @@ disk_io=$(
             printf("%0.3f▲ %0.3f▼\n", diff_write, diff_read);
 
         }
-        ' /sys/block/dm-1/stat
+        ' "/sys/block/$DISK_IO_DEVICE/stat"
 )
 
 disk=$(
     df \
-    | awk -v disk_io="$disk_io" '
+    | awk \
+        -v disk_io="$disk_io" \
+        -v device="$DISK_SPACE_DEVICE" \
+        '
         function round(n) {return int(n + 0.5)}
 
-        $1 == "/dev/mapper/kubuntu--vg-root" {
+        $1 == device {
             curr_perc = $5; sub("%$", "", curr_perc);
             prev_perc_file = ENVIRON["HOME"] "/var/run/status/disk_space_used";
             getline prev_perc   < prev_perc_file;
