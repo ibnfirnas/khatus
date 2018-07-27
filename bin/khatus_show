@@ -8,7 +8,8 @@ STATUS_FILE__WIFI=$STATUS_DIR/wifi
 STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF=$STATUS_DIR/notified_energy_bellow_half
 DISK_IO_DEVICE='dm-1'
 DISK_SPACE_DEVICE='/dev/mapper/kubuntu--vg-root'
-SCREEN_DEVICE='acpi_video0'
+SCREEN_BRIGHTNESS_DEVICE_NAME='acpi_video0'
+SCREEN_BRIGHTNESS_DEVICE_PATH="/sys/class/backlight/$SCREEN_BRIGHTNESS_DEVICE_NAME"
 
 
 load=$(awk '{printf("%4.2f", $1)}' /proc/loadavg)
@@ -278,9 +279,11 @@ volume_pactl=$(
 volume="($volume_pactl)"
 
 screen_brightness=$(
-    max=$(cat /sys/class/backlight/"$SCREEN_DEVICE"/max_brightness)
-    cur=$(cat /sys/class/backlight/"$SCREEN_DEVICE"/brightness)
-    awk -v max=$max -v cur=$cur 'BEGIN {printf("%d%%", cur/max*100)}'
+    echo -n $((
+          $(cat $SCREEN_BRIGHTNESS_DEVICE_PATH/brightness)
+        / $(cat $SCREEN_BRIGHTNESS_DEVICE_PATH/max_brightness)
+        * 100
+    ))
 )
 
 #bluetooth_status=$(
@@ -529,7 +532,7 @@ echo \
  \
  B:$bluetooth_power\
  \
- *$screen_brightness\
+ *$screen_brightness%\
  \
  $volume\
  \
