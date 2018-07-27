@@ -6,7 +6,7 @@ BIN=$HOME/bin
 STATUS_DIR=$HOME/var/run/status
 STATUS_FILE__WIFI=$STATUS_DIR/wifi
 STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF=$STATUS_DIR/notified_energy_bellow_half
-while getopts ":b:d:s:" opt
+while getopts ":b:d:s:i:" opt
 do
     case "$opt" in
         b)
@@ -17,6 +17,9 @@ do
             ;;
         s)
             DISK_SPACE_DEVICE="$OPTARG"
+            ;;
+        i)
+            PREFIXES_OF_INTERFACES_TO_SHOW="$OPTARG"
             ;;
         \?)
             echo "Unknown option: $OPTARG" >&2
@@ -127,7 +130,7 @@ network=$(
     ip -s addr \
     | awk \
         -v wifi_conn="$(cat $STATUS_FILE__WIFI)" \
-        -v prefixes_of_interfaces_to_show='w' \
+        -v prefixes_of_interfaces_to_show="$PREFIXES_OF_INTERFACES_TO_SHOW" \
         '
         BEGIN {
             bytes_per_unit = 1024 * 1024
