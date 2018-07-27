@@ -98,9 +98,13 @@ disk=$(
             printf("%s[%d%% %s]", direction, curr_perc, disk_io);
         }')
 
+# TODO: Wi-Fi status file should be a file per-wifi-device
 network=$(
     ip -s addr \
-    | awk -v wifi_conn="$(cat $STATUS_FILE__WIFI)" '
+    | awk \
+        -v wifi_conn="$(cat $STATUS_FILE__WIFI)" \
+        -v prefixes_of_interfaces_to_show='w' \
+        '
         BEGIN {
             bytes_per_unit = 1024 * 1024
         }
@@ -127,11 +131,8 @@ network=$(
         }
 
         END {
-            excluded["lo"]++
-            excluded["enp0s25"]++
-
-            for (i=1; i<=sequence; i++) {
-                interface = interfaces[i]
+            for (seq=1; seq<=sequence; seq++) {
+                interface = interfaces[seq]
                 label = substr(interface, 1, 1)
                 if (addrs[interface]) {
                     curr_read  = io[interface, "r"]
@@ -151,19 +152,28 @@ network=$(
                     print curr_write > prev_write_file
 
                     io_stat = sprintf("%0.3f▲ %0.3f▼", diff_written, diff_read)
-                    if (interface == "wlp3s0") {
+                    if (interface ~ "^w") {
                         label = label ":" wifi_conn
                     }
                 } else {
                     io_stat = "--"
                 }
-                if (!(interface in excluded)) {
-                    if (++count_printed > 1) {
-                        sep = "  "
-                    } else {
-                        sep = ""
+                number_of_interfaces_to_show = \
+                    split(\
+                        prefixes_of_interfaces_to_show,\
+                        array_of_prefixes_of_interfaces_to_show,\
+                        " +"\
+                    )
+                for (n = 1; n <= number_of_interfaces_to_show; n++) {
+                    prefix = array_of_prefixes_of_interfaces_to_show[n]
+                    if (interface ~ ("^" prefix)) {
+                        if (++count_printed > 1) {
+                            sep = "  "
+                        } else {
+                            sep = ""
+                        }
+                        printf("%s%s:%s", sep, label, io_stat)
                     }
-                    printf("%s%s:%s", sep, label, io_stat)
                 }
             }
         }'
