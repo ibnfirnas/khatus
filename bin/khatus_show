@@ -11,7 +11,7 @@ load=$(awk '{printf("%4.2f", $1)}' /proc/loadavg)
 
 fan=$(awk '/^speed:/ {printf "%4d", $2}' /proc/acpi/ibm/fan)
 
-cpu=$($BIN/khatus_cpu_usage_from_proc_since_last_check)
+#cpu=$($BIN/khatus_cpu_usage_from_proc_since_last_check)
 
 memory=$(
     free \
@@ -94,7 +94,7 @@ disk=$(
 
 network=$(
     ip -s addr \
-    | awk -v wifi_conn=$(cat $STATUS_FILE__WIFI) '
+    | awk -v wifi_conn="$(cat $STATUS_FILE__WIFI)" '
         BEGIN {
             bytes_per_unit = 1024 * 1024
         }
@@ -121,8 +121,12 @@ network=$(
         }
 
         END {
+            excluded["lo"]++
+            excluded["enp0s25"]++
+
             for (i=1; i<=sequence; i++) {
                 interface = interfaces[i]
+                label = substr(interface, 1, 1)
                 if (addrs[interface]) {
                     curr_read  = io[interface, "r"]
                     curr_write = io[interface, "w"]
@@ -141,22 +145,20 @@ network=$(
                     print curr_write > prev_write_file
 
                     io_stat = sprintf("%0.3f▲ %0.3f▼", diff_written, diff_read)
+                    if (interface == "wlp3s0") {
+                        label = label ":" wifi_conn
+                    }
                 } else {
                     io_stat = "--"
                 }
-
-                label = substr(interface, 1, 1)
-                if (interface == "wlp3s0") {
-                    label = label ":" wifi_conn
+                if (!(interface in excluded)) {
+                    if (++count_printed > 1) {
+                        sep = "  "
+                    } else {
+                        sep = ""
+                    }
+                    printf("%s%s:%s", sep, label, io_stat)
                 }
-
-                if (i == sequence) {
-                    sep = ""
-                } else {
-                    sep = " | "
-                }
-
-                printf("%s:%s%s", label, io_stat, sep)
             }
         }'
 )
@@ -179,7 +181,40 @@ energy=$(
             printf("%s%s", direction_of_change, percentage)
         }')
 
-datetime=$(date +'%a, %b %d, %H:%M:%S')
+datetime=$(date +'%a %b %d %H:%M:%S')
+#datetime=$(
+#    date +'%a %u %b %d %H:%M:%S' \
+#    | awk '
+#        {
+#            wday_name = $1
+#            wday_seq  = $2
+#            month     = $3
+#            mday      = $4
+#            time      = $5
+#
+#            week = ""
+#            for (i=1; i<=7; i++) {
+#                if (i == 6 || i == 4) {
+#                    sep = " "
+#                } else {
+#                    sep = ""
+#                }
+#
+#                if (i == wday_seq) {
+#                    #symbol = substr(wday_name, 1, 1)
+#                    symbol = "/"
+#                } else if (i < wday_seq){
+#                    symbol = "X"
+#                } else {
+#                    symbol = "_"
+#                }
+#                week = week sep symbol
+#            }
+#
+#            print "["week"]", month, mday, time;
+#        }
+#    '
+#)
 
 #volume_amixer=$(
 #    amixer get Master \
@@ -223,7 +258,7 @@ volume_pactl=$(
         '
 )
 
-volume="[$volume_pactl]"
+volume="($volume_pactl)"
 
 screen_brightness=$(
     max=$(cat /sys/class/backlight/acpi_video0/max_brightness)
@@ -324,7 +359,7 @@ else
     rm -f "$STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF"
 fi
 
-weather=$(awk 'NR == 1 {printf("%d°F", $1)}' ~/var/run/metar-KJFK-decoded-temp-fahrenheit)
+weather=$(awk 'NR == 1 {printf("%s°F", $1)}' ~/var/run/metar-KJFK-decoded-temp-fahrenheit)
 
 #signal_last_msg_age=$(
 #    ls -lt --time-style=+%s $HOME/var/lib/signal/latest_message.json \
@@ -352,30 +387,7 @@ weather=$(awk 'NR == 1 {printf("%d°F", $1)}' ~/var/run/metar-KJFK-decoded-temp-
 #    | tr -d ' '
 #)
 
-mpd_state=$(
-    echo 'status' \
-    | nc 127.0.0.1 6600 \
-    | awk '
-        {
-            status[$1] = $2
-        }
-
-        END {
-            state = status["state:"]
-            symbol = "-"
-            if (state == "play") {
-                symbol = "▶"
-            } else if (state == "pause") {
-                symbol = "❚❚"
-            } else if (state == "stop") {
-                symbol = "⬛"
-            }
-            printf("%s", symbol)
-        }
-        '
-)
-
-mpd_current=$(
+mpd_currentsong=$(
     echo 'currentsong' \
     | nc 127.0.0.1 6600 \
     | awk -v max_chars=10 '
@@ -391,46 +403,108 @@ mpd_current=$(
         }
 
         END {
-            if (data["Name:"]) {
-                out = data["Name:"]
-            } else if (data["Title:"]) {
-                out = data["Title:"]
-            } else {
-                file = data["file:"]
+            name  = data["Name:"]
+            title = data["Title:"]
+            file  = data["file:"]
+
+            if (name) {
+                out = name
+            } else if (title) {
+                out = title
+            } else if (file) {
                 last = split(file, parts, "/")
                 out = parts[last]
+            } else {
+                out = ""
             }
+
             printf("%s", substr(out, 1, max_chars))
         }
         '
 )
 
-graphics_card=$(
-    nvidia-smi \
-        --format=csv,noheader,nounits \
-        --query-gpu=memory.total,memory.used,temperature.gpu \
-    | awk -F ',' '
+mpd_state=$(
+    echo 'status' \
+    | nc 127.0.0.1 6600 \
+    | awk \
+        -v current_song="$mpd_currentsong" \
+        '
         {
-            mem_total = $1;
-            mem_used  = $2;
-            temp      = $3;
-            mem_used_percent = (100 * mem_used) / mem_total;
-            printf("[%d%% %dC]", mem_used_percent, temp);
+            status[$1] = $2
+        }
+
+        /^time: +[0-9]+:[0-9]+$/ {
+            split($2, time, ":")
+            seconds_current = time[1]
+            seconds_total   = time[2]
+
+            hours = int(seconds_current / 60 / 60);
+            secs_beyond_hours = seconds_current - (hours * 60 * 60);
+            mins = int(secs_beyond_hours / 60);
+            secs = secs_beyond_hours - (mins * 60);
+            if (hours > 0) {
+                current_time = sprintf("%d:%.2d:%.2d", hours, mins, secs)
+            } else {
+                current_time = sprintf("%.2d:%.2d", mins, secs)
+            }
+
+            if (seconds_total > 0) {
+                time_percentage = (seconds_current / seconds_total) * 100
+                current_percentage = sprintf("%d%%", time_percentage)
+            } else {
+                current_percentage = "~"
+            }
+        }
+
+        function print_known_state(symbol) {
+            printf(\
+                "%s %s %s %s",
+                symbol, current_time, current_percentage, current_song \
+            )
+        }
+
+        function print_unknown_state(symbol) {
+            printf("%s", symbol)
+        }
+
+        END {
+            state = status["state:"]
+
+            if (state == "play") {
+                print_known_state("▶")
+            } else if (state == "pause") {
+                print_known_state("❚❚")
+            } else if (state == "stop") {
+                print_known_state("⬛")
+            } else {
+                print_unknown_state("--")
+            }
         }
         '
 )
+
+#graphics_card=$(
+    #nvidia-smi \
+        #--format=csv,noheader,nounits \
+        #--query-gpu=memory.total,memory.used,temperature.gpu \
+    #| awk -F ',' '
+        #{
+            #mem_total = $1;
+            #mem_used  = $2;
+            #temp      = $3;
+            #mem_used_percent = (100 * mem_used) / mem_total;
+            #printf("[%d%% %dC]", mem_used_percent, temp);
+        #}
+        #'
+#)
 
 echo \
 "\
  E$energy\
  \
- G=$graphics_card\
- \
  M$memory\
  \
- C=[$cpu  ${temp}°C ${fan}rpm]\
- \
- L=$load\
+ C=[$load ${temp}°C ${fan}rpm]\
  \
  D$disk\
  \
@@ -438,11 +512,11 @@ echo \
  \
  B:$bluetooth_power\
  \
- S=$screen_brightness\
+ *$screen_brightness\
  \
- V=$volume\
+ $volume\
  \
- [$mpd_state $mpd_current]\
+ [$mpd_state]\
  \
  $weather\
  \
