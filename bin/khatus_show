@@ -6,9 +6,31 @@ BIN=$HOME/bin
 STATUS_DIR=$HOME/var/run/status
 STATUS_FILE__WIFI=$STATUS_DIR/wifi
 STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF=$STATUS_DIR/notified_energy_bellow_half
-DISK_IO_DEVICE='dm-1'
-DISK_SPACE_DEVICE='/dev/mapper/kubuntu--vg-root'
-SCREEN_BRIGHTNESS_DEVICE_NAME='acpi_video0'
+while getopts ":b:d:s:" opt
+do
+    case "$opt" in
+        b)
+            SCREEN_BRIGHTNESS_DEVICE_NAME="$OPTARG"
+            ;;
+        d)
+            DISK_IO_DEVICE="$OPTARG"
+            ;;
+        s)
+            DISK_SPACE_DEVICE="$OPTARG"
+            ;;
+        \?)
+            echo "Unknown option: $OPTARG" >&2
+            exit 1
+            ;;
+        :)
+            echo "Missing argument for option: $OPTARG" >&2
+            exit 1
+            ;;
+    esac
+done
+if [ "$SCREEN_BRIGHTNESS_DEVICE_NAME" == '' ]; then echo 'Missing -b' >&2; exit 1; fi
+if [ "$DISK_IO_DEVICE" == '' ];                then echo 'Missing -d' >&2; exit 1; fi
+if [ "$DISK_SPACE_DEVICE" == '' ];             then echo 'Missing -s' >&2; exit 1; fi
 SCREEN_BRIGHTNESS_DEVICE_PATH="/sys/class/backlight/$SCREEN_BRIGHTNESS_DEVICE_NAME"
 
 
