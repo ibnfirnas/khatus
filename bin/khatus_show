@@ -6,7 +6,7 @@ BIN=$HOME/bin
 STATUS_DIR=$HOME/var/run/status
 STATUS_FILE__WIFI=$STATUS_DIR/wifi
 STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF=$STATUS_DIR/notified_energy_bellow_half
-while getopts ":b:d:s:i:" opt
+while getopts ":b:d:s:i:w:" opt
 do
     case "$opt" in
         b)
@@ -21,6 +21,9 @@ do
         i)
             PREFIXES_OF_INTERFACES_TO_SHOW="$OPTARG"
             ;;
+        w)
+            WEATHER_STATION_ID="$OPTARG"
+            ;;
         \?)
             echo "Unknown option: $OPTARG" >&2
             exit 1
@@ -34,6 +37,7 @@ done
 if [ "$SCREEN_BRIGHTNESS_DEVICE_NAME" == '' ]; then echo 'Missing -b' >&2; exit 1; fi
 if [ "$DISK_IO_DEVICE" == '' ];                then echo 'Missing -d' >&2; exit 1; fi
 if [ "$DISK_SPACE_DEVICE" == '' ];             then echo 'Missing -s' >&2; exit 1; fi
+if [ "$WEATHER_STATION_ID" == '' ];            then echo 'Missing -w' >&2; exit 1; fi
 SCREEN_BRIGHTNESS_DEVICE_PATH="/sys/class/backlight/$SCREEN_BRIGHTNESS_DEVICE_NAME"
 
 
@@ -404,7 +408,11 @@ else
     rm -f "$STATUS_FILE__ENERGY_NOTIFIED_BELLOW_HALF"
 fi
 
-weather=$(awk 'NR == 1 {printf("%s°F", $1)}' ~/var/run/metar-KJFK-decoded-temp-fahrenheit)
+weather=$(
+    awk \
+        'NR == 1 {printf("%s°F", $1)}' \
+        "$HOME/var/run/metar-${WEATHER_STATION_ID}-decoded-temp-fahrenheit"
+)
 
 #signal_last_msg_age=$(
 #    ls -lt --time-style=+%s $HOME/var/lib/signal/latest_message.json \
