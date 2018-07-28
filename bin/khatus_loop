@@ -1,0 +1,102 @@
+#! /bin/bash
+
+MSG_TAG_SEP=': '
+
+fetch_weather() {
+    metar -d "$WEATHER_STATION_ID" 2>&1 \
+    | awk '
+        /METAR pattern not found in NOAA data/ {
+            failures++
+        }
+
+        /^Temperature/ {
+            celsius = $3;
+            fahrenheit = (celsius * (9 / 5)) + 32;
+            temperature = fahrenheit
+        }
+
+        END {
+            if (failures > 0) {
+                temperature = "--"
+            }
+            print temperature "°F"
+        }'
+}
+
+fetch_datetime() {
+    date +'%a %b %d %H:%M:%S'
+}
+
+read_and_react() {
+    pipe="$1"
+    tail -f "$pipe" \
+    | stdbuf -o L awk \
+        '
+            /^in:WEATHER:/\
+            {
+                chop_off_msg_tag()
+                db["weather_temperature"] = $0
+            }
+
+            /^in:DATE_TIME:/\
+            {
+                chop_off_msg_tag()
+                db["datetime"] = $0
+            }
+
+            /^out:BAR:/\
+            {
+                chop_off_msg_tag()
+                print make_bar()
+            }
+
+            function chop_off_msg_tag() {
+                sub("^" $1 " +", "")
+            }
+
+            function make_bar(    position, bar, i) {
+                position[++i] = db["weather_temperature"]
+                position[++i] = db["datetime"]
+                bar = ""
+                sep = ""
+                for (j = 1; j <= i; j++) {
+                    bar = bar sep position[j]
+                    sep = " "
+                }
+                return bar
+            }
+        '
+}
+
+trigger_bar() {
+    echo ''
+}
+
+spawn() {
+    cmd="$1"
+    pipe="$2"
+    tag="$3"
+    interval="$4"
+    while true; do
+        echo "${tag}${MSG_TAG_SEP}$($cmd)" > "$pipe"
+        sleep  "$interval"
+    done &
+}
+
+main() {
+    dir_bin="$1"
+    dir_data="$2"
+    pipe="$dir_data/pipe"
+
+    WEATHER_STATION_ID='KJFK'
+
+    rm -f "$pipe"
+    mkfifo "$pipe"
+
+    spawn fetch_datetime "$pipe" 'in:DATE_TIME' 1
+    spawn fetch_weather  "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
+    spawn trigger_bar    "$pipe" 'out:BAR'      1
+    read_and_react       "$pipe"
+}
+
+main $@
