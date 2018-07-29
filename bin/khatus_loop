@@ -2,6 +2,51 @@
 
 set -e
 
+produce_net_addr_io() {
+    ip -s addr \
+    | awk \
+        -v prefixes_of_interfaces_to_show="$PREFIXES_OF_INTERFACES_TO_SHOW" \
+        '
+        BEGIN {
+            bytes_per_unit = 1024 * 1024
+        }
+
+        /^[0-9]+:/ {
+            sub(":$", "", $1)
+            sub(":$", "", $2)
+            sequence = $1
+            interface = $2
+            interfaces[sequence] = interface
+        }
+
+        /^ +inet [0-9]/ {
+            sub("/[0-9]+", "", $2)
+            addr = $2
+            addrs[interface] = addr
+        }
+
+        /^ +RX: / {transfer_direction = "r"}
+        /^ +TX: / {transfer_direction = "w"}
+
+        /^ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ *$/ {
+            io[interface, transfer_direction] = $1;
+        }
+
+        END {
+            for (seq=1; seq<=sequence; seq++) {
+                interface = interfaces[seq]
+                label = substr(interface, 1, 1)
+                if (addrs[interface]) {
+                    curr_read  = io[interface, "r"]
+                    curr_write = io[interface, "w"]
+                    print(interface, addrs[interface], curr_write, curr_read)
+                } else {
+                    print(interface)
+                }
+            }
+        }'
+}
+
 produce_net_wifi_status() {
     nmcli \
         -f ACTIVE,SSID,SIGNAL \
@@ -198,11 +243,20 @@ produce_datetime() {
 
 consume() {
     pipe="$1"
+    debug="$2"
+    prefixes_of_net_interfaces_to_show="$3"
     tail -f "$pipe" \
     | stdbuf -o L awk \
-        -v opt_debug=0 \
+        -v opt_debug="$debug" \
         -v opt_mpd_song_max_chars=10 \
+        -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show" \
         '
+            /^in:NET_ADDR_IO/\
+            {
+                split_msg_parts()
+                set_net_addr_io()
+            }
+
             /^in:NET_WIFI_STATUS/\
             {
                 split_msg_parts()
@@ -260,6 +314,35 @@ consume() {
             }
 
 
+            function set_net_addr_io(    \
+                interface, address, io_curr_w, io_curr_r, io_prev_w, io_prev_r\
+            ) {
+                interface = $1
+                address   = $2
+                io_curr_w = $3
+                io_curr_r = $4
+                if (interface) {
+                    if (address && io_curr_w && io_curr_r) {
+                        # recalculate
+                        io_prev_w = net_io_curr_w[interface]
+                        io_prev_r = net_io_curr_r[interface]
+
+                        net_addr[interface]      = address
+                        net_io_curr_w[interface] = io_curr_w
+                        net_io_curr_r[interface] = io_curr_r
+                        net_io_diff_w[interface] = io_curr_w - io_prev_w
+                        net_io_diff_r[interface] = io_curr_r - io_prev_r
+                    } else {
+                        # clear
+                        net_addr[interface]      = ""
+                        net_io_curr_w[interface] = 0
+                        net_io_curr_r[interface] = 0
+                        net_io_diff_w[interface] = 0
+                        net_io_diff_r[interface] = 0
+                    }
+                }
+            }
+
             function set_screen_brightness(    max, cur) {
                 max = $1
                 cur = $2
@@ -290,8 +373,53 @@ consume() {
                 return bar
             }
 
-            function make_status_net() {
-                return sprintf("N[w:%s]", db["net_wifi_status"])
+            function make_status_net(    \
+                out,
+                number_of_interfaces_to_show,
+                n,
+                array_of_prefixes_of_interfaces_to_show,
+                prefix,
+                interface,
+                label,
+                count_printed,
+                sep,
+                io_stat,
+                dw, dr,
+                bytes_per_unit\
+            ) {
+                out = ""
+                number_of_interfaces_to_show = \
+                    split(\
+                        opt_prefixes_of_net_interfaces_to_show,\
+                        array_of_prefixes_of_interfaces_to_show,\
+                        ","\
+                    )
+                for (n = 1; n <= number_of_interfaces_to_show; n++) {
+                    prefix = array_of_prefixes_of_interfaces_to_show[n]
+                    for (interface in net_addr) {
+                        if (interface ~ ("^" prefix)) {
+                            label = substr(interface, 1, 1)
+                            if (net_addr[interface]) {
+                                bytes_per_mb = 1024 * 1024  # TODO: option
+                                dw = net_io_diff_w[interface] / bytes_per_mb
+                                dr = net_io_diff_r[interface] / bytes_per_mb
+                                io_stat = sprintf("%0.3f▲ %0.3f▼", dw, dr)
+                            } else {
+                                io_stat = "--"
+                            }
+                            if (interface ~ "^w") {
+                                label = label ":" db["net_wifi_status"]
+                            }
+                            if (++count_printed > 1) {
+                                sep = "  "
+                            } else {
+                                sep = ""
+                            }
+                            out = out sep label ":" io_stat
+                        }
+                    }
+                }
+                return sprintf("N[%s]", out)
             }
 
             function make_status_mpd(    state, status) {
@@ -346,28 +474,42 @@ spawn() {
     msg_head="$3"
     interval="$4"
     while true; do
-        echo "${msg_head} $($cmd)" > "$pipe"
-        sleep  "$interval"
+        $cmd | while read line; do
+            echo "${msg_head} $line" > "$pipe"
+        done
+        sleep "$interval"
     done &
 }
 
 main() {
     # Defaults
+    debug=0
     dir_data="$HOME/.khatus"
     weather_station_id='KJFK'
     screen_brightness_device_name='acpi_video0'
+    prefixes_of_net_interfaces_to_show='w'  # comma-separated
 
     # User-overrides
+    long_options=''
+    long_options+='debug'
+    long_options+=',data-dir:'
+    long_options+=',weather-station:'
+    long_options+=',screen-device:'
+    long_options+=',prefixes_of_net_interfaces_to_show:'
     OPTS=$(
         getopt \
-            -o '' \
-            -l data-dir:,weather-station:screen-device: \
+            -o 'd' \
+            -l $long_options \
             -- "$@"
     )
     eval set -- "$OPTS"
     while true
     do
         case "$1" in
+            -d|--debug)
+                debug=1
+                shift
+                ;;
             --data-dir)
                 dir_data="$2"
                 shift 2
@@ -378,6 +520,10 @@ main() {
                 ;;
             --screen-device)
                 screen_brightness_device_name="$2"
+                shift 2
+                ;;
+            --prefixes_of_net_interfaces_to_show)
+                prefixes_of_net_interfaces_to_show="$2"
                 shift 2
                 ;;
             --)
@@ -392,11 +538,13 @@ main() {
     screen_brightness_device_path+="/$screen_brightness_device_name"
 
     ( echo "Khatus starting with the following parameters:"
-      ( echo "    dir_data|= $dir_data"
+      ( echo "    debug|= $debug"
+        echo "    dir_data|= $dir_data"
         echo "    pipe|= $pipe"
-        echo "    screen_brightness_device_name|=$screen_brightness_device_name"
-        echo "    screen_brightness_device_path|=$screen_brightness_device_path"
+        echo "    screen_brightness_device_name|= $screen_brightness_device_name"
+        echo "    screen_brightness_device_path|= $screen_brightness_device_path"
         echo "    weather_station_id|= $weather_station_id"
+        echo "    prefixes_of_net_interfaces_to_show|=$prefixes_of_net_interfaces_to_show"
       ) | column -ts\|
       echo ''
     ) >&2
@@ -407,6 +555,7 @@ main() {
 
     cmd_produce_screen_brightness='produce_screen_brightness'
     cmd_produce_screen_brightness+=" $screen_brightness_device_path"
+
     cmd_produce_weather="produce_weather $weather_station_id"
 
     # TODO: Redirect each worker's stderr to a dedicated log file
@@ -418,8 +567,13 @@ main() {
     spawn produce_volume                   "$pipe" 'in:VOLUME'    1
     spawn produce_bluetooth_power          "$pipe" 'in:BLUETOOTH_POWER' 5
     spawn produce_net_wifi_status          "$pipe" 'in:NET_WIFI_STATUS' 5
+    spawn produce_net_addr_io              "$pipe" 'in:NET_ADDR_IO' 1
     spawn produce_bar_req                  "$pipe" 'out:BAR'      1
-          consume                          "$pipe"
+
+    consume \
+      "$pipe" \
+      "$debug" \
+      "$prefixes_of_net_interfaces_to_show"
 }
 
 main $@
