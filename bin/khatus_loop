@@ -2,6 +2,20 @@
 
 set -e
 
+produce_net_wifi_status() {
+    nmcli \
+        -f ACTIVE,SSID,SIGNAL \
+        -t \
+        d wifi \
+    | awk \
+        -F ':' \
+        '
+        BEGIN       {wifi_status = "--"}
+        $1 == "yes" {wifi_status =  $2 ":" $3 "%"}
+        END         {print wifi_status}
+        '
+}
+
 produce_bluetooth_power() {
     echo -e 'show \n quit' \
     | bluetoothctl \
@@ -189,6 +203,12 @@ consume() {
         -v opt_debug=0 \
         -v opt_mpd_song_max_chars=10 \
         '
+            /^in:NET_WIFI_STATUS/\
+            {
+                split_msg_parts()
+                db["net_wifi_status"] = msg_body
+            }
+
             /^in:BLUETOOTH_POWER/\
             {
                 split_msg_parts()
@@ -254,6 +274,7 @@ consume() {
             }
 
             function make_bar(    position, bar, sep, i, j) {
+                position[++i] = make_status_net()
                 position[++i] = sprintf("B=%s", db["bluetooth_power"])
                 position[++i] = sprintf("*%d%%", db["screen_brightness"])
                 position[++i] = sprintf("(%s)", db["volume"])
@@ -267,6 +288,10 @@ consume() {
                     sep = " "
                 }
                 return bar
+            }
+
+            function make_status_net() {
+                return sprintf("N[w:%s]", db["net_wifi_status"])
             }
 
             function make_status_mpd(    state, status) {
@@ -392,6 +417,7 @@ main() {
     spawn produce_mpd_song                 "$pipe" 'in:MPD_SONG'  1
     spawn produce_volume                   "$pipe" 'in:VOLUME'    1
     spawn produce_bluetooth_power          "$pipe" 'in:BLUETOOTH_POWER' 5
+    spawn produce_net_wifi_status          "$pipe" 'in:NET_WIFI_STATUS' 5
     spawn produce_bar_req                  "$pipe" 'out:BAR'      1
           consume                          "$pipe"
 }
