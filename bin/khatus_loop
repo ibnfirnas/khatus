@@ -293,27 +293,30 @@ main() {
         esac
     done
 
+    pipe="$dir_data/khatus_data_pipe"
+
     ( echo "Khatus starting with the following parameters:"
       ( echo "    dir_data|= $dir_data"
+        echo "    pipe|= $pipe"
         echo "    weather_station_id|= $weather_station_id"
       ) | column -ts\|
       echo ''
     ) >&2
 
-    pipe="$dir_data/khatus_data_pipe"
-
     mkdir -p "$dir_data"
     rm -f "$pipe"
     mkfifo "$pipe"
 
+    cmd_produce_weather="produce_weather $weather_station_id"
+
     # TODO: Redirect each worker's stderr to a dedicated log file
-    spawn produce_datetime                      "$pipe" 'in:DATE_TIME' 1
-    spawn "produce_weather $weather_station_id" "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
-    spawn produce_mpd_state                     "$pipe" 'in:MPD_STATE' 1
-    spawn produce_mpd_song                      "$pipe" 'in:MPD_SONG'  1
-    spawn produce_volume                        "$pipe" 'in:VOLUME'    1
-    spawn produce_bar_req                       "$pipe" 'out:BAR'      1
-          consume                               "$pipe"
+    spawn produce_datetime                 "$pipe" 'in:DATE_TIME' 1
+    spawn "$cmd_produce_weather"           "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
+    spawn produce_mpd_state                "$pipe" 'in:MPD_STATE' 1
+    spawn produce_mpd_song                 "$pipe" 'in:MPD_SONG'  1
+    spawn produce_volume                   "$pipe" 'in:VOLUME'    1
+    spawn produce_bar_req                  "$pipe" 'out:BAR'      1
+          consume                          "$pipe"
 }
 
 main $@
