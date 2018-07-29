@@ -1,5 +1,28 @@
 #! /bin/bash
 
+produce_volume() {
+    pactl list sinks \
+    | awk '
+        /^\tMute:/ {
+            printf("%s,", $0);
+        }
+        /^\tVolume:/ {
+            for (i=2; i<=NF; i++) printf(" %s", $i);
+        }' \
+    | awk -v RS=',' '
+        /^[ \t]*Mute:/        {mute  = $2}
+        /^[ \t]*front-left:/  {left  = $4}
+        /^[ \t]*front-right:/ {right = $4}
+        END {
+            if (mute == "yes") {
+                printf("x")
+            } else {
+                printf("%s %s", left, right)
+            }
+        }
+        '
+}
+
 produce_mpd_state() {
     echo 'status' \
     | nc 127.0.0.1 6600 \
@@ -119,6 +142,12 @@ consume() {
         -v opt_debug=0 \
         -v opt_mpd_song_max_chars=10 \
         '
+            /^in:VOLUME/\
+            {
+                split_msg_parts()
+                db["volume"] = msg_body
+            }
+
             /^in:MPD_STATE/\
             {
                 split_msg_parts()
@@ -160,6 +189,7 @@ consume() {
             }
 
             function make_bar(    position, bar, sep, i, j) {
+                position[++i] = sprintf("(%s)", db["volume"])
                 position[++i] = make_status_mpd()
                 position[++i] = db["weather_temperature"]
                 position[++i] = db["datetime"]
@@ -243,6 +273,7 @@ main() {
     spawn produce_weather   "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
     spawn produce_mpd_state "$pipe" 'in:MPD_STATE' 1
     spawn produce_mpd_song  "$pipe" 'in:MPD_SONG'  1
+    spawn produce_volume    "$pipe" 'in:VOLUME'    1
     spawn produce_bar_req   "$pipe" 'out:BAR'      1
     consume "$pipe"
 }
