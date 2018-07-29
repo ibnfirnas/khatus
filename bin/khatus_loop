@@ -2,7 +2,7 @@
 
 MSG_TAG_SEP=': '
 
-fetch_weather() {
+produce_weather() {
     metar -d "$WEATHER_STATION_ID" 2>&1 \
     | awk '
         /METAR pattern not found in NOAA data/ {
@@ -23,11 +23,11 @@ fetch_weather() {
         }'
 }
 
-fetch_datetime() {
+produce_datetime() {
     date +'%a %b %d %H:%M:%S'
 }
 
-read_and_react() {
+consume() {
     pipe="$1"
     tail -f "$pipe" \
     | stdbuf -o L awk \
@@ -66,7 +66,7 @@ read_and_react() {
         '
 }
 
-trigger_bar() {
+produce_bar_req() {
     echo ''
 }
 
@@ -91,10 +91,10 @@ main() {
     rm -f "$pipe"
     mkfifo "$pipe"
 
-    spawn fetch_datetime "$pipe" 'in:DATE_TIME' 1
-    spawn fetch_weather  "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
-    spawn trigger_bar    "$pipe" 'out:BAR'      1
-    read_and_react       "$pipe"
+    spawn produce_datetime  "$pipe" 'in:DATE_TIME' 1
+    spawn produce_weather   "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
+    spawn produce_bar_req   "$pipe" 'out:BAR'      1
+    consume "$pipe"
 }
 
 main $@
