@@ -1,6 +1,91 @@
 #! /bin/bash
 
-MSG_TAG_SEP=': '
+produce_mpd_state() {
+    echo 'status' \
+    | nc 127.0.0.1 6600 \
+    | awk '
+        {
+            status[$1] = $2
+        }
+
+        /^time: +[0-9]+:[0-9]+$/ {
+            split($2, time, ":")
+            seconds_current = time[1]
+            seconds_total   = time[2]
+
+            hours = int(seconds_current / 60 / 60);
+            secs_beyond_hours = seconds_current - (hours * 60 * 60);
+            mins = int(secs_beyond_hours / 60);
+            secs = secs_beyond_hours - (mins * 60);
+            if (hours > 0) {
+                current_time = sprintf("%d:%.2d:%.2d", hours, mins, secs)
+            } else {
+                current_time = sprintf("%.2d:%.2d", mins, secs)
+            }
+
+            if (seconds_total > 0) {
+                time_percentage = (seconds_current / seconds_total) * 100
+                current_percentage = sprintf("%d%%", time_percentage)
+            } else {
+                current_percentage = "~"
+            }
+        }
+
+        END {
+            state = status["state:"]
+
+            if (state == "play") {
+                symbol = "▶"
+            } else if (state == "pause") {
+                symbol = "❚❚"
+            } else if (state == "stop") {
+                symbol = "⬛"
+            } else {
+                symbol = "--"
+            }
+
+            printf(\
+                "%s %s %s",
+                status["state:"], current_time, current_percentage\
+            )
+        }
+        '
+}
+
+produce_mpd_song() {
+    echo 'currentsong' \
+    | nc 127.0.0.1 6600 \
+    | awk '
+        /^OK/ {
+            next
+        }
+
+        {
+            key = $1
+            sub("^" key " +", "")
+            val = $0
+            data[key] = val
+        }
+
+        END {
+            name  = data["Name:"]
+            title = data["Title:"]
+            file  = data["file:"]
+
+            if (name) {
+                out = name
+            } else if (title) {
+                out = title
+            } else if (file) {
+                last = split(file, parts, "/")
+                out = parts[last]
+            } else {
+                out = ""
+            }
+            print out
+        }
+        '
+}
 
 produce_weather() {
     metar -d "$WEATHER_STATION_ID" 2>&1 \
@@ -31,28 +116,51 @@ consume() {
     pipe="$1"
     tail -f "$pipe" \
     | stdbuf -o L awk \
+        -v opt_debug=0 \
+        -v opt_mpd_song_max_chars=10 \
         '
-            /^in:WEATHER:/\
+            /^in:MPD_STATE/\
             {
-                db["weather_temperature"] = read_msg()
+                split_msg_parts()
+                db["mpd_state"]             = $1
+                db["mpd_curr_song_time"]    = $2
+                db["mpd_curr_song_percent"] = $3
             }
 
-            /^in:DATE_TIME:/\
+            /^in:MPD_SONG/\
             {
-                db["datetime"] = read_msg()
+                split_msg_parts()
+                db["mpd_curr_song_name"] = msg_body
             }
 
-            /^out:BAR:/\
+            /^in:WEATHER/\
             {
+                split_msg_parts()
+                db["weather_temperature"] = msg_body
+            }
+
+            /^in:DATE_TIME/\
+            {
+                split_msg_parts()
+                db["datetime"] = msg_body
+            }
+
+            /^out:BAR/\
+            {
+                split_msg_parts()
                 print make_bar()
             }
 
-            function read_msg() {
-                sub("^" $1 " +", "")
-                return $0
+
+            function split_msg_parts() {
+                msg_head = $1
+                sub("^" msg_head " +", "")
+                msg_body = $0
+                debug(msg_head, msg_body)
             }
 
-            function make_bar(    position, bar, i) {
+            function make_bar(    position, bar, sep, i, j) {
+                position[++i] = make_status_mpd()
                 position[++i] = db["weather_temperature"]
                 position[++i] = db["datetime"]
                 bar = ""
@@ -62,6 +170,46 @@ consume() {
                     sep = " "
                 }
                 return bar
+            }
+
+            function make_status_mpd(    state, status) {
+                state = db["mpd_state"]
+
+                if (state == "play") {
+                    status = make_status_mpd_state_known("▶")
+                } else if (state == "pause") {
+                    status = make_status_mpd_state_known("❚❚")
+                } else if (state == "stop") {
+                    status = make_status_mpd_state_known("⬛")
+                } else {
+                    status = make_status_mpd_state_unknown("--")
+                }
+
+                return sprintf("[%s]", status)
+            }
+
+            function make_status_mpd_state_known(symbol) {
+                return sprintf(\
+                    "%s %s %s %s",
+                    symbol,
+                    db["mpd_curr_song_time"],
+                    db["mpd_curr_song_percent"],
+                    substr(db["mpd_curr_song_name"], 1, opt_mpd_song_max_chars)\
+                )
+            }
+
+            function make_status_mpd_state_unknown(symbol) {
+                return sprintf("%s", symbol)
+            }
+
+            function debug(location, msg) {
+                if (opt_debug) {
+                    print_error(location, msg)
+                }
+            }
+
+            function print_error(location, msg) {
+                print(location " ==> " msg) > "/dev/stderr"
             }
         '
 }
@@ -73,10 +221,10 @@ produce_bar_req() {
 spawn() {
     cmd="$1"
     pipe="$2"
-    tag="$3"
+    msg_head="$3"
     interval="$4"
     while true; do
-        echo "${tag}${MSG_TAG_SEP}$($cmd)" > "$pipe"
+        echo "${msg_head} $($cmd)" > "$pipe"
         sleep  "$interval"
     done &
 }
@@ -93,6 +241,8 @@ main() {
 
     spawn produce_datetime  "$pipe" 'in:DATE_TIME' 1
     spawn produce_weather   "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
+    spawn produce_mpd_state "$pipe" 'in:MPD_STATE' 1
+    spawn produce_mpd_song  "$pipe" 'in:MPD_SONG'  1
     spawn produce_bar_req   "$pipe" 'out:BAR'      1
     consume "$pipe"
 }
