@@ -2,6 +2,42 @@
 
 set -e
 
+produce_bluetooth_power() {
+    echo -e 'show \n quit' \
+    | bluetoothctl \
+    | awk '
+        /^Controller / {
+            controller = $2;
+            controllers[++ctrl_count] = controller;
+        }
+        /^\t[A-Z][A-Za-z]+:/ {
+            key = $1;
+            sub(":$", "", key);
+            val = $2;
+            for (i=3; i<=NF; i++) {
+                val = val " " $i};
+                data[controller, key] = val;
+        }
+        END {
+            # Using the 1st seen controller. Should we select specific instead?
+            power_status = data[controllers[1], "Powered"];
+            if (ctrl_count > 0) {
+                if (power_status == "no") {
+                    power_status = "off"
+                } else if (power_status == "yes") {
+                    power_status = "on"
+                } else {
+                    printf("Unexpected bluetooth power status: %s\n", power_status)\
+                        > "/dev/stderr";
+                    power_status = "ERROR"
+                }
+            } else {
+                power_status = "off"  # TODO: Perhaps use differentiated marker?
+            }
+            printf("%s", power_status);
+        }'
+}
+
 produce_screen_brightness() {
     screen_brightness_device_path="$1"
     echo "\
@@ -153,6 +189,12 @@ consume() {
         -v opt_debug=0 \
         -v opt_mpd_song_max_chars=10 \
         '
+            /^in:BLUETOOTH_POWER/\
+            {
+                split_msg_parts()
+                db["bluetooth_power"] = msg_body
+            }
+
             /^in:SCREEN_BRIGHTNESS/\
             {
                 split_msg_parts()
@@ -212,6 +254,7 @@ consume() {
             }
 
             function make_bar(    position, bar, sep, i, j) {
+                position[++i] = sprintf("B=%s", db["bluetooth_power"])
                 position[++i] = sprintf("*%d%%", db["screen_brightness"])
                 position[++i] = sprintf("(%s)", db["volume"])
                 position[++i] = make_status_mpd()
@@ -348,6 +391,7 @@ main() {
     spawn produce_mpd_state                "$pipe" 'in:MPD_STATE' 1
     spawn produce_mpd_song                 "$pipe" 'in:MPD_SONG'  1
     spawn produce_volume                   "$pipe" 'in:VOLUME'    1
+    spawn produce_bluetooth_power          "$pipe" 'in:BLUETOOTH_POWER' 5
     spawn produce_bar_req                  "$pipe" 'out:BAR'      1
           consume                          "$pipe"
 }
