@@ -93,7 +93,7 @@ produce_bluetooth_power() {
             } else {
                 power_status = "off"  # TODO: Perhaps use differentiated marker?
             }
-            printf("%s", power_status);
+            printf("%s\n", power_status);
         }'
 }
 
@@ -120,9 +120,9 @@ produce_volume() {
         /^[ \t]*front-right:/ {right = $4}
         END {
             if (mute == "yes") {
-                printf("x")
+                print("x")
             } else {
-                printf("%s %s", left, right)
+                print("%s %s\n", left, right)
             }
         }
         '
@@ -173,7 +173,7 @@ produce_mpd_state() {
             }
 
             printf(\
-                "%s %s %s",
+                "%s %s %s\n",
                 status["state:"], current_time, current_percentage\
             )
         }
