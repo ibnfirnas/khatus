@@ -1,5 +1,7 @@
 #! /bin/bash
 
+set -e
+
 produce_volume() {
     pactl list sinks \
     | awk '
@@ -111,7 +113,8 @@ produce_mpd_song() {
 }
 
 produce_weather() {
-    metar -d "$WEATHER_STATION_ID" 2>&1 \
+    weather_station_id="$1"
+    metar -d "$weather_station_id" 2>&1 \
     | awk '
         /METAR pattern not found in NOAA data/ {
             failures++
@@ -260,22 +263,57 @@ spawn() {
 }
 
 main() {
-    dir_bin="$1"
-    dir_data="$2"
-    pipe="$dir_data/pipe"
+    # Defaults
+    dir_data="$HOME/.khatus"
+    weather_station_id='KJFK'
 
-    WEATHER_STATION_ID='KJFK'
+    # User-overrides
+    OPTS=$(
+        getopt \
+            -o '' \
+            -l data-dir:,weather-station: \
+            -- "$@"
+    )
+    eval set -- "$OPTS"
+    while true
+    do
+        case "$1" in
+            --data-dir)
+                dir_data="$2"
+                shift 2
+                ;;
+            --weather-station)
+                weather_station_id="$2"
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+        esac
+    done
 
+    ( echo "Khatus starting with the following parameters:"
+      ( echo "    dir_data|= $dir_data"
+        echo "    weather_station_id|= $weather_station_id"
+      ) | column -ts\|
+      echo ''
+    ) >&2
+
+    pipe="$dir_data/khatus_data_pipe"
+
+    mkdir -p "$dir_data"
     rm -f "$pipe"
     mkfifo "$pipe"
 
-    spawn produce_datetime  "$pipe" 'in:DATE_TIME' 1
-    spawn produce_weather   "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
-    spawn produce_mpd_state "$pipe" 'in:MPD_STATE' 1
-    spawn produce_mpd_song  "$pipe" 'in:MPD_SONG'  1
-    spawn produce_volume    "$pipe" 'in:VOLUME'    1
-    spawn produce_bar_req   "$pipe" 'out:BAR'      1
-    consume "$pipe"
+    # TODO: Redirect each worker's stderr to a dedicated log file
+    spawn produce_datetime                      "$pipe" 'in:DATE_TIME' 1
+    spawn "produce_weather $weather_station_id" "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
+    spawn produce_mpd_state                     "$pipe" 'in:MPD_STATE' 1
+    spawn produce_mpd_song                      "$pipe" 'in:MPD_SONG'  1
+    spawn produce_volume                        "$pipe" 'in:VOLUME'    1
+    spawn produce_bar_req                       "$pipe" 'out:BAR'      1
+          consume                               "$pipe"
 }
 
 main $@
