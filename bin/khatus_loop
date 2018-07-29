@@ -2,6 +2,14 @@
 
 set -e
 
+produce_screen_brightness() {
+    screen_brightness_device_path="$1"
+    echo "\
+        $(cat $screen_brightness_device_path/max_brightness) \
+        $(cat $screen_brightness_device_path/brightness)\
+    "
+}
+
 produce_volume() {
     pactl list sinks \
     | awk '
@@ -145,6 +153,12 @@ consume() {
         -v opt_debug=0 \
         -v opt_mpd_song_max_chars=10 \
         '
+            /^in:SCREEN_BRIGHTNESS/\
+            {
+                split_msg_parts()
+                set_screen_brightness()
+            }
+
             /^in:VOLUME/\
             {
                 split_msg_parts()
@@ -184,6 +198,12 @@ consume() {
             }
 
 
+            function set_screen_brightness(    max, cur) {
+                max = $1
+                cur = $2
+                db["screen_brightness"] = (cur / max) * 100
+            }
+
             function split_msg_parts() {
                 msg_head = $1
                 sub("^" msg_head " +", "")
@@ -192,6 +212,7 @@ consume() {
             }
 
             function make_bar(    position, bar, sep, i, j) {
+                position[++i] = sprintf("*%d%%", db["screen_brightness"])
                 position[++i] = sprintf("(%s)", db["volume"])
                 position[++i] = make_status_mpd()
                 position[++i] = db["weather_temperature"]
@@ -266,12 +287,13 @@ main() {
     # Defaults
     dir_data="$HOME/.khatus"
     weather_station_id='KJFK'
+    screen_brightness_device_name='acpi_video0'
 
     # User-overrides
     OPTS=$(
         getopt \
             -o '' \
-            -l data-dir:,weather-station: \
+            -l data-dir:,weather-station:screen-device: \
             -- "$@"
     )
     eval set -- "$OPTS"
@@ -286,6 +308,10 @@ main() {
                 weather_station_id="$2"
                 shift 2
                 ;;
+            --screen-device)
+                screen_brightness_device_name="$2"
+                shift 2
+                ;;
             --)
                 shift
                 break
@@ -294,10 +320,14 @@ main() {
     done
 
     pipe="$dir_data/khatus_data_pipe"
+    screen_brightness_device_path='/sys/class/backlight'
+    screen_brightness_device_path+="/$screen_brightness_device_name"
 
     ( echo "Khatus starting with the following parameters:"
       ( echo "    dir_data|= $dir_data"
         echo "    pipe|= $pipe"
+        echo "    screen_brightness_device_name|=$screen_brightness_device_name"
+        echo "    screen_brightness_device_path|=$screen_brightness_device_path"
         echo "    weather_station_id|= $weather_station_id"
       ) | column -ts\|
       echo ''
@@ -307,10 +337,13 @@ main() {
     rm -f "$pipe"
     mkfifo "$pipe"
 
+    cmd_produce_screen_brightness='produce_screen_brightness'
+    cmd_produce_screen_brightness+=" $screen_brightness_device_path"
     cmd_produce_weather="produce_weather $weather_station_id"
 
     # TODO: Redirect each worker's stderr to a dedicated log file
     spawn produce_datetime                 "$pipe" 'in:DATE_TIME' 1
+    spawn "$cmd_produce_screen_brightness" "$pipe" 'in:SCREEN_BRIGHTNESS' 1
     spawn "$cmd_produce_weather"           "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
     spawn produce_mpd_state                "$pipe" 'in:MPD_STATE' 1
     spawn produce_mpd_song                 "$pipe" 'in:MPD_SONG'  1
