@@ -34,24 +34,22 @@ read_and_react() {
         '
             /^in:WEATHER:/\
             {
-                chop_off_msg_tag()
-                db["weather_temperature"] = $0
+                db["weather_temperature"] = read_msg()
             }
 
             /^in:DATE_TIME:/\
             {
-                chop_off_msg_tag()
-                db["datetime"] = $0
+                db["datetime"] = read_msg()
             }
 
             /^out:BAR:/\
             {
-                chop_off_msg_tag()
                 print make_bar()
             }
 
-            function chop_off_msg_tag() {
+            function read_msg() {
                 sub("^" $1 " +", "")
+                return $0
             }
 
             function make_bar(    position, bar, i) {
