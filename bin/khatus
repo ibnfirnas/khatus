@@ -665,9 +665,9 @@ main() {
     # User-overrides
     long_options=''
     long_options+='debug'
-    long_options+=',data-dir:'
-    long_options+=',weather-station:'
-    long_options+=',screen-device:'
+    long_options+=',data_dir:'
+    long_options+=',weather_station:'
+    long_options+=',screen_device:'
     long_options+=',prefixes_of_net_interfaces_to_show:'
     long_options+=',disk_space_device:'
     long_options+=',thermal_zone:'
@@ -686,15 +686,15 @@ main() {
                 debug=1
                 shift
                 ;;
-            --data-dir)
+            --data_dir)
                 dir_data="$2"
                 shift 2
                 ;;
-            --weather-station)
+            --weather_station)
                 weather_station_id="$2"
                 shift 2
                 ;;
-            --screen-device)
+            --screen_device)
                 screen_brightness_device_name="$2"
                 shift 2
                 ;;
