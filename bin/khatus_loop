@@ -2,6 +2,10 @@
 
 set -e
 
+produce_memory() {
+    free | awk '$1 == "Mem:" {print $2, $3}'
+}
+
 produce_fan() {
     fan_path="$1"
     cat "$fan_path"
@@ -279,6 +283,13 @@ consume() {
         -v opt_mpd_song_max_chars=10 \
         -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show" \
         '
+            /^in:MEMORY/\
+            {
+                split_msg_parts()
+                db["memory_total"] = $1
+                db["memory_used"]  = $2
+            }
+
             /^in:FAN +status:/\
             {
                 split_msg_parts()
@@ -447,6 +458,7 @@ consume() {
             }
 
             function make_bar(    position, bar, sep, i, j) {
+                position[++i] = make_status_mem()
                 position[++i] = make_status_cpu()
                 position[++i] = make_status_disk()
                 position[++i] = make_status_net()
@@ -463,6 +475,19 @@ consume() {
                     sep = " "
                 }
                 return bar
+            }
+
+            function make_status_mem(    total, used, percent, status) {
+                total = db["memory_total"]
+                used  = db["memory_used"]
+                # To avoid division by zero
+                if (total && used) {
+                    percent = round((used / total) * 100)
+                    status = sprintf("%d%%", percent)
+                } else {
+                    status = "__"
+                }
+                return sprintf("M=%s", status)
             }
 
             function make_status_cpu(    load, temp, fan) {
@@ -558,6 +583,10 @@ consume() {
 
             function make_status_mpd_state_unknown(symbol) {
                 return sprintf("%s", symbol)
+            }
+
+            function round(n) {
+                return int(n + 0.5)
             }
 
             function debug(location, msg) {
@@ -716,6 +745,7 @@ main() {
     spawn produce_loadavg                  "$pipe" 'in:LOAD_AVG' 1
     spawn "$cmd_produce_temperature"       "$pipe" 'in:TEMPERATURE' 1
     spawn "$cmd_produce_fan"               "$pipe" 'in:FAN' 1
+    spawn produce_memory                   "$pipe" 'in:MEMORY' 1
     spawn produce_bar_req                  "$pipe" 'out:BAR'      1
 
     consume \
