@@ -2,6 +2,17 @@
 
 set -e
 
+produce_disk_io() {
+    disk_io_device="$1"
+    awk '
+        {
+            r = $3
+            w = $7
+            print w, r
+        }
+        ' "/sys/block/$disk_io_device/stat"
+}
+
 produce_disk_space() {
     disk_space_device="$1"
     df --output=pcent "$disk_space_device" | awk 'NR == 2 {print $1}'
@@ -254,6 +265,12 @@ consume() {
         -v opt_mpd_song_max_chars=10 \
         -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show" \
         '
+            /^in:DISK_IO/\
+            {
+                split_msg_parts()
+                set_disk_io()
+            }
+
             /^in:DISK_SPACE/\
             {
                 split_msg_parts()
@@ -323,6 +340,17 @@ consume() {
             }
 
 
+            function set_disk_io(    curr_w, curr_r, prev_w, prev_r) {
+                curr_w = $1
+                curr_r = $2
+                prev_w = db["disk_io_curr_w"]
+                prev_r = db["disk_io_curr_r"]
+                db["disk_io_curr_w"] = curr_w
+                db["disk_io_curr_r"] = curr_r
+                db["disk_io_diff_w"] = curr_w - prev_w
+                db["disk_io_diff_r"] = curr_r - prev_r
+            }
+
             function set_net_addr_io(    \
                 interface, address, io_curr_w, io_curr_r, io_prev_w, io_prev_r\
             ) {
@@ -366,7 +394,7 @@ consume() {
             }
 
             function make_bar(    position, bar, sep, i, j) {
-                position[++i] = sprintf("D=[%s]", db["disk_space_used"])
+                position[++i] = make_status_disk()
                 position[++i] = make_status_net()
                 position[++i] = sprintf("B=%s", db["bluetooth_power"])
                 position[++i] = sprintf("*%d%%", db["screen_brightness"])
@@ -381,6 +409,15 @@ consume() {
                     sep = " "
                 }
                 return bar
+            }
+
+            function make_status_disk(    bytes_per_sector, bytes_per_mb, w, r) {
+                bytes_per_sector = 512
+                bytes_per_mb     = 1024 * 1024
+                w = (db["disk_io_diff_w"] * bytes_per_sector) / bytes_per_mb
+                r = (db["disk_io_diff_r"] * bytes_per_sector) / bytes_per_mb
+                return \
+                    sprintf("D=[%s %0.3f▲ %0.3f▼]", db["disk_space_used"], w, r)
             }
 
             function make_status_net(    \
@@ -499,6 +536,7 @@ main() {
     screen_brightness_device_name='acpi_video0'
     prefixes_of_net_interfaces_to_show='w'  # comma-separated
     disk_space_device='/'
+    disk_io_device='sda'
 
     # User-overrides
     long_options=''
@@ -542,6 +580,10 @@ main() {
                 disk_space_device="$2"
                 shift 2
                 ;;
+            --disk_io_device)
+                disk_io_device="$2"
+                shift 2
+                ;;
             --)
                 shift
                 break
@@ -562,6 +604,7 @@ main() {
         echo "    weather_station_id|= $weather_station_id"
         echo "    prefixes_of_net_interfaces_to_show|= $prefixes_of_net_interfaces_to_show"
         echo "    disk_space_device|= $disk_space_device"
+        echo "    disk_io_device|= $disk_io_device"
       ) | column -ts\|
       echo ''
     ) >&2
@@ -577,6 +620,8 @@ main() {
 
     cmd_produce_disk_space="produce_disk_space $disk_space_device"
 
+    cmd_produce_disk_io="produce_disk_io $disk_io_device"
+
     # TODO: Redirect each worker's stderr to a dedicated log file
     spawn produce_datetime                 "$pipe" 'in:DATE_TIME' 1
     spawn "$cmd_produce_screen_brightness" "$pipe" 'in:SCREEN_BRIGHTNESS' 1
@@ -588,6 +633,7 @@ main() {
     spawn produce_net_wifi_status          "$pipe" 'in:NET_WIFI_STATUS' 5
     spawn produce_net_addr_io              "$pipe" 'in:NET_ADDR_IO' 1
     spawn "$cmd_produce_disk_space"        "$pipe" 'in:DISK_SPACE' 1
+    spawn "$cmd_produce_disk_io"           "$pipe" 'in:DISK_IO' 1
     spawn produce_bar_req                  "$pipe" 'out:BAR'      1
 
     consume \
