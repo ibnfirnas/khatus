@@ -512,7 +512,7 @@ consume() {
             function make_status_mem(    total, used, percent, status) {
                 total = db["memory_total"]
                 used  = db["memory_used"]
-                # To avoid division by zero
+                # To avoid division by zero when data is missing
                 if (total && used) {
                     percent = round((used / total) * 100)
                     status = sprintf("%d%%", percent)
