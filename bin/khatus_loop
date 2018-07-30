@@ -2,6 +2,10 @@
 
 set -e
 
+produce_loadavg() {
+    cat /proc/loadavg
+}
+
 produce_disk_io() {
     disk_io_device="$1"
     awk '
@@ -265,6 +269,12 @@ consume() {
         -v opt_mpd_song_max_chars=10 \
         -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show" \
         '
+            /^in:LOAD_AVG/\
+            {
+                split_msg_parts()
+                set_load_avg()
+            }
+
             /^in:DISK_IO/\
             {
                 split_msg_parts()
@@ -339,6 +349,15 @@ consume() {
                 print make_bar()
             }
 
+            function set_load_avg(    sched) {
+                split($4, sched, "/")
+                db["load_avg_1min"]             = $1
+                db["load_avg_5min"]             = $2
+                db["load_avg_15min"]            = $3
+                db["kern_sched_queue_runnable"] = sched[1]
+                db["kern_sched_queue_total"]    = sched[2]
+                db["kern_sched_latest_pid"]     = $5
+            }
 
             function set_disk_io(    curr_w, curr_r, prev_w, prev_r) {
                 curr_w = $1
@@ -394,6 +413,7 @@ consume() {
             }
 
             function make_bar(    position, bar, sep, i, j) {
+                position[++i] = make_status_cpu()
                 position[++i] = make_status_disk()
                 position[++i] = make_status_net()
                 position[++i] = sprintf("B=%s", db["bluetooth_power"])
@@ -409,6 +429,11 @@ consume() {
                     sep = " "
                 }
                 return bar
+            }
+
+            function make_status_cpu(    load) {
+                load = db["load_avg_1min"]
+                return sprintf("C=[%4.2f]", load)
             }
 
             function make_status_disk(    bytes_per_sector, bytes_per_mb, w, r) {
@@ -634,6 +659,7 @@ main() {
     spawn produce_net_addr_io              "$pipe" 'in:NET_ADDR_IO' 1
     spawn "$cmd_produce_disk_space"        "$pipe" 'in:DISK_SPACE' 1
     spawn "$cmd_produce_disk_io"           "$pipe" 'in:DISK_IO' 1
+    spawn produce_loadavg                  "$pipe" 'in:LOAD_AVG' 1
     spawn produce_bar_req                  "$pipe" 'out:BAR'      1
 
     consume \
