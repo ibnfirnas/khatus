@@ -670,6 +670,7 @@ main() {
     long_options+=',screen_device:'
     long_options+=',prefixes_of_net_interfaces_to_show:'
     long_options+=',disk_space_device:'
+    long_options+=',disk_io_device:'
     long_options+=',thermal_zone:'
     long_options+=',fan_path:'
     OPTS=$(
