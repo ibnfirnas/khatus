@@ -9,9 +9,7 @@ produce_disk_space() {
 
 produce_net_addr_io() {
     ip -s addr \
-    | awk \
-        -v prefixes_of_interfaces_to_show="$PREFIXES_OF_INTERFACES_TO_SHOW" \
-        '
+    | awk '
         BEGIN {
             bytes_per_unit = 1024 * 1024
         }
