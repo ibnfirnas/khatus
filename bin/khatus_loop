@@ -2,6 +2,11 @@
 
 set -e
 
+produce_temperature() {
+    thermal_zone="$1"
+    cat "/sys/class/thermal/thermal_zone${thermal_zone}/temp"
+}
+
 produce_loadavg() {
     cat /proc/loadavg
 }
@@ -269,6 +274,12 @@ consume() {
         -v opt_mpd_song_max_chars=10 \
         -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show" \
         '
+            /^in:TEMPERATURE/\
+            {
+                split_msg_parts()
+                db["temperature"] = $1
+            }
+
             /^in:LOAD_AVG/\
             {
                 split_msg_parts()
@@ -431,9 +442,10 @@ consume() {
                 return bar
             }
 
-            function make_status_cpu(    load) {
+            function make_status_cpu(    load, temp) {
                 load = db["load_avg_1min"]
-                return sprintf("C=[%4.2f]", load)
+                temp = db["temperature"] / 1000
+                return sprintf("C=[%4.2f %d°C]", load, temp)
             }
 
             function make_status_disk(    bytes_per_sector, bytes_per_mb, w, r) {
@@ -562,6 +574,7 @@ main() {
     prefixes_of_net_interfaces_to_show='w'  # comma-separated
     disk_space_device='/'
     disk_io_device='sda'
+    thermal_zone=0
 
     # User-overrides
     long_options=''
@@ -571,6 +584,7 @@ main() {
     long_options+=',screen-device:'
     long_options+=',prefixes_of_net_interfaces_to_show:'
     long_options+=',disk_space_device:'
+    long_options+=',thermal_zone:'
     OPTS=$(
         getopt \
             -o 'd' \
@@ -609,6 +623,10 @@ main() {
                 disk_io_device="$2"
                 shift 2
                 ;;
+            --thermal_zone)
+                thermal_zone="$2"
+                shift 2
+                ;;
             --)
                 shift
                 break
@@ -630,6 +648,7 @@ main() {
         echo "    prefixes_of_net_interfaces_to_show|= $prefixes_of_net_interfaces_to_show"
         echo "    disk_space_device|= $disk_space_device"
         echo "    disk_io_device|= $disk_io_device"
+        echo "    thermal_zone|= $thermal_zone"
       ) | column -ts\|
       echo ''
     ) >&2
@@ -647,6 +666,8 @@ main() {
 
     cmd_produce_disk_io="produce_disk_io $disk_io_device"
 
+    cmd_produce_temperature="produce_temperature $thermal_zone"
+
     # TODO: Redirect each worker's stderr to a dedicated log file
     spawn produce_datetime                 "$pipe" 'in:DATE_TIME' 1
     spawn "$cmd_produce_screen_brightness" "$pipe" 'in:SCREEN_BRIGHTNESS' 1
@@ -660,6 +681,7 @@ main() {
     spawn "$cmd_produce_disk_space"        "$pipe" 'in:DISK_SPACE' 1
     spawn "$cmd_produce_disk_io"           "$pipe" 'in:DISK_IO' 1
     spawn produce_loadavg                  "$pipe" 'in:LOAD_AVG' 1
+    spawn "$cmd_produce_temperature"       "$pipe" 'in:TEMPERATURE' 1
     spawn produce_bar_req                  "$pipe" 'out:BAR'      1
 
     consume \
