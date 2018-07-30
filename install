@@ -11,5 +11,5 @@ cd bin
 
 for filename in *
 do
-    ln -s "`pwd`/$filename" "$PREFIX/$filename"
+    cp -p "`pwd`/$filename" "$PREFIX/$filename"
 done

@@ -1,0 +1,791 @@
+#! /bin/bash
+
+set -e
+
+produce_energy() {
+    upower -e \
+    | grep battery \
+    | xargs upower -i \
+    | awk '
+        /^ +percentage: +/ { percentage=$2 }
+        /^ +state: +/      { state=$2 }
+        END                { print(state, percentage) }
+        '
+}
+
+
+produce_memory() {
+    free | awk '$1 == "Mem:" {print $2, $3}'
+}
+
+produce_fan() {
+    fan_path="$1"
+    cat "$fan_path"
+}
+
+produce_temperature() {
+    thermal_zone="$1"
+    cat "/sys/class/thermal/thermal_zone${thermal_zone}/temp"
+}
+
+produce_loadavg() {
+    cat /proc/loadavg
+}
+
+produce_disk_io() {
+    disk_io_device="$1"
+    awk '
+        {
+            r = $3
+            w = $7
+            print w, r
+        }
+        ' "/sys/block/$disk_io_device/stat"
+}
+
+produce_disk_space() {
+    disk_space_device="$1"
+    df --output=pcent "$disk_space_device" | awk 'NR == 2 {print $1}'
+}
+
+produce_net_addr_io() {
+    ip -s addr \
+    | awk '
+        BEGIN {
+            bytes_per_unit = 1024 * 1024
+        }
+
+        /^[0-9]+:/ {
+            sub(":$", "", $1)
+            sub(":$", "", $2)
+            sequence = $1
+            interface = $2
+            interfaces[sequence] = interface
+        }
+
+        /^ +inet [0-9]/ {
+            sub("/[0-9]+", "", $2)
+            addr = $2
+            addrs[interface] = addr
+        }
+
+        /^ +RX: / {transfer_direction = "r"}
+        /^ +TX: / {transfer_direction = "w"}
+
+        /^ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ *$/ {
+            io[interface, transfer_direction] = $1;
+        }
+
+        END {
+            for (seq=1; seq<=sequence; seq++) {
+                interface = interfaces[seq]
+                label = substr(interface, 1, 1)
+                if (addrs[interface]) {
+                    curr_read  = io[interface, "r"]
+                    curr_write = io[interface, "w"]
+                    print(interface, addrs[interface], curr_write, curr_read)
+                } else {
+                    print(interface)
+                }
+            }
+        }'
+}
+
+produce_net_wifi_status() {
+    nmcli \
+        -f ACTIVE,SSID,SIGNAL \
+        -t \
+        d wifi \
+    | awk \
+        -F ':' \
+        '
+        BEGIN       {wifi_status = "--"}
+        $1 == "yes" {wifi_status =  $2 ":" $3 "%"}
+        END         {print wifi_status}
+        '
+}
+
+produce_bluetooth_power() {
+    echo -e 'show \n quit' \
+    | bluetoothctl \
+    | awk '
+        /^Controller / {
+            controller = $2;
+            controllers[++ctrl_count] = controller;
+        }
+        /^\t[A-Z][A-Za-z]+:/ {
+            key = $1;
+            sub(":$", "", key);
+            val = $2;
+            for (i=3; i<=NF; i++) {
+                val = val " " $i};
+                data[controller, key] = val;
+        }
+        END {
+            # Using the 1st seen controller. Should we select specific instead?
+            power_status = data[controllers[1], "Powered"];
+            if (ctrl_count > 0) {
+                if (power_status == "no") {
+                    power_status = "off"
+                } else if (power_status == "yes") {
+                    power_status = "on"
+                } else {
+                    printf("Unexpected bluetooth power status: %s\n", power_status)\
+                        > "/dev/stderr";
+                    power_status = "ERROR"
+                }
+            } else {
+                power_status = "off"  # TODO: Perhaps use differentiated marker?
+            }
+            printf("%s\n", power_status);
+        }'
+}
+
+produce_screen_brightness() {
+    screen_brightness_device_path="$1"
+    echo "\
+        $(cat $screen_brightness_device_path/max_brightness) \
+        $(cat $screen_brightness_device_path/brightness)\
+    "
+}
+
+produce_volume() {
+    pactl list sinks \
+    | awk '
+        /^\tMute:/ {
+            printf("%s,", $0);
+        }
+        /^\tVolume:/ {
+            for (i=2; i<=NF; i++) printf(" %s", $i);
+        }' \
+    | awk -v RS=',' '
+        /^[ \t]*Mute:/        {mute  = $2}
+        /^[ \t]*front-left:/  {left  = $4}
+        /^[ \t]*front-right:/ {right = $4}
+        END {
+            if (mute == "yes") {
+                print("x")
+            } else {
+                print("%s %s\n", left, right)
+            }
+        }
+        '
+}
+
+produce_mpd_state() {
+    echo 'status' \
+    | nc 127.0.0.1 6600 \
+    | awk '
+        {
+            status[$1] = $2
+        }
+
+        /^time: +[0-9]+:[0-9]+$/ {
+            split($2, time, ":")
+            seconds_current = time[1]
+            seconds_total   = time[2]
+
+            hours = int(seconds_current / 60 / 60);
+            secs_beyond_hours = seconds_current - (hours * 60 * 60);
+            mins = int(secs_beyond_hours / 60);
+            secs = secs_beyond_hours - (mins * 60);
+            if (hours > 0) {
+                current_time = sprintf("%d:%.2d:%.2d", hours, mins, secs)
+            } else {
+                current_time = sprintf("%.2d:%.2d", mins, secs)
+            }
+
+            if (seconds_total > 0) {
+                time_percentage = (seconds_current / seconds_total) * 100
+                current_percentage = sprintf("%d%%", time_percentage)
+            } else {
+                current_percentage = "~"
+            }
+        }
+
+        END {
+            state = status["state:"]
+
+            if (state == "play") {
+                symbol = "▶"
+            } else if (state == "pause") {
+                symbol = "❚❚"
+            } else if (state == "stop") {
+                symbol = "⬛"
+            } else {
+                symbol = "--"
+            }
+
+            printf(\
+                "%s %s %s\n",
+                status["state:"], current_time, current_percentage\
+            )
+        }
+        '
+}
+
+produce_mpd_song() {
+    echo 'currentsong' \
+    | nc 127.0.0.1 6600 \
+    | awk '
+        /^OK/ {
+            next
+        }
+
+        {
+            key = $1
+            sub("^" key " +", "")
+            val = $0
+            data[key] = val
+        }
+
+        END {
+            name  = data["Name:"]
+            title = data["Title:"]
+            file  = data["file:"]
+
+            if (name) {
+                out = name
+            } else if (title) {
+                out = title
+            } else if (file) {
+                last = split(file, parts, "/")
+                out = parts[last]
+            } else {
+                out = ""
+            }
+            print out
+        }
+        '
+}
+
+produce_weather() {
+    weather_station_id="$1"
+    metar -d "$weather_station_id" 2>&1 \
+    | awk '
+        /METAR pattern not found in NOAA data/ {
+            failures++
+        }
+
+        /^Temperature/ {
+            celsius = $3;
+            fahrenheit = (celsius * (9 / 5)) + 32;
+            temperature = fahrenheit
+        }
+
+        END {
+            if (failures > 0) {
+                temperature = "--"
+            }
+            print temperature "°F"
+        }'
+}
+
+produce_datetime() {
+    date +'%a %b %d %H:%M:%S'
+}
+
+consume() {
+    pipe="$1"
+    debug="$2"
+    prefixes_of_net_interfaces_to_show="$3"
+    tail -f "$pipe" \
+    | stdbuf -o L awk \
+        -v opt_debug="$debug" \
+        -v opt_mpd_song_max_chars=10 \
+        -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show" \
+        '
+            /^in:ENERGY/\
+            {
+                split_msg_parts()
+                db["energy_state"]      = $1
+                db["energy_percentage"] = $2
+            }
+
+            /^in:MEMORY/\
+            {
+                split_msg_parts()
+                db["memory_total"] = $1
+                db["memory_used"]  = $2
+            }
+
+            /^in:FAN +status:/\
+            {
+                split_msg_parts()
+                db["fan_status"] = $2
+            }
+
+            /^in:FAN +speed:/\
+            {
+                split_msg_parts()
+                db["fan_speed"] = $2
+            }
+
+            /^in:FAN +level:/\
+            {
+                split_msg_parts()
+                db["fan_level"] = $2
+            }
+
+            /^in:TEMPERATURE/\
+            {
+                split_msg_parts()
+                db["temperature"] = $1
+            }
+
+            /^in:LOAD_AVG/\
+            {
+                split_msg_parts()
+                set_load_avg()
+            }
+
+            /^in:DISK_IO/\
+            {
+                split_msg_parts()
+                set_disk_io()
+            }
+
+            /^in:DISK_SPACE/\
+            {
+                split_msg_parts()
+                db["disk_space_used"] = msg_body
+            }
+
+            /^in:NET_ADDR_IO/\
+            {
+                split_msg_parts()
+                set_net_addr_io()
+            }
+
+            /^in:NET_WIFI_STATUS/\
+            {
+                split_msg_parts()
+                db["net_wifi_status"] = msg_body
+            }
+
+            /^in:BLUETOOTH_POWER/\
+            {
+                split_msg_parts()
+                db["bluetooth_power"] = msg_body
+            }
+
+            /^in:SCREEN_BRIGHTNESS/\
+            {
+                split_msg_parts()
+                set_screen_brightness()
+            }
+
+            /^in:VOLUME/\
+            {
+                split_msg_parts()
+                db["volume"] = msg_body
+            }
+
+            /^in:MPD_STATE/\
+            {
+                split_msg_parts()
+                db["mpd_state"]             = $1
+                db["mpd_curr_song_time"]    = $2
+                db["mpd_curr_song_percent"] = $3
+            }
+
+            /^in:MPD_SONG/\
+            {
+                split_msg_parts()
+                db["mpd_curr_song_name"] = msg_body
+            }
+
+            /^in:WEATHER/\
+            {
+                split_msg_parts()
+                db["weather_temperature"] = msg_body
+            }
+
+            /^in:DATE_TIME/\
+            {
+                split_msg_parts()
+                db["datetime"] = msg_body
+            }
+
+            /^out:BAR/\
+            {
+                split_msg_parts()
+                print make_bar()
+            }
+
+            function set_load_avg(    sched) {
+                split($4, sched, "/")
+                db["load_avg_1min"]             = $1
+                db["load_avg_5min"]             = $2
+                db["load_avg_15min"]            = $3
+                db["kern_sched_queue_runnable"] = sched[1]
+                db["kern_sched_queue_total"]    = sched[2]
+                db["kern_sched_latest_pid"]     = $5
+            }
+
+            function set_disk_io(    curr_w, curr_r, prev_w, prev_r) {
+                curr_w = $1
+                curr_r = $2
+                prev_w = db["disk_io_curr_w"]
+                prev_r = db["disk_io_curr_r"]
+                db["disk_io_curr_w"] = curr_w
+                db["disk_io_curr_r"] = curr_r
+                db["disk_io_diff_w"] = curr_w - prev_w
+                db["disk_io_diff_r"] = curr_r - prev_r
+            }
+
+            function set_net_addr_io(    \
+                interface, address, io_curr_w, io_curr_r, io_prev_w, io_prev_r\
+            ) {
+                interface = $1
+                address   = $2
+                io_curr_w = $3
+                io_curr_r = $4
+                if (interface) {
+                    if (address && io_curr_w && io_curr_r) {
+                        # recalculate
+                        io_prev_w = net_io_curr_w[interface]
+                        io_prev_r = net_io_curr_r[interface]
+
+                        net_addr[interface]      = address
+                        net_io_curr_w[interface] = io_curr_w
+                        net_io_curr_r[interface] = io_curr_r
+                        net_io_diff_w[interface] = io_curr_w - io_prev_w
+                        net_io_diff_r[interface] = io_curr_r - io_prev_r
+                    } else {
+                        # clear
+                        net_addr[interface]      = ""
+                        net_io_curr_w[interface] = 0
+                        net_io_curr_r[interface] = 0
+                        net_io_diff_w[interface] = 0
+                        net_io_diff_r[interface] = 0
+                    }
+                }
+            }
+
+            function set_screen_brightness(    max, cur) {
+                max = $1
+                cur = $2
+                db["screen_brightness"] = (cur / max) * 100
+            }
+
+            function split_msg_parts() {
+                msg_head = $1
+                sub("^" msg_head " +", "")
+                msg_body = $0
+                debug(msg_head, msg_body)
+            }
+
+            function make_bar(    position, bar, sep, i, j) {
+                position[++i] = make_status_energy()
+                position[++i] = make_status_mem()
+                position[++i] = make_status_cpu()
+                position[++i] = make_status_disk()
+                position[++i] = make_status_net()
+                position[++i] = sprintf("B=%s", db["bluetooth_power"])
+                position[++i] = sprintf("*%d%%", db["screen_brightness"])
+                position[++i] = sprintf("(%s)", db["volume"])
+                position[++i] = make_status_mpd()
+                position[++i] = db["weather_temperature"]
+                position[++i] = db["datetime"]
+                bar = ""
+                sep = ""
+                for (j = 1; j <= i; j++) {
+                    bar = bar sep position[j]
+                    sep = " "
+                }
+                return bar
+            }
+
+            function make_status_energy(    state, direction_of_change) {
+                state = db["energy_state"]
+                if (state == "discharging") {
+                    direction_of_change = "<"
+                } else if (state == "charging") {
+                    direction_of_change = ">"
+                } else {
+                    direction_of_change = "="
+                };
+                printf("E%s%s", direction_of_change, db["energy_percentage"])
+            }
+
+            function make_status_mem(    total, used, percent, status) {
+                total = db["memory_total"]
+                used  = db["memory_used"]
+                # To avoid division by zero when data is missing
+                if (total && used) {
+                    percent = round((used / total) * 100)
+                    status = sprintf("%d%%", percent)
+                } else {
+                    status = "__"
+                }
+                return sprintf("M=%s", status)
+            }
+
+            function make_status_cpu(    load, temp, fan) {
+                load = db["load_avg_1min"]
+                temp = db["temperature"] / 1000
+                fan  = db["fan_speed"]
+                return sprintf("C=[%4.2f %d°C %4drpm]", load, temp, fan)
+            }
+
+            function make_status_disk(    bytes_per_sector, bytes_per_mb, w, r) {
+                bytes_per_sector = 512
+                bytes_per_mb     = 1024 * 1024
+                w = (db["disk_io_diff_w"] * bytes_per_sector) / bytes_per_mb
+                r = (db["disk_io_diff_r"] * bytes_per_sector) / bytes_per_mb
+                return \
+                    sprintf("D=[%s %0.3f▲ %0.3f▼]", db["disk_space_used"], w, r)
+            }
+
+            function make_status_net(    \
+                out,
+                number_of_interfaces_to_show,
+                n,
+                array_of_prefixes_of_interfaces_to_show,
+                prefix,
+                interface,
+                label,
+                count_printed,
+                sep,
+                io_stat,
+                dw, dr,
+                bytes_per_unit\
+            ) {
+                out = ""
+                number_of_interfaces_to_show = \
+                    split(\
+                        opt_prefixes_of_net_interfaces_to_show,\
+                        array_of_prefixes_of_interfaces_to_show,\
+                        ","\
+                    )
+                for (n = 1; n <= number_of_interfaces_to_show; n++) {
+                    prefix = array_of_prefixes_of_interfaces_to_show[n]
+                    for (interface in net_addr) {
+                        if (interface ~ ("^" prefix)) {
+                            label = substr(interface, 1, 1)
+                            if (net_addr[interface]) {
+                                bytes_per_mb = 1024 * 1024  # TODO: option
+                                dw = net_io_diff_w[interface] / bytes_per_mb
+                                dr = net_io_diff_r[interface] / bytes_per_mb
+                                io_stat = sprintf("%0.3f▲ %0.3f▼", dw, dr)
+                            } else {
+                                io_stat = "--"
+                            }
+                            if (interface ~ "^w") {
+                                label = label ":" db["net_wifi_status"]
+                            }
+                            if (++count_printed > 1) {
+                                sep = "  "
+                            } else {
+                                sep = ""
+                            }
+                            out = out sep label ":" io_stat
+                        }
+                    }
+                }
+                return sprintf("N[%s]", out)
+            }
+
+            function make_status_mpd(    state, status) {
+                state = db["mpd_state"]
+
+                if (state == "play") {
+                    status = make_status_mpd_state_known("▶")
+                } else if (state == "pause") {
+                    status = make_status_mpd_state_known("❚❚")
+                } else if (state == "stop") {
+                    status = make_status_mpd_state_known("⬛")
+                } else {
+                    status = make_status_mpd_state_unknown("--")
+                }
+
+                return sprintf("[%s]", status)
+            }
+
+            function make_status_mpd_state_known(symbol) {
+                return sprintf(\
+                    "%s %s %s %s",
+                    symbol,
+                    db["mpd_curr_song_time"],
+                    db["mpd_curr_song_percent"],
+                    substr(db["mpd_curr_song_name"], 1, opt_mpd_song_max_chars)\
+                )
+            }
+
+            function make_status_mpd_state_unknown(symbol) {
+                return sprintf("%s", symbol)
+            }
+
+            function round(n) {
+                return int(n + 0.5)
+            }
+
+            function debug(location, msg) {
+                if (opt_debug) {
+                    print_error(location, msg)
+                }
+            }
+
+            function print_error(location, msg) {
+                print(location " ==> " msg) > "/dev/stderr"
+            }
+        '
+}
+
+produce_bar_req() {
+    echo ''
+}
+
+spawn() {
+    cmd="$1"
+    pipe="$2"
+    msg_head="$3"
+    interval="$4"
+    while true; do
+        $cmd | while read line; do
+            echo "${msg_head} $line" > "$pipe"
+        done
+        sleep "$interval"
+    done &
+}
+
+main() {
+    # Defaults
+    debug=0
+    dir_data=$(mktemp -d)
+    weather_station_id='KJFK'
+    screen_brightness_device_name='acpi_video0'
+    prefixes_of_net_interfaces_to_show='w'  # comma-separated
+    disk_space_device='/'
+    disk_io_device='sda'
+    thermal_zone=0
+    fan_path='/proc/acpi/ibm/fan'
+
+    # User-overrides
+    long_options=''
+    long_options+='debug'
+    long_options+=',data_dir:'
+    long_options+=',weather_station:'
+    long_options+=',screen_device:'
+    long_options+=',prefixes_of_net_interfaces_to_show:'
+    long_options+=',disk_space_device:'
+    long_options+=',disk_io_device:'
+    long_options+=',thermal_zone:'
+    long_options+=',fan_path:'
+    OPTS=$(
+        getopt \
+            -o 'd' \
+            -l $long_options \
+            -- "$@"
+    )
+    eval set -- "$OPTS"
+    while true
+    do
+        case "$1" in
+            -d|--debug)
+                debug=1
+                shift
+                ;;
+            --data_dir)
+                dir_data="$2"
+                shift 2
+                ;;
+            --weather_station)
+                weather_station_id="$2"
+                shift 2
+                ;;
+            --screen_device)
+                screen_brightness_device_name="$2"
+                shift 2
+                ;;
+            --prefixes_of_net_interfaces_to_show)
+                prefixes_of_net_interfaces_to_show="$2"
+                shift 2
+                ;;
+            --disk_space_device)
+                disk_space_device="$2"
+                shift 2
+                ;;
+            --disk_io_device)
+                disk_io_device="$2"
+                shift 2
+                ;;
+            --thermal_zone)
+                thermal_zone="$2"
+                shift 2
+                ;;
+            --fan_path)
+                fan_path="$2"
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+        esac
+    done
+
+    pipe="$dir_data/khatus_data_pipe"
+    screen_brightness_device_path='/sys/class/backlight'
+    screen_brightness_device_path+="/$screen_brightness_device_name"
+
+    ( echo "Khatus starting with the following parameters:"
+      ( echo "    debug|= $debug"
+        echo "    dir_data|= $dir_data"
+        echo "    pipe|= $pipe"
+        echo "    screen_brightness_device_name|= $screen_brightness_device_name"
+        echo "    screen_brightness_device_path|= $screen_brightness_device_path"
+        echo "    weather_station_id|= $weather_station_id"
+        echo "    prefixes_of_net_interfaces_to_show|= $prefixes_of_net_interfaces_to_show"
+        echo "    disk_space_device|= $disk_space_device"
+        echo "    disk_io_device|= $disk_io_device"
+        echo "    thermal_zone|= $thermal_zone"
+        echo "    fan_path|= $fan_path"
+      ) | column -ts\|
+      echo ''
+    ) >&2
+
+    mkdir -p "$dir_data"
+    rm -f "$pipe"
+    mkfifo "$pipe"
+
+    cmd_produce_screen_brightness='produce_screen_brightness'
+    cmd_produce_screen_brightness+=" $screen_brightness_device_path"
+
+    cmd_produce_weather="produce_weather $weather_station_id"
+
+    cmd_produce_disk_space="produce_disk_space $disk_space_device"
+
+    cmd_produce_disk_io="produce_disk_io $disk_io_device"
+
+    cmd_produce_temperature="produce_temperature $thermal_zone"
+
+    cmd_produce_fan="produce_fan $fan_path"
+
+    # TODO: Redirect each worker's stderr to a dedicated log file
+    spawn produce_datetime                 "$pipe" 'in:DATE_TIME' 1
+    spawn "$cmd_produce_screen_brightness" "$pipe" 'in:SCREEN_BRIGHTNESS' 1
+    spawn "$cmd_produce_weather"           "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
+    spawn produce_mpd_state                "$pipe" 'in:MPD_STATE' 1
+    spawn produce_mpd_song                 "$pipe" 'in:MPD_SONG'  1
+    spawn produce_volume                   "$pipe" 'in:VOLUME'    1
+    spawn produce_bluetooth_power          "$pipe" 'in:BLUETOOTH_POWER' 5
+    spawn produce_net_wifi_status          "$pipe" 'in:NET_WIFI_STATUS' 5
+    spawn produce_net_addr_io              "$pipe" 'in:NET_ADDR_IO' 1
+    spawn "$cmd_produce_disk_space"        "$pipe" 'in:DISK_SPACE' 1
+    spawn "$cmd_produce_disk_io"           "$pipe" 'in:DISK_IO' 1
+    spawn produce_loadavg                  "$pipe" 'in:LOAD_AVG' 1
+    spawn "$cmd_produce_temperature"       "$pipe" 'in:TEMPERATURE' 1
+    spawn "$cmd_produce_fan"               "$pipe" 'in:FAN' 1
+    spawn produce_memory                   "$pipe" 'in:MEMORY' 1
+    spawn produce_energy                   "$pipe" 'in:ENERGY' 1
+    spawn produce_bar_req                  "$pipe" 'out:BAR'      1
+
+    consume \
+      "$pipe" \
+      "$debug" \
+      "$prefixes_of_net_interfaces_to_show"
+}
+
+main $@
