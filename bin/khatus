@@ -662,6 +662,24 @@ main() {
     thermal_zone=0
     fan_path='/proc/acpi/ibm/fan'
 
+    interval_in_datetime=1
+    interval_in_brightness=1
+    interval_in_weather=$(( 30 * 60))  # 30 minutes
+    interval_in_mpd_state=1
+    interval_in_mpd_song=1
+    interval_in_volume=1
+    interval_in_bluetooth=5
+    interval_in_net_wifi=5
+    interval_in_net_io=1
+    interval_in_disk_space=5
+    interval_in_disk_io=1
+    interval_in_loadavg=1
+    interval_in_temp=1
+    interval_in_fan=1
+    interval_in_mem=1
+    interval_in_energy=1
+    interval_out_bar=1
+
     # User-overrides
     long_options=''
     long_options+='debug'
@@ -673,6 +691,23 @@ main() {
     long_options+=',disk_io_device:'
     long_options+=',thermal_zone:'
     long_options+=',fan_path:'
+    long_options+=',interval_in_datetime:'
+    long_options+=',interval_in_brightness:'
+    long_options+=',interval_in_weather:'
+    long_options+=',interval_in_mpd_state:'
+    long_options+=',interval_in_mpd_song:'
+    long_options+=',interval_in_volume:'
+    long_options+=',interval_in_bluetooth:'
+    long_options+=',interval_in_net_wifi:'
+    long_options+=',interval_in_net_io:'
+    long_options+=',interval_in_disk_space:'
+    long_options+=',interval_in_disk_io:'
+    long_options+=',interval_in_loadavg:'
+    long_options+=',interval_in_temp:'
+    long_options+=',interval_in_fan:'
+    long_options+=',interval_in_mem:'
+    long_options+=',interval_in_energy:'
+    long_options+=',interval_out_bar:'
     OPTS=$(
         getopt \
             -o 'd' \
@@ -717,6 +752,74 @@ main() {
                 ;;
             --fan_path)
                 fan_path="$2"
+                shift 2
+                ;;
+            --interval_in_datetime)
+                interval_in_datetime="$2"
+                shift 2
+                ;;
+            --interval_in_brightness)
+                interval_in_brightness="$2"
+                shift 2
+                ;;
+            --interval_in_weather)
+                interval_in_weather="$2"
+                shift 2
+                ;;
+            --interval_in_mpd_state)
+                interval_in_mpd_state="$2"
+                shift 2
+                ;;
+            --interval_in_mpd_song)
+                interval_in_mpd_song="$2"
+                shift 2
+                ;;
+            --interval_in_volume)
+                interval_in_volume="$2"
+                shift 2
+                ;;
+            --interval_in_bluetooth)
+                interval_in_bluetooth="$2"
+                shift 2
+                ;;
+            --interval_in_net_wifi)
+                interval_in_net_wifi="$2"
+                shift 2
+                ;;
+            --interval_in_net_io)
+                interval_in_net_io="$2"
+                shift 2
+                ;;
+            --interval_in_disk_space)
+                interval_in_disk_space="$2"
+                shift 2
+                ;;
+            --interval_in_disk_io)
+                interval_in_disk_io="$2"
+                shift 2
+                ;;
+            --interval_in_loadavg)
+                interval_in_loadavg="$2"
+                shift 2
+                ;;
+            --interval_in_temp)
+                interval_in_temp="$2"
+                shift 2
+                ;;
+            --interval_in_fan)
+                interval_in_fan="$2"
+                shift 2
+                ;;
+            --interval_in_mem)
+                interval_in_mem="$2"
+                shift 2
+                ;;
+            --interval_in_energy)
+                interval_in_energy="$2"
+                shift 2
+                ;;
+            --interval_out_bar)
+                interval_out_bar="$2"
                 shift 2
                 ;;
             --)
@@ -764,23 +867,23 @@ main() {
     cmd_produce_fan="produce_fan $fan_path"
 
     # TODO: Redirect each worker's stderr to a dedicated log file
-    spawn produce_datetime                 "$pipe" 'in:DATE_TIME' 1
-    spawn "$cmd_produce_screen_brightness" "$pipe" 'in:SCREEN_BRIGHTNESS' 1
-    spawn "$cmd_produce_weather"           "$pipe" 'in:WEATHER'   $(( 30 * 60 ))
-    spawn produce_mpd_state                "$pipe" 'in:MPD_STATE' 1
-    spawn produce_mpd_song                 "$pipe" 'in:MPD_SONG'  1
-    spawn produce_volume                   "$pipe" 'in:VOLUME'    1
-    spawn produce_bluetooth_power          "$pipe" 'in:BLUETOOTH_POWER' 5
-    spawn produce_net_wifi_status          "$pipe" 'in:NET_WIFI_STATUS' 5
-    spawn produce_net_addr_io              "$pipe" 'in:NET_ADDR_IO' 1
-    spawn "$cmd_produce_disk_space"        "$pipe" 'in:DISK_SPACE' 1
-    spawn "$cmd_produce_disk_io"           "$pipe" 'in:DISK_IO' 1
-    spawn produce_loadavg                  "$pipe" 'in:LOAD_AVG' 1
-    spawn "$cmd_produce_temperature"       "$pipe" 'in:TEMPERATURE' 1
-    spawn "$cmd_produce_fan"               "$pipe" 'in:FAN' 1
-    spawn produce_memory                   "$pipe" 'in:MEMORY' 1
-    spawn produce_energy                   "$pipe" 'in:ENERGY' 1
-    spawn produce_bar_req                  "$pipe" 'out:BAR'      1
+    spawn produce_datetime                 "$pipe" 'in:DATE_TIME' $interval_in_datetime
+    spawn "$cmd_produce_screen_brightness" "$pipe" 'in:SCREEN_BRIGHTNESS' $interval_in_brightness
+    spawn "$cmd_produce_weather"           "$pipe" 'in:WEATHER' $interval_in_weather
+    spawn produce_mpd_state                "$pipe" 'in:MPD_STATE' $interval_in_mpd_state
+    spawn produce_mpd_song                 "$pipe" 'in:MPD_SONG' $interval_in_mpd_song
+    spawn produce_volume                   "$pipe" 'in:VOLUME' $interval_in_volume
+    spawn produce_bluetooth_power          "$pipe" 'in:BLUETOOTH_POWER' $interval_in_bluetooth
+    spawn produce_net_wifi_status          "$pipe" 'in:NET_WIFI_STATUS' $interval_in_net_wifi
+    spawn produce_net_addr_io              "$pipe" 'in:NET_ADDR_IO' $interval_in_net_io
+    spawn "$cmd_produce_disk_space"        "$pipe" 'in:DISK_SPACE' $interval_in_disk_space
+    spawn "$cmd_produce_disk_io"           "$pipe" 'in:DISK_IO' $interval_in_disk_io
+    spawn produce_loadavg                  "$pipe" 'in:LOAD_AVG' $interval_in_loadavg
+    spawn "$cmd_produce_temperature"       "$pipe" 'in:TEMPERATURE' $interval_in_temp
+    spawn "$cmd_produce_fan"               "$pipe" 'in:FAN' $interval_in_fan
+    spawn produce_memory                   "$pipe" 'in:MEMORY' $interval_in_mem
+    spawn produce_energy                   "$pipe" 'in:ENERGY' $interval_in_energy
+    spawn produce_bar_req                  "$pipe" 'out:BAR' $interval_out_bar
 
     consume \
       "$pipe" \
