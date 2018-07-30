@@ -2,6 +2,11 @@
 
 set -e
 
+produce_fan() {
+    fan_path="$1"
+    cat "$fan_path"
+}
+
 produce_temperature() {
     thermal_zone="$1"
     cat "/sys/class/thermal/thermal_zone${thermal_zone}/temp"
@@ -274,6 +279,24 @@ consume() {
         -v opt_mpd_song_max_chars=10 \
         -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show" \
         '
+            /^in:FAN +status:/\
+            {
+                split_msg_parts()
+                db["fan_status"] = $2
+            }
+
+            /^in:FAN +speed:/\
+            {
+                split_msg_parts()
+                db["fan_speed"] = $2
+            }
+
+            /^in:FAN +level:/\
+            {
+                split_msg_parts()
+                db["fan_level"] = $2
+            }
+
             /^in:TEMPERATURE/\
             {
                 split_msg_parts()
@@ -442,10 +465,11 @@ consume() {
                 return bar
             }
 
-            function make_status_cpu(    load, temp) {
+            function make_status_cpu(    load, temp, fan) {
                 load = db["load_avg_1min"]
                 temp = db["temperature"] / 1000
-                return sprintf("C=[%4.2f %d°C]", load, temp)
+                fan  = db["fan_speed"]
+                return sprintf("C=[%4.2f %d°C %4drpm]", load, temp, fan)
             }
 
             function make_status_disk(    bytes_per_sector, bytes_per_mb, w, r) {
@@ -575,6 +599,7 @@ main() {
     disk_space_device='/'
     disk_io_device='sda'
     thermal_zone=0
+    fan_path='/proc/acpi/ibm/fan'
 
     # User-overrides
     long_options=''
@@ -585,6 +610,7 @@ main() {
     long_options+=',prefixes_of_net_interfaces_to_show:'
     long_options+=',disk_space_device:'
     long_options+=',thermal_zone:'
+    long_options+=',fan_path:'
     OPTS=$(
         getopt \
             -o 'd' \
@@ -627,6 +653,10 @@ main() {
                 thermal_zone="$2"
                 shift 2
                 ;;
+            --fan_path)
+                fan_path="$2"
+                shift 2
+                ;;
             --)
                 shift
                 break
@@ -649,6 +679,7 @@ main() {
         echo "    disk_space_device|= $disk_space_device"
         echo "    disk_io_device|= $disk_io_device"
         echo "    thermal_zone|= $thermal_zone"
+        echo "    fan_path|= $fan_path"
       ) | column -ts\|
       echo ''
     ) >&2
@@ -668,6 +699,8 @@ main() {
 
     cmd_produce_temperature="produce_temperature $thermal_zone"
 
+    cmd_produce_fan="produce_fan $fan_path"
+
     # TODO: Redirect each worker's stderr to a dedicated log file
     spawn produce_datetime                 "$pipe" 'in:DATE_TIME' 1
     spawn "$cmd_produce_screen_brightness" "$pipe" 'in:SCREEN_BRIGHTNESS' 1
@@ -682,6 +715,7 @@ main() {
     spawn "$cmd_produce_disk_io"           "$pipe" 'in:DISK_IO' 1
     spawn produce_loadavg                  "$pipe" 'in:LOAD_AVG' 1
     spawn "$cmd_produce_temperature"       "$pipe" 'in:TEMPERATURE' 1
+    spawn "$cmd_produce_fan"               "$pipe" 'in:FAN' 1
     spawn produce_bar_req                  "$pipe" 'out:BAR'      1
 
     consume \
