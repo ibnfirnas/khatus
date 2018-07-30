@@ -2,6 +2,11 @@
 
 set -e
 
+produce_disk_space() {
+    disk_space_device="$1"
+    df --output=pcent "$disk_space_device" | awk 'NR == 2 {print $1}'
+}
+
 produce_net_addr_io() {
     ip -s addr \
     | awk \
@@ -251,6 +256,12 @@ consume() {
         -v opt_mpd_song_max_chars=10 \
         -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show" \
         '
+            /^in:DISK_SPACE/\
+            {
+                split_msg_parts()
+                db["disk_space_used"] = msg_body
+            }
+
             /^in:NET_ADDR_IO/\
             {
                 split_msg_parts()
@@ -357,6 +368,7 @@ consume() {
             }
 
             function make_bar(    position, bar, sep, i, j) {
+                position[++i] = sprintf("D=[%s]", db["disk_space_used"])
                 position[++i] = make_status_net()
                 position[++i] = sprintf("B=%s", db["bluetooth_power"])
                 position[++i] = sprintf("*%d%%", db["screen_brightness"])
@@ -488,6 +500,7 @@ main() {
     weather_station_id='KJFK'
     screen_brightness_device_name='acpi_video0'
     prefixes_of_net_interfaces_to_show='w'  # comma-separated
+    disk_space_device='/'
 
     # User-overrides
     long_options=''
@@ -496,6 +509,7 @@ main() {
     long_options+=',weather-station:'
     long_options+=',screen-device:'
     long_options+=',prefixes_of_net_interfaces_to_show:'
+    long_options+=',disk_space_device:'
     OPTS=$(
         getopt \
             -o 'd' \
@@ -526,6 +540,10 @@ main() {
                 prefixes_of_net_interfaces_to_show="$2"
                 shift 2
                 ;;
+            --disk_space_device)
+                disk_space_device="$2"
+                shift 2
+                ;;
             --)
                 shift
                 break
@@ -544,7 +562,8 @@ main() {
         echo "    screen_brightness_device_name|= $screen_brightness_device_name"
         echo "    screen_brightness_device_path|= $screen_brightness_device_path"
         echo "    weather_station_id|= $weather_station_id"
-        echo "    prefixes_of_net_interfaces_to_show|=$prefixes_of_net_interfaces_to_show"
+        echo "    prefixes_of_net_interfaces_to_show|= $prefixes_of_net_interfaces_to_show"
+        echo "    disk_space_device|= $disk_space_device"
       ) | column -ts\|
       echo ''
     ) >&2
@@ -558,6 +577,8 @@ main() {
 
     cmd_produce_weather="produce_weather $weather_station_id"
 
+    cmd_produce_disk_space="produce_disk_space $disk_space_device"
+
     # TODO: Redirect each worker's stderr to a dedicated log file
     spawn produce_datetime                 "$pipe" 'in:DATE_TIME' 1
     spawn "$cmd_produce_screen_brightness" "$pipe" 'in:SCREEN_BRIGHTNESS' 1
@@ -568,6 +589,7 @@ main() {
     spawn produce_bluetooth_power          "$pipe" 'in:BLUETOOTH_POWER' 5
     spawn produce_net_wifi_status          "$pipe" 'in:NET_WIFI_STATUS' 5
     spawn produce_net_addr_io              "$pipe" 'in:NET_ADDR_IO' 1
+    spawn "$cmd_produce_disk_space"        "$pipe" 'in:DISK_SPACE' 1
     spawn produce_bar_req                  "$pipe" 'out:BAR'      1
 
     consume \
