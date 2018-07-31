@@ -59,12 +59,17 @@ main() {
     interval_inp_energy=1
 
     # User-overrides
+    # ---------------------------------------------------------------------
+    # IMPORTANT:
+    # In order for automatic value reporting, at startup, to work - ensure that
+    # long option names match corresponding variable names!
+    # ---------------------------------------------------------------------
     long_options=''
     long_options+='debug'
-    long_options+=',bin_dir:'
-    long_options+=',data_dir:'
-    long_options+=',weather_station:'
-    long_options+=',screen_device:'
+    long_options+=',dir_bin:'
+    long_options+=',dir_data:'
+    long_options+=',weather_station_id:'
+    long_options+=',screen_brightness_device_name:'
     long_options+=',prefixes_of_net_interfaces_to_show:'
     long_options+=',disk_space_device:'
     long_options+=',disk_io_device:'
@@ -100,19 +105,19 @@ main() {
                 debug=1
                 shift
                 ;;
-            --bin_dir)
+            --dir_bin)
                 dir_bin="$2"
                 shift 2
                 ;;
-            --data_dir)
+            --dir_data)
                 dir_data="$2"
                 shift 2
                 ;;
-            --weather_station)
+            --weather_station_id)
                 weather_station_id="$2"
                 shift 2
                 ;;
-            --screen_device)
+            --screen_brightness_device_name)
                 screen_brightness_device_name="$2"
                 shift 2
                 ;;
@@ -211,21 +216,19 @@ main() {
     screen_brightness_device_path='/sys/class/backlight'
     screen_brightness_device_path+="/$screen_brightness_device_name"
 
-    ( echo "Khatus starting with the following parameters:"
-      ( echo "    debug|= $debug"
-        echo "    dir_bin|= $dir_bin"
-        echo "    dir_data|= $dir_data"
-        echo "    pipe|= $pipe"
-        echo "    screen_brightness_device_name|= $screen_brightness_device_name"
-        echo "    screen_brightness_device_path|= $screen_brightness_device_path"
-        echo "    weather_station_id|= $weather_station_id"
-        echo "    prefixes_of_net_interfaces_to_show|= $prefixes_of_net_interfaces_to_show"
-        echo "    disk_space_device|= $disk_space_device"
-        echo "    disk_io_device|= $disk_io_device"
-        echo "    thermal_zone|= $thermal_zone"
-        echo "    fan_path|= $fan_path"
-      ) | column -ts\|
-      echo ''
+    (
+        echo '=============================================='
+        echo "Khatus starting with the following parameters:"
+        echo '=============================================='
+        for param in \
+            $(echo -n "$long_options" \
+            | awk -v RS=, '{sub(":$", ""); print $0}'
+            )
+        do
+            echo "$param := ${!param}"
+        done \
+        | column -ts:
+        echo '----------------------------------------------'
     ) >&2
 
     mkdir -p "$dir_data"
