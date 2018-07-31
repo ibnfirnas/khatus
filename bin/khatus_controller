@@ -3,6 +3,7 @@
 /^in:ENERGY/\
 {
     split_msg_parts()
+    sub("%$", "", $2)
     db["energy_state"]      = $1
     db["energy_percentage"] = $2
 }
@@ -110,7 +111,84 @@
 {
     split_msg_parts()
     db["datetime"] = msg_body
-    print make_bar()
+    output_msg_status_bar(make_status_bar())
+}
+
+{
+    alert_check_all()
+}
+
+function alert_check_all() {
+    alert_check_energy()
+}
+
+# TODO: Generalize alert spec lang
+#       - trigger threshold
+#       - above/bellow/equal to threshold value
+#       - priority
+#       - snooze time (if already alerted, when to re-alert?)
+#       - text: subject/body
+function alert_check_energy(    state, remaining, subj, body) {
+    state     = db["energy_state"]
+    remaining = db["energy_percentage"]
+    if (state == "discharging") {
+        if (remaining < 5) {
+            subj = "Energy_CRITICALLY_Low"
+            body = sprintf("%d%% CHARGE NOW!!! GO GO GO!!!", remaining)
+            alert_trigger_hi(subj, body)
+        } else if (remaining < 10) {
+            subj = "Energy_Very_Low"
+            body = sprintf("%d%% Plug it in ASAP.", remaining)
+            alert_trigger_hi(subj, body)
+        } else if (remaining < 15) {
+            subj = "Energy_Low"
+            body = sprintf("%d%% Get the charger.", remaining)
+            alert_trigger_hi(subj, body)
+        } else if (remaining < 50) {
+            if (!state__alerts__energy__notified_bellow_half) {
+                state__alerts__energy__notified_bellow_half = 1
+                subj = "Energy_Bellow_Half"
+                body = sprintf("%d%% Where is the charger?", remaining)
+                alert_trigger_hi(subj, body)
+            }
+        }
+    } else {
+        # TODO: Reconsider the competing global-state organizing-conventions
+        state__alerts__energy__notified_bellow_half = 0
+    }
+}
+
+function alert_trigger_low(subject, body) {
+    alert_trigger("low", subject, body)
+}
+
+function alert_trigger_med(subject, body) {
+    alert_trigger("med", subject, body)
+}
+
+function alert_trigger_hi(subject, body) {
+    alert_trigger("hi", subject, body)
+}
+
+function alert_trigger(priority, subject, body,    msg) {
+    # priority : "low" | "med" | "hi"
+    # subject  : no spaces
+    # body     : anything
+    msg = sprintf("%s %s %s", priority, subject, body)
+    output_msg_alert(msg)
+}
+
+function output_msg_alert(msg) {
+    # TODO: Should alerts go into a dedicated channel?
+    output_msg("ALERT", msg, "/dev/stdout")
+}
+
+function output_msg_status_bar(msg) {
+    output_msg("STATUS_BAR", msg, "/dev/stdout")
+}
+
+function output_msg(type, content, channel) {
+    print(type, content) > channel
 }
 
 function set_load_avg(    sched) {
@@ -176,7 +254,7 @@ function split_msg_parts() {
     debug(msg_head, msg_body)
 }
 
-function make_bar(    position, bar, sep, i, j) {
+function make_status_bar(    position, bar, sep, i, j) {
     position[++i] = make_status_energy()
     position[++i] = make_status_mem()
     position[++i] = make_status_cpu()
@@ -206,7 +284,7 @@ function make_status_energy(    state, direction_of_change) {
     } else {
         direction_of_change = "="
     };
-    printf("E%s%s", direction_of_change, db["energy_percentage"])
+    printf("E%s%s%%", direction_of_change, db["energy_percentage"])
 }
 
 function make_status_mem(    total, used, percent, status) {
@@ -323,10 +401,6 @@ function round(n) {
 
 function debug(location, msg) {
     if (opt_debug) {
-        print_error(location, msg)
+        output_msg("DEBUG", location " ==> " msg, "/dev/stderr")
     }
-}
-
-function print_error(location, msg) {
-    print(location " ==> " msg) > "/dev/stderr"
 }
