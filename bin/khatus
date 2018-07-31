@@ -57,7 +57,6 @@ main() {
     interval_inp_fan=1
     interval_inp_mem=1
     interval_inp_energy=1
-    interval_outp_bar=1
 
     # User-overrides
     long_options=''
@@ -87,7 +86,6 @@ main() {
     long_options+=',interval_inp_fan:'
     long_options+=',interval_inp_mem:'
     long_options+=',interval_inp_energy:'
-    long_options+=',interval_outp_bar:'
     OPTS=$(
         getopt \
             -o 'd' \
@@ -202,10 +200,6 @@ main() {
                 interval_inp_energy="$2"
                 shift 2
                 ;;
-            --interval_outp_bar)
-                interval_outp_bar="$2"
-                shift 2
-                ;;
             --)
                 shift
                 break
@@ -268,7 +262,6 @@ main() {
     spawn "$pipe" "$dir_bin" "$cmd_sens_fan"               'in:FAN'               $interval_inp_fan
     spawn "$pipe" "$dir_bin" khatus_sensor_memory          'in:MEMORY'            $interval_inp_mem
     spawn "$pipe" "$dir_bin" khatus_sensor_energy          'in:ENERGY'            $interval_inp_energy
-    spawn "$pipe" "$dir_bin" khatus_sensor_bar_req         'out:BAR'              $interval_outp_bar
 
     consume \
       "$pipe" \

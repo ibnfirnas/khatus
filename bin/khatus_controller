@@ -110,11 +110,6 @@
 {
     split_msg_parts()
     db["datetime"] = msg_body
-}
-
-/^out:BAR/\
-{
-    split_msg_parts()
     print make_bar()
 }
 
