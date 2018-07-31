@@ -1,11 +1,13 @@
 #! /usr/bin/awk -f
 
+
 /^in:ENERGY/\
 {
     split_msg_parts()
     sub("%$", "", $2)
     db["energy_state"]      = $1
-    db["energy_percentage"] = $2
+    db["energy_percentage"] = ensure_numeric($2)
+    alert_check_energy()
 }
 
 /^in:MEMORY/\
@@ -114,23 +116,20 @@
     output_msg_status_bar(make_status_bar())
 }
 
-{
-    alert_check_all()
-}
-
-function alert_check_all() {
-    alert_check_energy()
-}
-
 # TODO: Generalize alert spec lang
 #       - trigger threshold
 #       - above/bellow/equal to threshold value
 #       - priority
 #       - snooze time (if already alerted, when to re-alert?)
 #       - text: subject/body
-function alert_check_energy(    state, remaining, subj, body) {
+function alert_check_energy(    threshold, dbg, state, remaining, subj, body) {
     state     = db["energy_state"]
     remaining = db["energy_percentage"]
+
+    dbg["state"] = state
+    dbg["remaining"] = remaining
+    debug("alert_check_energy", dbg)
+
     if (state == "discharging") {
         if (remaining < 5) {
             subj = "Energy_CRITICALLY_Low"
@@ -247,11 +246,13 @@ function set_screen_brightness(    max, cur) {
     db["screen_brightness"] = (cur / max) * 100
 }
 
-function split_msg_parts() {
+function split_msg_parts(    dbg) {
     msg_head = $1
     sub("^" msg_head " +", "")
     msg_body = $0
-    debug(msg_head, msg_body)
+    dbg["msg_head"] = msg_head
+    dbg["msg_body"] = msg_body
+    debug("split_msg_parts", dbg)
 }
 
 function make_status_bar(    position, bar, sep, i, j) {
@@ -284,7 +285,7 @@ function make_status_energy(    state, direction_of_change) {
     } else {
         direction_of_change = "="
     };
-    return sprintf("E%s%s%%", direction_of_change, db["energy_percentage"])
+    return sprintf("E%s%d%%", direction_of_change, db["energy_percentage"])
 }
 
 function make_status_mem(    total, used, percent, status) {
@@ -399,8 +400,48 @@ function round(n) {
     return int(n + 0.5)
 }
 
-function debug(location, msg) {
+function debug(location, values,    sep, vals, key, msg) {
     if (opt_debug) {
-        output_msg("DEBUG", location " ==> " msg, "/dev/stderr")
+        sep = ""
+        vals = ""
+        for (key in values) {
+            vals = sprintf("%s%s%s: %s", vals, sep, key, values[key])
+            sep = ", "
+        }
+        msg = location " ==> " vals "."
+        output_msg("DEBUG", msg, "/dev/stderr")
     }
 }
+
+function ensure_numeric(n) {
+    return n + 0
+}
+#-------------------------------
+# Why do we need ensure_numeric?
+#-------------------------------
+# awk appears to be guessing the type of an inputted scalar based on usage, so
+# if we read-in a number, but did not use it in any numeric operations, but did
+# use as a string (even in just a format string!) - it will be treated as a
+# string and can lead to REALLY SURPRISING behavior in conditional statements,
+# where smaller number may compare as greater than the bigger ones, such as.
+#
+# Demo:
+#
+# $ awk 'BEGIN {x = "75"; y = "100"; sprintf("x: %d, y: %d\n", x, y); if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 < 100
+# $ awk 'BEGIN {x = "75"; y = "100"; sprintf("x: %s, y: %d\n", x, y); if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 > 100
+
+# However, once used as a number, seems to stay that way even after being
+# used as string:
+#
+# $ awk 'BEGIN {x = "75"; y = "100"; x + y; sprintf("x: %s, y: %d\n", x, y); if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 < 100
+# 
+# $ awk 'BEGIN {x = "75"; y = "100"; x + y; sprintf("x: %s, y: %d\n", x, y); z = x y; if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 < 100
+# 
+# $ awk 'BEGIN {x = "75"; y = "100"; x + y; z = x y; if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 < 100
+# $ awk 'BEGIN {x = "75"; y = "100"; z = x y; if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 > 100
