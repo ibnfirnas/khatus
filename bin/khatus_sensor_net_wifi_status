@@ -1,0 +1,15 @@
+#! /bin/sh
+
+set -e
+
+nmcli \
+    -f ACTIVE,SSID,SIGNAL \
+    -t \
+    d wifi \
+| awk \
+    -F ':' \
+    '
+    BEGIN       {wifi_status = "--"}
+    $1 == "yes" {wifi_status =  $2 ":" $3 "%"}
+    END         {print wifi_status}
+    '

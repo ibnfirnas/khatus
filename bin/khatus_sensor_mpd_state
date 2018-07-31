@@ -1,0 +1,53 @@
+#! /bin/sh
+
+set -e
+
+echo 'status' \
+| nc 127.0.0.1 6600 \
+| awk '
+    {
+        status[$1] = $2
+    }
+
+    /^time: +[0-9]+:[0-9]+$/ {
+        split($2, time, ":")
+        seconds_current = time[1]
+        seconds_total   = time[2]
+
+        hours = int(seconds_current / 60 / 60);
+        secs_beyond_hours = seconds_current - (hours * 60 * 60);
+        mins = int(secs_beyond_hours / 60);
+        secs = secs_beyond_hours - (mins * 60);
+        if (hours > 0) {
+            current_time = sprintf("%d:%.2d:%.2d", hours, mins, secs)
+        } else {
+            current_time = sprintf("%.2d:%.2d", mins, secs)
+        }
+
+        if (seconds_total > 0) {
+            time_percentage = (seconds_current / seconds_total) * 100
+            current_percentage = sprintf("%d%%", time_percentage)
+        } else {
+            current_percentage = "~"
+        }
+    }
+
+    END {
+        state = status["state:"]
+
+        if (state == "play") {
+            symbol = "▶"
+        } else if (state == "pause") {
+            symbol = "❚❚"
+        } else if (state == "stop") {
+            symbol = "⬛"
+        } else {
+            symbol = "--"
+        }
+
+        printf(\
+            "%s %s %s\n",
+            status["state:"], current_time, current_percentage\
+        )
+    }
+    '

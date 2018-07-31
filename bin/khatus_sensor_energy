@@ -1,0 +1,12 @@
+#! /bin/sh
+
+set -e
+
+upower -e \
+| grep battery \
+| xargs upower -i \
+| awk '
+    /^ +percentage: +/ { percentage=$2 }
+    /^ +state: +/      { state=$2 }
+    END                { print(state, percentage) }
+    '

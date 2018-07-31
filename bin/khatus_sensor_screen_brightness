@@ -1,0 +1,10 @@
+#! /bin/sh
+
+set -e
+
+screen_brightness_device_path="$1"
+# TODO: single cat
+echo "\
+    $(cat $screen_brightness_device_path/max_brightness) \
+    $(cat $screen_brightness_device_path/brightness)\
+"

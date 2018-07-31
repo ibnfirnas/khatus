@@ -1,0 +1,14 @@
+#! /bin/sh
+
+set -e
+
+disk_io_device="$1"
+
+awk '
+    {
+        r = $3
+        w = $7
+        print w, r
+    }
+    ' \
+    "/sys/block/$disk_io_device/stat"

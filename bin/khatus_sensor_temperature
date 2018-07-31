@@ -1,0 +1,7 @@
+#! /bin/sh
+
+set -e
+
+thermal_zone="$1"
+
+cat "/sys/class/thermal/thermal_zone${thermal_zone}/temp"

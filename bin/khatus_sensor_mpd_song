@@ -1,0 +1,36 @@
+#! /bin/sh
+
+set -e
+
+echo 'currentsong' \
+| nc 127.0.0.1 6600 \
+| awk '
+    /^OK/ {
+        next
+    }
+
+    {
+        key = $1
+        sub("^" key " +", "")
+        val = $0
+        data[key] = val
+    }
+
+    END {
+        name  = data["Name:"]
+        title = data["Title:"]
+        file  = data["file:"]
+
+        if (name) {
+            out = name
+        } else if (title) {
+            out = title
+        } else if (file) {
+            last = split(file, parts, "/")
+            out = parts[last]
+        } else {
+            out = ""
+        }
+        print out
+    }
+    '

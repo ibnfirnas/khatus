@@ -1,0 +1,5 @@
+#! /bin/sh
+
+set -e
+
+free | awk '$1 == "Mem:" {print $2, $3}'

@@ -1,0 +1,7 @@
+#! /bin/sh
+
+set -e
+
+disk_space_device="$1"
+
+df --output=pcent "$disk_space_device" | awk 'NR == 2 {print $1}'

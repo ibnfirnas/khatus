@@ -1,0 +1,24 @@
+#! /bin/sh
+
+set -e
+
+weather_station_id="$1"
+
+metar -d "$weather_station_id" 2>&1 \
+| awk '
+    /METAR pattern not found in NOAA data/ {
+        failures++
+    }
+
+    /^Temperature/ {
+        celsius = $3;
+        fahrenheit = (celsius * (9 / 5)) + 32;
+        temperature = fahrenheit
+    }
+
+    END {
+        if (failures > 0) {
+            temperature = "--"
+        }
+        print temperature "°F"
+    }'
