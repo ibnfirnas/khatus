@@ -121,13 +121,13 @@ function set_mpd_song(    key, val) {
     fields_shift()
     val = $0
     db_mpd_song[key] = val
-    debug("set_mpd_song", db_mpd_song)
+    debug("set_mpd_song", "", db_mpd_song)
 }
 
 function set_mpd_playing(    \
     currently_playing, name, title, file, last, parts\
 ) {
-    debug("set_mpd_playing", db_mpd_song)
+    debug("set_mpd_playing", "", db_mpd_song)
     name  = db_mpd_song["Name:"]
     title = db_mpd_song["Title:"]
     file  = db_mpd_song["file:"]
@@ -182,7 +182,7 @@ function alert_check_energy(    \
 
     dbg["state_curr"] = state_curr
     dbg["remaining"] = remaining
-    debug(from, dbg)
+    debug(from, "", dbg)
 
     if (state_curr == "discharging") {
         if (state_prev == "charging") {
@@ -312,7 +312,7 @@ function fields_shift(    dbg) {
     dbg["head"] = $1
     sub("^" $1 " +", "")
     dbg["body"] = $0
-    debug("fields_shift", dbg)
+    debug("fields_shift", "", dbg)
 }
 
 function make_status_bar(    position, bar, sep, i, j) {
@@ -460,7 +460,7 @@ function round(n) {
     return int(n + 0.5)
 }
 
-function debug(location, values,    sep, vals, key, msg) {
+function debug(location, msg, values,    sep, vals, key, payload) {
     if (opt_debug) {
         sep = ""
         vals = ""
@@ -468,8 +468,8 @@ function debug(location, values,    sep, vals, key, msg) {
             vals = sprintf("%s%s%s: %s", vals, sep, key, values[key])
             sep = ", "
         }
-        msg = location " ==> " vals "."
-        output_msg("DEBUG", msg, "/dev/stderr")
+        payload = sprintf("[%s] [%s] [%s]", location, msg, vals)
+        output_msg("DEBUG", payload, "/dev/stderr")
     }
 }
 
