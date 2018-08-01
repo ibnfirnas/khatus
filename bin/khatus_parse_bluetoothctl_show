@@ -26,7 +26,7 @@ END {
             show = "ERROR"
         }
     } else {
-        show = "off"  # TODO: Perhaps use differentiated marker?
+        show = "n/a"
     }
     print(show)
 }
