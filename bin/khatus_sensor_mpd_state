@@ -33,18 +33,6 @@ echo 'status' \
     }
 
     END {
-        state = status["state:"]
-
-        if (state == "play") {
-            symbol = "▶"
-        } else if (state == "pause") {
-            symbol = "❚❚"
-        } else if (state == "stop") {
-            symbol = "⬛"
-        } else {
-            symbol = "--"
-        }
-
         printf(\
             "%s %s %s\n",
             status["state:"], current_time, current_percentage\
