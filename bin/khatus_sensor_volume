@@ -2,23 +2,6 @@
 
 set -e
 
-pactl list sinks \
-| awk '
-    /^\tMute:/ {
-        printf("%s,", $0);
-    }
-    /^\tVolume:/ {
-        for (i=2; i<=NF; i++) printf(" %s", $i);
-    }' \
-| awk -v RS=',' '
-    /^[ \t]*Mute:/        {mute  = $2}
-    /^[ \t]*front-left:/  {left  = $4}
-    /^[ \t]*front-right:/ {right = $4}
-    END {
-        if (mute == "yes") {
-            print("x")
-        } else {
-            printf("%s %s\n", left, right)
-        }
-    }
-    '
+dir_bin="$1"
+
+pactl list sinks | "$dir_bin"/khatus_parse_pactl_list_sinks

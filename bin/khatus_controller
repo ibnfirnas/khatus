@@ -95,8 +95,7 @@
 
 /^in:VOLUME/\
 {
-    shift()
-    db["volume"] = $0
+    set_volume()
 }
 
 /^in:MPD_SONG OK +MPD/ { delete db_mpd_song; next }
@@ -122,6 +121,24 @@
     shift()
     db["datetime"] = $0
     output_msg_status_bar(make_status_bar())
+}
+
+function set_volume(    mute, left, right) {
+    # 0 RUNNING no 75% 75%
+    #msg_head = $1
+    #sink     = $2
+    #state    = $3
+    mute      = $4
+    left      = $5
+    right     = $6
+
+    if (mute == "no") {
+        db["volume"] = sprintf("%s %s", left, right)
+    } else if (mute == "yes") {
+        db["volume"] = "X"
+    } else {
+        # TODO: Log error - unexpected mute value
+    }
 }
 
 function set_mpd_song(    key, val) {
