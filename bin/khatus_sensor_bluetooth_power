@@ -2,36 +2,6 @@
 
 set -e
 
-echo -e 'show \n quit' \
-| bluetoothctl \
-| awk '
-    /^Controller / {
-        controller = $2;
-        controllers[++ctrl_count] = controller;
-    }
-    /^\t[A-Z][A-Za-z]+:/ {
-        key = $1;
-        sub(":$", "", key);
-        val = $2;
-        for (i=3; i<=NF; i++) {
-            val = val " " $i};
-            data[controller, key] = val;
-    }
-    END {
-        # Using the 1st seen controller. Should we select specific instead?
-        power_status = data[controllers[1], "Powered"];
-        if (ctrl_count > 0) {
-            if (power_status == "no") {
-                power_status = "off"
-            } else if (power_status == "yes") {
-                power_status = "on"
-            } else {
-                printf("Unexpected bluetooth power status: %s\n", power_status)\
-                    > "/dev/stderr";
-                power_status = "ERROR"
-            }
-        } else {
-            power_status = "off"  # TODO: Perhaps use differentiated marker?
-        }
-        printf("%s\n", power_status);
-    }'
+dir_bin="$1"
+
+echo -e 'show \n quit' | bluetoothctl | "$dir_bin"/khatus_parse_bluetoothctl_show
