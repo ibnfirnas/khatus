@@ -145,6 +145,10 @@ function alert_check_energy(    from, dbg, state, remaining, subj, body) {
             subj = "Energy_Low"
             body = sprintf("%d%% Get the charger.", remaining)
             alert_trigger_hi(from, subj, body)
+        } else if (remaining < 20) {
+            subj = "Energy_Low"
+            body = sprintf("%d%% Get the charger.", remaining)
+            alert_trigger_med(from, subj, body)
         } else if (remaining < 50) {
             if (!state__alerts__energy__notified_bellow_half) {
                 state__alerts__energy__notified_bellow_half = 1
