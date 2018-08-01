@@ -34,7 +34,8 @@ main() {
     # Defaults
     debug=0
     dir_bin="$HOME/bin"
-    dir_data=$(mktemp -d)
+    dir_logs=$(mktemp -d)
+    file_pipe=$(mktemp)
     weather_station_id='KJFK'
     screen_brightness_device_name='acpi_video0'
     prefixes_of_net_interfaces_to_show='w'  # comma-separated
@@ -69,7 +70,8 @@ main() {
     long_options=''
     long_options+='debug'
     long_options+=',dir_bin:'
-    long_options+=',dir_data:'
+    long_options+=',dir_logs:'
+    long_options+=',file_pipe:'
     long_options+=',weather_station_id:'
     long_options+=',screen_brightness_device_name:'
     long_options+=',prefixes_of_net_interfaces_to_show:'
@@ -111,8 +113,12 @@ main() {
                 dir_bin="$2"
                 shift 2
                 ;;
-            --dir_data)
-                dir_data="$2"
+            --dir_logs)
+                dir_logs="$2"
+                shift 2
+                ;;
+            --file_pipe)
+                file_pipe="$2"
                 shift 2
                 ;;
             --weather_station_id)
@@ -214,7 +220,6 @@ main() {
         esac
     done
 
-    pipe="$dir_data/khatus_data_pipe"
     screen_brightness_device_path='/sys/class/backlight'
     screen_brightness_device_path+="/$screen_brightness_device_name"
 
@@ -233,9 +238,8 @@ main() {
         echo '----------------------------------------------'
     ) >&2
 
-    mkdir -p "$dir_data"
-    rm -f "$pipe"
-    mkfifo "$pipe"
+    rm -f "$file_pipe"
+    mkfifo "$file_pipe"
 
     cmd_sens_screen_brightness='khatus_sensor_screen_brightness'
     cmd_sens_screen_brightness+=" $screen_brightness_device_path"
@@ -251,7 +255,8 @@ main() {
     cmd_sens_fan="khatus_sensor_fan $fan_path"
 
     # TODO: Redirect each worker's stderr to a dedicated log file
-    log="$dir_data"/sensors.log
+    pipe="$file_pipe"
+    log="$dir_logs"/khatus_sensors.log
     spawn "$pipe" "$dir_bin" "$log" khatus_sensor_datetime        'in:DATE_TIME'         $interval_inp_datetime
     spawn "$pipe" "$dir_bin" "$log" "$cmd_sens_screen_brightness" 'in:SCREEN_BRIGHTNESS' $interval_inp_brightness
     spawn "$pipe" "$dir_bin" "$log" "$cmd_sens_weather"           'in:WEATHER'           $interval_inp_weather
