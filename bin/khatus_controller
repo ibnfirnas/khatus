@@ -90,6 +90,15 @@
     db["volume"] = $0
 }
 
+# -----------------------------------------------------------------------------
+# BEGIN MPD_SONG
+/^in:MPD_SONG +OK +/\
+{
+    delete db["mpd_song_curr_file"]
+    delete db["mpd_song_curr_title"]
+    delete db["mpd_song_curr_name"]
+}
+
 /^in:MPD_SONG +file:/\
 {
     fields_shift()
@@ -103,12 +112,20 @@
     fields_shift()
     db["mpd_song_curr_title"] = $0
 }
+
 /^in:MPD_SONG +Name:/\
 {
     fields_shift()
     fields_shift()
     db["mpd_song_curr_name"] = $0
 }
+
+/^in:MPD_SONG +OK$/\
+{
+    set_mpd_playing()
+}
+# END MPD_SONG
+# -----------------------------------------------------------------------------
 
 /^in:MPD_STATE /\
 {
@@ -129,6 +146,37 @@
     fields_shift()
     db["datetime"] = $0
     output_msg_status_bar(make_status_bar())
+}
+
+function set_mpd_playing(    \
+    currently_playing, name, title, file, last, parts\
+) {
+    name  = db["mpd_song_curr_name"]
+    title = db["mpd_song_curr_title"]
+    file  = db["mpd_song_curr_file"]
+
+    if (name) {
+        currently_playing = name
+    } else if (title) {
+        currently_playing = title
+    } else if (file) {
+        last = split(file, parts, "/")
+        currently_playing = parts[last]
+    } else {
+        currently_playing = ""
+    }
+    db["mpd_playing_prev"] = db["mpd_playing_curr"]
+    db["mpd_playing_curr"] = currently_playing
+
+    alert_check_mpd()
+}
+
+function alert_check_mpd(    curr, prev) {
+    prev = db["mpd_playing_prev"]
+    curr = db["mpd_playing_curr"]
+    if (curr != prev) {
+        alert_trigger_low("alert_check_mpd", "NowPlaying", curr)
+    }
 }
 
 # TODO: Generalize alert spec lang
@@ -408,29 +456,13 @@ function make_status_mpd(    state, status) {
     return sprintf("[%s]", status)
 }
 
-function make_status_mpd_state_known(symbol,    \
-    currently_playing, name, title, file\
-) {
-    name  = db["mpd_song_curr_name"]
-    title = db["mpd_song_curr_title:"]
-    file  = db["mpd_song_curr_file"]
-
-    if (name) {
-        currently_playing = name
-    } else if (title) {
-        currently_playing = title
-    } else if (file) {
-        last = split(file, parts, "/")
-        currently_playing = parts[last]
-    } else {
-        currently_playing = ""
-    }
+function make_status_mpd_state_known(symbol) {
     return sprintf(\
         "%s %s %s %s",
         symbol,
         db["mpd_status_time"],
         db["mpd_status_percent"],
-        substr(currently_playing, 1, opt_mpd_song_max_chars)\
+        substr(db["mpd_playing_curr"], 1, opt_mpd_song_max_chars)\
     )
 }
 
