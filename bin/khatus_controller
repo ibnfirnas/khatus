@@ -122,7 +122,7 @@
 #       - priority
 #       - snooze time (if already alerted, when to re-alert?)
 #       - text: subject/body
-function alert_check_energy(    threshold, dbg, state, remaining, subj, body) {
+function alert_check_energy(    dbg, state, remaining, subj, body) {
     state     = db["energy_state"]
     remaining = db["energy_percentage"]
 
