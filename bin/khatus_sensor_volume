@@ -18,7 +18,7 @@ pactl list sinks \
         if (mute == "yes") {
             print("x")
         } else {
-            print("%s %s\n", left, right)
+            printf("%s %s\n", left, right)
         }
     }
     '
