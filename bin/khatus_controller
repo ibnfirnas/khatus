@@ -5,7 +5,8 @@
 {
     split_msg_parts()
     sub("%$", "", $2)
-    db["energy_state"]      = $1
+    db["energy_state_prev"] = db["energy_state_curr"]
+    db["energy_state_curr"] = $1
     db["energy_percentage"] = ensure_numeric($2)
     alert_check_energy()
 }
@@ -122,17 +123,24 @@
 #       - priority
 #       - snooze time (if already alerted, when to re-alert?)
 #       - text: subject/body
-function alert_check_energy(    from, dbg, state, remaining, subj, body) {
+function alert_check_energy(    \
+    from, dbg, state_curr, state_prev, remaining, subj, body\
+) {
     from = "alert_check_energy"
 
-    state     = db["energy_state"]
-    remaining = db["energy_percentage"]
+    state_curr = db["energy_state_curr"]
+    state_prev = db["energy_state_prev"]
+    remaining  = db["energy_percentage"]
 
-    dbg["state"] = state
+    dbg["state_curr"] = state_curr
     dbg["remaining"] = remaining
     debug(from, dbg)
 
-    if (state == "discharging") {
+    if (state_curr == "discharging") {
+        if (state_prev == "charging") {
+            alert_trigger_low(from, "Unplugged", "")
+        }
+
         if (remaining < 5) {
             subj = "Energy_CRITICALLY_Low"
             body = sprintf("%d%% CHARGE NOW!!! GO GO GO!!!", remaining)
@@ -283,7 +291,7 @@ function make_status_bar(    position, bar, sep, i, j) {
 }
 
 function make_status_energy(    state, direction_of_change) {
-    state = db["energy_state"]
+    state = db["energy_state_curr"]
     if (state == "discharging") {
         direction_of_change = "<"
     } else if (state == "charging") {
