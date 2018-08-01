@@ -122,33 +122,35 @@
 #       - priority
 #       - snooze time (if already alerted, when to re-alert?)
 #       - text: subject/body
-function alert_check_energy(    dbg, state, remaining, subj, body) {
+function alert_check_energy(    from, dbg, state, remaining, subj, body) {
+    from = "alert_check_energy"
+
     state     = db["energy_state"]
     remaining = db["energy_percentage"]
 
     dbg["state"] = state
     dbg["remaining"] = remaining
-    debug("alert_check_energy", dbg)
+    debug(from, dbg)
 
     if (state == "discharging") {
         if (remaining < 5) {
             subj = "Energy_CRITICALLY_Low"
             body = sprintf("%d%% CHARGE NOW!!! GO GO GO!!!", remaining)
-            alert_trigger_hi(subj, body)
+            alert_trigger_hi(from, subj, body)
         } else if (remaining < 10) {
             subj = "Energy_Very_Low"
             body = sprintf("%d%% Plug it in ASAP.", remaining)
-            alert_trigger_hi(subj, body)
+            alert_trigger_hi(from, subj, body)
         } else if (remaining < 15) {
             subj = "Energy_Low"
             body = sprintf("%d%% Get the charger.", remaining)
-            alert_trigger_hi(subj, body)
+            alert_trigger_hi(from, subj, body)
         } else if (remaining < 50) {
             if (!state__alerts__energy__notified_bellow_half) {
                 state__alerts__energy__notified_bellow_half = 1
                 subj = "Energy_Bellow_Half"
                 body = sprintf("%d%% Where is the charger?", remaining)
-                alert_trigger_med(subj, body)
+                alert_trigger_med(from, subj, body)
             }
         }
     } else {
@@ -157,23 +159,23 @@ function alert_check_energy(    dbg, state, remaining, subj, body) {
     }
 }
 
-function alert_trigger_low(subject, body) {
-    alert_trigger("low", subject, body)
+function alert_trigger_low(from, subject, body) {
+    alert_trigger("low", from, subject, body)
 }
 
-function alert_trigger_med(subject, body) {
-    alert_trigger("med", subject, body)
+function alert_trigger_med(from, subject, body) {
+    alert_trigger("med", from, subject, body)
 }
 
-function alert_trigger_hi(subject, body) {
-    alert_trigger("hi", subject, body)
+function alert_trigger_hi(from, subject, body) {
+    alert_trigger("hi", from, subject, body)
 }
 
-function alert_trigger(priority, subject, body,    msg) {
+function alert_trigger(priority, from, subject, body,    msg) {
     # priority : "low" | "med" | "hi"
     # subject  : no spaces
     # body     : anything
-    msg = sprintf("%s %s %s", priority, subject, body)
+    msg = sprintf("khatus_%s %s %s %s", from, priority, subject, body)
     output_msg_alert(msg)
 }
 
