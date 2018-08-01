@@ -255,6 +255,7 @@ main() {
     cmd_sens_temperature="khatus_sensor_temperature $thermal_zone"
     cmd_sens_fan="khatus_sensor_fan $fan_path"
     cmd_sens_bluetooth="khatus_sensor_bluetooth_power $dir_bin"
+    cmd_sens_mpd_state="khatus_sensor_mpd_state $dir_bin"
 
     # TODO: Redirect each worker's stderr to a dedicated log file
     pipe="$file_pipe"
@@ -265,7 +266,7 @@ main() {
     fork_poller $interval_inp_datetime   "$pipe" "$dir_bin" "$log" khatus_sensor_datetime          'in:DATE_TIME'
     fork_poller $interval_inp_brightness "$pipe" "$dir_bin" "$log" "$cmd_sens_screen_brightness"   'in:SCREEN_BRIGHTNESS'
     fork_poller $interval_inp_weather    "$pipe" "$dir_bin" "$log" "$cmd_sens_weather"             'in:WEATHER'
-    fork_poller $interval_inp_mpd_state  "$pipe" "$dir_bin" "$log" khatus_sensor_mpd_state         'in:MPD_STATE'
+    fork_poller $interval_inp_mpd_state  "$pipe" "$dir_bin" "$log" "$cmd_sens_mpd_state"           'in:MPD_STATE'
     fork_poller $interval_inp_mpd_song   "$pipe" "$dir_bin" "$log" khatus_sensor_mpd_song          'in:MPD_SONG'
     fork_poller $interval_inp_volume     "$pipe" "$dir_bin" "$log" khatus_sensor_volume            'in:VOLUME'
     fork_poller $interval_inp_bluetooth  "$pipe" "$dir_bin" "$log" "$cmd_sens_bluetooth"           'in:BLUETOOTH_POWER'
