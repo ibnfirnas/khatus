@@ -148,7 +148,7 @@ function alert_check_energy(    threshold, dbg, state, remaining, subj, body) {
                 state__alerts__energy__notified_bellow_half = 1
                 subj = "Energy_Bellow_Half"
                 body = sprintf("%d%% Where is the charger?", remaining)
-                alert_trigger_hi(subj, body)
+                alert_trigger_med(subj, body)
             }
         }
     } else {
