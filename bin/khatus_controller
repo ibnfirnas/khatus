@@ -174,7 +174,7 @@ function set_mpd_playing(    \
 function alert_check_mpd(    curr, prev) {
     prev = db["mpd_playing_prev"]
     curr = db["mpd_playing_curr"]
-    if (curr != prev) {
+    if (curr && curr != prev) {
         alert_trigger_low("alert_check_mpd", "NowPlaying", curr)
     }
 }
