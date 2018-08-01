@@ -14,7 +14,20 @@ consume() {
         -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show"
 }
 
-spawn() {
+spawn_reactor() {
+    pipe="$1"
+    dir_bin="$2"
+    log="$3"
+    cmd="$4"
+    msg_head="$5"
+    "$dir_bin"/$cmd | while read line; do
+        echo "${msg_head} $line" > "$pipe"
+    done \
+    2> "$log" \
+    &
+}
+
+spawn_poller() {
     pipe="$1"
     dir_bin="$2"
     log="$3"
@@ -59,7 +72,6 @@ main() {
     interval_inp_temp=1
     interval_inp_fan=1
     interval_inp_mem=1
-    interval_inp_energy=1
 
     # User-overrides
     # ---------------------------------------------------------------------
@@ -94,7 +106,6 @@ main() {
     long_options+=',interval_inp_temp:'
     long_options+=',interval_inp_fan:'
     long_options+=',interval_inp_mem:'
-    long_options+=',interval_inp_energy:'
     OPTS=$(
         getopt \
             -o 'd' \
@@ -209,10 +220,6 @@ main() {
                 interval_inp_mem="$2"
                 shift 2
                 ;;
-            --interval_inp_energy)
-                interval_inp_energy="$2"
-                shift 2
-                ;;
             --)
                 shift
                 break
@@ -257,22 +264,24 @@ main() {
     # TODO: Redirect each worker's stderr to a dedicated log file
     pipe="$file_pipe"
     log="$dir_logs"/khatus_sensors.log
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_datetime        'in:DATE_TIME'         $interval_inp_datetime
-    spawn "$pipe" "$dir_bin" "$log" "$cmd_sens_screen_brightness" 'in:SCREEN_BRIGHTNESS' $interval_inp_brightness
-    spawn "$pipe" "$dir_bin" "$log" "$cmd_sens_weather"           'in:WEATHER'           $interval_inp_weather
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_mpd_state       'in:MPD_STATE'         $interval_inp_mpd_state
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_mpd_song        'in:MPD_SONG'          $interval_inp_mpd_song
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_volume          'in:VOLUME'            $interval_inp_volume
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_bluetooth_power 'in:BLUETOOTH_POWER'   $interval_inp_bluetooth
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_net_wifi_status 'in:NET_WIFI_STATUS'   $interval_inp_net_wifi
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_net_addr_io     'in:NET_ADDR_IO'       $interval_inp_net_io
-    spawn "$pipe" "$dir_bin" "$log" "$cmd_sens_disk_space"        'in:DISK_SPACE'        $interval_inp_disk_space
-    spawn "$pipe" "$dir_bin" "$log" "$cmd_sens_disk_io"           'in:DISK_IO'           $interval_inp_disk_io
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_loadavg         'in:LOAD_AVG'          $interval_inp_loadavg
-    spawn "$pipe" "$dir_bin" "$log" "$cmd_sens_temperature"       'in:TEMPERATURE'       $interval_inp_temp
-    spawn "$pipe" "$dir_bin" "$log" "$cmd_sens_fan"               'in:FAN'               $interval_inp_fan
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_memory          'in:MEMORY'            $interval_inp_mem
-    spawn "$pipe" "$dir_bin" "$log" khatus_sensor_energy          'in:ENERGY'            $interval_inp_energy
+
+    spawn_reactor "$pipe" "$dir_bin" "$log" "khatus_sensor_energy $dir_bin" 'in:ENERGY'
+
+    spawn_poller "$pipe" "$dir_bin" "$log" khatus_sensor_datetime        'in:DATE_TIME'         $interval_inp_datetime
+    spawn_poller "$pipe" "$dir_bin" "$log" "$cmd_sens_screen_brightness" 'in:SCREEN_BRIGHTNESS' $interval_inp_brightness
+    spawn_poller "$pipe" "$dir_bin" "$log" "$cmd_sens_weather"           'in:WEATHER'           $interval_inp_weather
+    spawn_poller "$pipe" "$dir_bin" "$log" khatus_sensor_mpd_state       'in:MPD_STATE'         $interval_inp_mpd_state
+    spawn_poller "$pipe" "$dir_bin" "$log" khatus_sensor_mpd_song        'in:MPD_SONG'          $interval_inp_mpd_song
+    spawn_poller "$pipe" "$dir_bin" "$log" khatus_sensor_volume          'in:VOLUME'            $interval_inp_volume
+    spawn_poller "$pipe" "$dir_bin" "$log" khatus_sensor_bluetooth_power 'in:BLUETOOTH_POWER'   $interval_inp_bluetooth
+    spawn_poller "$pipe" "$dir_bin" "$log" khatus_sensor_net_wifi_status 'in:NET_WIFI_STATUS'   $interval_inp_net_wifi
+    spawn_poller "$pipe" "$dir_bin" "$log" khatus_sensor_net_addr_io     'in:NET_ADDR_IO'       $interval_inp_net_io
+    spawn_poller "$pipe" "$dir_bin" "$log" "$cmd_sens_disk_space"        'in:DISK_SPACE'        $interval_inp_disk_space
+    spawn_poller "$pipe" "$dir_bin" "$log" "$cmd_sens_disk_io"           'in:DISK_IO'           $interval_inp_disk_io
+    spawn_poller "$pipe" "$dir_bin" "$log" khatus_sensor_loadavg         'in:LOAD_AVG'          $interval_inp_loadavg
+    spawn_poller "$pipe" "$dir_bin" "$log" "$cmd_sens_temperature"       'in:TEMPERATURE'       $interval_inp_temp
+    spawn_poller "$pipe" "$dir_bin" "$log" "$cmd_sens_fan"               'in:FAN'               $interval_inp_fan
+    spawn_poller "$pipe" "$dir_bin" "$log" khatus_sensor_memory          'in:MEMORY'            $interval_inp_mem
 
     consume \
       "$pipe" \

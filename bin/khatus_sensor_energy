@@ -2,11 +2,7 @@
 
 set -e
 
-upower -e \
-| grep battery \
-| xargs upower -i \
-| awk '
-    /^ +percentage: +/ { percentage=$2 }
-    /^ +state: +/      { state=$2 }
-    END                { print(state, percentage) }
-    '
+dir_bin="$1"
+
+upower --dump           | stdbuf -o L "$dir_bin"/khatus_parse_upower
+upower --monitor-detail | stdbuf -o L "$dir_bin"/khatus_parse_upower

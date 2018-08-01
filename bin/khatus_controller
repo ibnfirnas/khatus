@@ -1,92 +1,105 @@
 #! /usr/bin/awk -f
 
+{ debug("LINE", $0) }
+
+/^in:ENERGY battery/\
+{
+    debug("ENERGY battery", $0)
+    sub("%$", "", $4)
+    db["energy_state_prev"] = db["energy_state_curr"]
+    db["energy_state_curr"] = $3
+    db["energy_percentage"] = ensure_numeric($4)
+}
+
+/^in:ENERGY line_power/\
+{
+    debug("ENERGY line_power", $0)
+    db["energy_line_power_prev"] = db["energy_line_power_curr"]
+    db["energy_line_power_curr"] = $3
+}
 
 /^in:ENERGY/\
 {
-    fields_shift()
-    sub("%$", "", $2)
-    db["energy_state_prev"] = db["energy_state_curr"]
-    db["energy_state_curr"] = $1
-    db["energy_percentage"] = ensure_numeric($2)
+    debug("ENERGY ALL", $0)
     alert_check_energy()
 }
 
 /^in:MEMORY/\
 {
-    fields_shift()
+    shift()
     db["memory_total"] = $1
     db["memory_used"]  = $2
 }
 
 /^in:FAN +status:/\
 {
-    fields_shift()
+    shift()
     db["fan_status"] = $2
 }
 
 /^in:FAN +speed:/\
 {
-    fields_shift()
+    shift()
     db["fan_speed"] = $2
 }
 
 /^in:FAN +level:/\
 {
-    fields_shift()
+    shift()
     db["fan_level"] = $2
 }
 
 /^in:TEMPERATURE/\
 {
-    fields_shift()
+    shift()
     db["temperature"] = $1
 }
 
 /^in:LOAD_AVG/\
 {
-    fields_shift()
+    shift()
     set_load_avg()
 }
 
 /^in:DISK_IO/\
 {
-    fields_shift()
+    shift()
     set_disk_io()
 }
 
 /^in:DISK_SPACE/\
 {
-    fields_shift()
+    shift()
     db["disk_space_used"] = $0
 }
 
 /^in:NET_ADDR_IO/\
 {
-    fields_shift()
+    shift()
     set_net_addr_io()
 }
 
 /^in:NET_WIFI_STATUS/\
 {
-    fields_shift()
+    shift()
     db["net_wifi_status"] = $0
 }
 
 /^in:BLUETOOTH_POWER/\
 {
-    fields_shift()
+    shift()
     db["bluetooth_power"] = $0
 }
 
 /^in:SCREEN_BRIGHTNESS/\
 {
-    fields_shift()
+    shift()
     set_screen_brightness()
 }
 
 /^in:VOLUME/\
 {
-    fields_shift()
+    shift()
     db["volume"] = $0
 }
 
@@ -96,7 +109,7 @@
 
 /^in:MPD_STATE /\
 {
-    fields_shift()
+    shift()
     db["mpd_status_state"]   = $1
     db["mpd_status_time"]    = $2
     db["mpd_status_percent"] = $3
@@ -104,21 +117,21 @@
 
 /^in:WEATHER/\
 {
-    fields_shift()
+    shift()
     db["weather_temperature"] = $0
 }
 
 /^in:DATE_TIME/\
 {
-    fields_shift()
+    shift()
     db["datetime"] = $0
     output_msg_status_bar(make_status_bar())
 }
 
 function set_mpd_song(    key, val) {
     key = $2
-    fields_shift()
-    fields_shift()
+    shift()
+    shift()
     val = $0
     db_mpd_song[key] = val
     debug("set_mpd_song", "", db_mpd_song)
@@ -172,7 +185,8 @@ function alert_check_mpd(    curr, prev, name, body) {
 #       - snooze time (if already alerted, when to re-alert?)
 #       - text: subject/body
 function alert_check_energy(    \
-    from, dbg, state_curr, state_prev, remaining, subj, body\
+    from, dbg, state_curr, state_prev, line_power_curr, line_power_prev, \
+    remaining, subj, body\
 ) {
     from = "alert_check_energy"
 
@@ -182,13 +196,18 @@ function alert_check_energy(    \
 
     dbg["state_curr"] = state_curr
     dbg["remaining"] = remaining
+    dbg["energy_line_power_prev"] = db["energy_line_power_prev"]
+    dbg["energy_line_power_curr"] = db["energy_line_power_curr"]
     debug(from, "", dbg)
 
-    if (state_curr == "discharging") {
-        if (state_prev == "charging") {
-            alert_trigger_low(from, "PowerUnplugged", "")
-        }
+    line_power_curr = db["energy_line_power_curr"]
+    line_power_prev = db["energy_line_power_prev"]
 
+    if (line_power_curr == "no" && line_power_prev != "no") {
+        alert_trigger_low(from, "PowerUnplugged", "")
+    }
+
+    if (state_curr == "discharging") {
         if (remaining < 5) {
             subj = "Energy_CRITICALLY_Low"
             body = sprintf("%d%% CHARGE NOW!!! GO GO GO!!!", remaining)
@@ -308,11 +327,9 @@ function set_screen_brightness(    max, cur) {
     db["screen_brightness"] = (cur / max) * 100
 }
 
-function fields_shift(    dbg) {
-    dbg["head"] = $1
+# TODO: Revise overuse of shift() where it is not really needed
+function shift() {
     sub("^" $1 " +", "")
-    dbg["body"] = $0
-    debug("fields_shift", "", dbg)
 }
 
 function make_status_bar(    position, bar, sep, i, j) {
@@ -468,7 +485,8 @@ function debug(location, msg, values,    sep, vals, key, payload) {
             vals = sprintf("%s%s%s: %s", vals, sep, key, values[key])
             sep = ", "
         }
-        payload = sprintf("[%s] [%s] [%s]", location, msg, vals)
+        payload = \
+            sprintf("LOCATION[%s] MSG[%s] DATA[%s]", location, msg, vals)
         output_msg("DEBUG", payload, "/dev/stderr")
     }
 }
