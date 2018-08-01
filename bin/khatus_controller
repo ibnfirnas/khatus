@@ -3,7 +3,7 @@
 
 /^in:ENERGY/\
 {
-    split_msg_parts()
+    fields_shift()
     sub("%$", "", $2)
     db["energy_state_prev"] = db["energy_state_curr"]
     db["energy_state_curr"] = $1
@@ -13,86 +13,86 @@
 
 /^in:MEMORY/\
 {
-    split_msg_parts()
+    fields_shift()
     db["memory_total"] = $1
     db["memory_used"]  = $2
 }
 
 /^in:FAN +status:/\
 {
-    split_msg_parts()
+    fields_shift()
     db["fan_status"] = $2
 }
 
 /^in:FAN +speed:/\
 {
-    split_msg_parts()
+    fields_shift()
     db["fan_speed"] = $2
 }
 
 /^in:FAN +level:/\
 {
-    split_msg_parts()
+    fields_shift()
     db["fan_level"] = $2
 }
 
 /^in:TEMPERATURE/\
 {
-    split_msg_parts()
+    fields_shift()
     db["temperature"] = $1
 }
 
 /^in:LOAD_AVG/\
 {
-    split_msg_parts()
+    fields_shift()
     set_load_avg()
 }
 
 /^in:DISK_IO/\
 {
-    split_msg_parts()
+    fields_shift()
     set_disk_io()
 }
 
 /^in:DISK_SPACE/\
 {
-    split_msg_parts()
-    db["disk_space_used"] = msg_body
+    fields_shift()
+    db["disk_space_used"] = $0
 }
 
 /^in:NET_ADDR_IO/\
 {
-    split_msg_parts()
+    fields_shift()
     set_net_addr_io()
 }
 
 /^in:NET_WIFI_STATUS/\
 {
-    split_msg_parts()
-    db["net_wifi_status"] = msg_body
+    fields_shift()
+    db["net_wifi_status"] = $0
 }
 
 /^in:BLUETOOTH_POWER/\
 {
-    split_msg_parts()
-    db["bluetooth_power"] = msg_body
+    fields_shift()
+    db["bluetooth_power"] = $0
 }
 
 /^in:SCREEN_BRIGHTNESS/\
 {
-    split_msg_parts()
+    fields_shift()
     set_screen_brightness()
 }
 
 /^in:VOLUME/\
 {
-    split_msg_parts()
-    db["volume"] = msg_body
+    fields_shift()
+    db["volume"] = $0
 }
 
 /^in:MPD_STATE/\
 {
-    split_msg_parts()
+    fields_shift()
     db["mpd_state"]             = $1
     db["mpd_curr_song_time"]    = $2
     db["mpd_curr_song_percent"] = $3
@@ -100,20 +100,20 @@
 
 /^in:MPD_SONG/\
 {
-    split_msg_parts()
-    db["mpd_curr_song_name"] = msg_body
+    fields_shift()
+    db["mpd_curr_song_name"] = $0
 }
 
 /^in:WEATHER/\
 {
-    split_msg_parts()
-    db["weather_temperature"] = msg_body
+    fields_shift()
+    db["weather_temperature"] = $0
 }
 
 /^in:DATE_TIME/\
 {
-    split_msg_parts()
-    db["datetime"] = msg_body
+    fields_shift()
+    db["datetime"] = $0
     output_msg_status_bar(make_status_bar())
 }
 
@@ -260,13 +260,11 @@ function set_screen_brightness(    max, cur) {
     db["screen_brightness"] = (cur / max) * 100
 }
 
-function split_msg_parts(    dbg) {
-    msg_head = $1
-    sub("^" msg_head " +", "")
-    msg_body = $0
-    dbg["msg_head"] = msg_head
-    dbg["msg_body"] = msg_body
-    debug("split_msg_parts", dbg)
+function fields_shift(    dbg) {
+    dbg["head"] = $1
+    sub("^" $1 " +", "")
+    dbg["body"] = $0
+    debug("fields_shift", dbg)
 }
 
 function make_status_bar(    position, bar, sep, i, j) {
