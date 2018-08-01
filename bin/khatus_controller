@@ -9,6 +9,7 @@
     db["energy_state_prev"] = db["energy_state_curr"]
     db["energy_state_curr"] = $3
     db["energy_percentage"] = ensure_numeric($4)
+    alert_check_energy_battery()
 }
 
 /^in:ENERGY line_power/\
@@ -16,12 +17,7 @@
     debug("ENERGY line_power", $0)
     db["energy_line_power_prev"] = db["energy_line_power_curr"]
     db["energy_line_power_curr"] = $3
-}
-
-/^in:ENERGY/\
-{
-    debug("ENERGY ALL", $0)
-    alert_check_energy()
+    alert_check_energy_line_power()
 }
 
 /^in:MEMORY/\
@@ -184,11 +180,10 @@ function alert_check_mpd(    curr, prev, name, body) {
 #       - priority
 #       - snooze time (if already alerted, when to re-alert?)
 #       - text: subject/body
-function alert_check_energy(    \
-    from, dbg, state_curr, state_prev, line_power_curr, line_power_prev, \
-    remaining, subj, body\
+function alert_check_energy_battery(    \
+    from, dbg, state_curr, state_prev, remaining, subj, body\
 ) {
-    from = "alert_check_energy"
+    from = "alert_check_energy_battery"
 
     state_curr = db["energy_state_curr"]
     state_prev = db["energy_state_prev"]
@@ -196,16 +191,7 @@ function alert_check_energy(    \
 
     dbg["state_curr"] = state_curr
     dbg["remaining"] = remaining
-    dbg["energy_line_power_prev"] = db["energy_line_power_prev"]
-    dbg["energy_line_power_curr"] = db["energy_line_power_curr"]
     debug(from, "", dbg)
-
-    line_power_curr = db["energy_line_power_curr"]
-    line_power_prev = db["energy_line_power_prev"]
-
-    if (line_power_curr == "no" && line_power_prev != "no") {
-        alert_trigger_low(from, "PowerUnplugged", "")
-    }
 
     if (state_curr == "discharging") {
         if (remaining < 5) {
@@ -235,6 +221,23 @@ function alert_check_energy(    \
     } else {
         # TODO: Reconsider the competing global-state organizing-conventions
         state__alerts__energy__notified_bellow_half = 0
+    }
+}
+
+function alert_check_energy_line_power(    \
+    from, dbg, line_power_curr, line_power_prev, subj, body \
+) {
+    from = "alert_check_energy_line_power"
+
+    dbg["energy_line_power_prev"] = db["energy_line_power_prev"]
+    dbg["energy_line_power_curr"] = db["energy_line_power_curr"]
+    debug(from, "", dbg)
+
+    line_power_curr = db["energy_line_power_curr"]
+    line_power_prev = db["energy_line_power_prev"]
+
+    if (line_power_curr == "no" && line_power_prev != "no") {
+        alert_trigger_low(from, "PowerUnplugged", "")
     }
 }
 
