@@ -137,7 +137,7 @@ function set_volume(    mute, left, right) {
     } else if (mute == "yes") {
         db["volume"] = "X"
     } else {
-        # TODO: Log error - unexpected mute value
+        error("Unexpected value for 'mute' field: " mute)
     }
 }
 
@@ -509,6 +509,10 @@ function debug(location, msg, values,    sep, vals, key, payload) {
             sprintf("LOCATION[%s] MSG[%s] DATA[%s]", location, msg, vals)
         output_msg("DEBUG", payload, "/dev/stderr")
     }
+}
+
+function error(msg) {
+    output_msg("ERROR", msg, "/dev/stderr")
 }
 
 function ensure_numeric(n) {
