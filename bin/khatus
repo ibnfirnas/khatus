@@ -250,15 +250,10 @@ main() {
     cmd_sens_screen_brightness+=" $screen_brightness_device_path"
 
     cmd_sens_weather="khatus_sensor_weather $weather_station_id"
-
     cmd_sens_disk_space="khatus_sensor_disk_space $disk_space_device"
-
     cmd_sens_disk_io="khatus_sensor_disk_io $disk_io_device"
-
     cmd_sens_temperature="khatus_sensor_temperature $thermal_zone"
-
     cmd_sens_fan="khatus_sensor_fan $fan_path"
-
     cmd_sens_bluetooth="khatus_sensor_bluetooth_power $dir_bin"
 
     # TODO: Redirect each worker's stderr to a dedicated log file
