@@ -186,7 +186,7 @@ function alert_check_energy(    \
 
     if (state_curr == "discharging") {
         if (state_prev == "charging") {
-            alert_trigger_low(from, "Unplugged", "")
+            alert_trigger_low(from, "PowerUnplugged", "")
         }
 
         if (remaining < 5) {
