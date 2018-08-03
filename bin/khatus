@@ -20,9 +20,11 @@ run_producer() {
     log="$3"
     cmd="$4"
     msg_head="$5"
-    "$bin"/$cmd | while read line; do
-        echo "${msg_head} $line" > "$pipe"
-    done \
+    "$bin"/$cmd \
+    | while read line
+        do
+            echo "${msg_head} $line" > "$pipe"
+        done \
     2> "$log"
     # TODO: Perhaps direct log to pipe, so that controller can monitor sensors?
 }
@@ -34,7 +36,7 @@ fork_reactor() {
 fork_poller() {
     interval="$1"
     shift
-    while true
+    while :
     do
         run_producer "$@"
         sleep "$interval"
