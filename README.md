@@ -37,3 +37,8 @@ Design
                             ~ OS ~
                             ~~~~~~
 ```
+
+Any errors encountered by any sensor are propagated as alerts by the
+controller, which are in turn actualized as desktop notifications by the
+actuator:
+![screenshot-self-error-propagation](screenshot-self-error-propagation.jpg)
