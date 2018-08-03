@@ -8,7 +8,7 @@
 /^\t[A-Z][A-Za-z]+:/ {
     key = $1
     sub(":$", "", key)
-    sub("^" $1, "")
+    sub("^\t" $1 " *", "")
     val = $0
     data[controller, key] = val
 }
