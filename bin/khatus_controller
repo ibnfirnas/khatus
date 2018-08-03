@@ -1,123 +1,148 @@
 #! /usr/bin/awk -f
 
-{ debug("LINE", $0) }
+/^OK/ { debug("OK line", $0) }
 
-/^in:ENERGY battery/\
+/^ERROR/ {
+	debug("ERROR line", $0)
+	shift()
+	msg_head = $1
+	shift()
+	msg_body = $0
+	alert_trigger_hi(msg_head, "KhatusSensorError", msg_body)
+}
+
+/^OK in:ENERGY battery/\
 {
     debug("ENERGY battery", $0)
-    sub("%$", "", $4)
+    sub("%$", "", $5)
     db["energy_state_prev"] = db["energy_state_curr"]
-    db["energy_state_curr"] = $3
-    db["energy_percentage"] = ensure_numeric($4)
+    db["energy_state_curr"] = $4
+    db["energy_percentage"] = ensure_numeric($5)
     alert_check_energy_battery()
 }
 
-/^in:ENERGY line_power/\
+/^OK in:ENERGY line_power/\
 {
     debug("ENERGY line_power", $0)
     db["energy_line_power_prev"] = db["energy_line_power_curr"]
-    db["energy_line_power_curr"] = $3
+    db["energy_line_power_curr"] = $4
     alert_check_energy_line_power()
 }
 
-/^in:MEMORY/\
+/^OK in:MEMORY/\
 {
+    shift()
     shift()
     db["memory_total"] = $1
     db["memory_used"]  = $2
 }
 
-/^in:FAN +status:/\
+/^OK in:FAN +status:/\
 {
+    shift()
     shift()
     db["fan_status"] = $2
 }
 
-/^in:FAN +speed:/\
+/^OK in:FAN +speed:/\
 {
+    shift()
     shift()
     db["fan_speed"] = $2
 }
 
-/^in:FAN +level:/\
+/^OK in:FAN +level:/\
 {
+    shift()
     shift()
     db["fan_level"] = $2
 }
 
-/^in:TEMPERATURE/\
+/^OK in:TEMPERATURE/\
 {
+    shift()
     shift()
     db["temperature"] = $1
 }
 
-/^in:LOAD_AVG/\
+/^OK in:LOAD_AVG/\
 {
+    shift()
     shift()
     set_load_avg()
 }
 
-/^in:DISK_IO/\
+/^OK in:DISK_IO/\
 {
+    shift()
     shift()
     set_disk_io()
 }
 
-/^in:DISK_SPACE/\
+/^OK in:DISK_SPACE/\
 {
+    shift()
     shift()
     db["disk_space_used"] = $0
 }
 
-/^in:NET_ADDR_IO/\
+/^OK in:NET_ADDR_IO/\
 {
+    shift()
     shift()
     set_net_addr_io()
 }
 
-/^in:NET_WIFI_STATUS/\
+/^OK in:NET_WIFI_STATUS/\
 {
+    shift()
     shift()
     db["net_wifi_status"] = $0
 }
 
-/^in:BLUETOOTH_POWER/\
+/^OK in:BLUETOOTH_POWER/\
 {
+    shift()
     shift()
     db["bluetooth_power"] = $0
 }
 
-/^in:SCREEN_BRIGHTNESS/\
+/^OK in:SCREEN_BRIGHTNESS/\
 {
+    shift()
     shift()
     set_screen_brightness()
 }
 
-/^in:VOLUME/\
+/^OK in:VOLUME/\
 {
+    shift()
     set_volume()
 }
 
-/^in:MPD_SONG OK +MPD/ { delete db_mpd_song; next }
-/^in:MPD_SONG OK$/     { set_mpd_playing() ; next }
-/^in:MPD_SONG /        { set_mpd_song()    ; next }
+/^OK in:MPD_SONG OK +MPD/ { delete db_mpd_song; next }
+/^OK in:MPD_SONG OK$/     { set_mpd_playing() ; next }
+/^OK in:MPD_SONG /        { set_mpd_song()    ; next }
 
-/^in:MPD_STATE /\
+/^OK in:MPD_STATE /\
 {
+    shift()
     shift()
     db["mpd_status_state"]   = $1
     db["mpd_status_time"]    = $2
     db["mpd_status_percent"] = $3
 }
 
-/^in:WEATHER/\
+/^OK in:WEATHER/\
 {
+    shift()
     shift()
     db["weather_temperature"] = $0
 }
 
-/^in:DATE_TIME/\
+/^OK in:DATE_TIME/\
 {
+    shift()
     shift()
     db["datetime"] = $0
     output_msg_status_bar(make_status_bar())
@@ -142,6 +167,7 @@ function set_volume(    mute, left, right) {
 }
 
 function set_mpd_song(    key, val) {
+    shift()
     key = $2
     shift()
     shift()

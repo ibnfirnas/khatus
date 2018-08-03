@@ -17,16 +17,19 @@ consume() {
 run_producer() {
     pipe="$1"
     bin="$2"
-    log="$3"
-    cmd="$4"
-    msg_head="$5"
+    cmd="$3"
+    msg_head="$4"
     "$bin"/$cmd \
+    2> >(
+        while read line
+        do
+            echo "ERROR ${msg_head} $line" > "$pipe"
+        done \
+    ) \
     | while read line
         do
-            echo "${msg_head} $line" > "$pipe"
-        done \
-    2> "$log"
-    # TODO: Perhaps direct log to pipe, so that controller can monitor sensors?
+            echo "OK ${msg_head} $line" > "$pipe"
+        done
 }
 
 fork_reactor() {
@@ -47,7 +50,6 @@ main() {
     declare -A opts=(
         ["--debug"]=0
         ["--dir_bin"]="$HOME/bin"
-        ["--dir_logs"]=$(mktemp -d)
         ["--file_pipe"]=$(mktemp)
         ["--weather_station_id"]='KJFK'
         ["--screen_brightness_device_name"]='acpi_video0'
@@ -122,7 +124,6 @@ main() {
     # Just shorthand
     pipe="${opts['--file_pipe']}"
     bin="${opts['--dir_bin']}"
-    log="${opts['--dir_logs']}"/khatus_sensors.log
 
     rm -f "$pipe"
     mkfifo "$pipe"
@@ -140,23 +141,22 @@ main() {
     cmd_sens_net_addr_io="khatus_sensor_net_addr_io $bin"
     cmd_sens_volume="khatus_sensor_volume $bin"
 
-    # TODO: Redirect each worker's stderr to a dedicated log file
-    fork_reactor                                       "$pipe" "$bin" "$log" "khatus_sensor_energy $bin"     'in:ENERGY'
-    fork_poller "${opts['--interval_inp_datetime']}"   "$pipe" "$bin" "$log" khatus_sensor_datetime          'in:DATE_TIME'
-    fork_poller "${opts['--interval_inp_brightness']}" "$pipe" "$bin" "$log" "$cmd_sens_screen_brightness"   'in:SCREEN_BRIGHTNESS'
-    fork_poller "${opts['--interval_inp_weather']}"    "$pipe" "$bin" "$log" "$cmd_sens_weather"             'in:WEATHER'
-    fork_poller "${opts['--interval_inp_mpd_state']}"  "$pipe" "$bin" "$log" "$cmd_sens_mpd_state"           'in:MPD_STATE'
-    fork_poller "${opts['--interval_inp_mpd_song']}"   "$pipe" "$bin" "$log" khatus_sensor_mpd_song          'in:MPD_SONG'
-    fork_poller "${opts['--interval_inp_volume']}"     "$pipe" "$bin" "$log" "$cmd_sens_volume"              'in:VOLUME'
-    fork_poller "${opts['--interval_inp_bluetooth']}"  "$pipe" "$bin" "$log" "$cmd_sens_bluetooth"           'in:BLUETOOTH_POWER'
-    fork_poller "${opts['--interval_inp_net_wifi']}"   "$pipe" "$bin" "$log" khatus_sensor_net_wifi_status   'in:NET_WIFI_STATUS'
-    fork_poller "${opts['--interval_inp_net_io']}"     "$pipe" "$bin" "$log" "$cmd_sens_net_addr_io"         'in:NET_ADDR_IO'
-    fork_poller "${opts['--interval_inp_disk_space']}" "$pipe" "$bin" "$log" "$cmd_sens_disk_space"          'in:DISK_SPACE'
-    fork_poller "${opts['--interval_inp_disk_io']}"    "$pipe" "$bin" "$log" "$cmd_sens_disk_io"             'in:DISK_IO'
-    fork_poller "${opts['--interval_inp_loadavg']}"    "$pipe" "$bin" "$log" khatus_sensor_loadavg           'in:LOAD_AVG'
-    fork_poller "${opts['--interval_inp_temp']}"       "$pipe" "$bin" "$log" "$cmd_sens_temperature"         'in:TEMPERATURE'
-    fork_poller "${opts['--interval_inp_fan']}"        "$pipe" "$bin" "$log" "$cmd_sens_fan"                 'in:FAN'
-    fork_poller "${opts['--interval_inp_mem']}"        "$pipe" "$bin" "$log" khatus_sensor_memory            'in:MEMORY'
+    fork_reactor                                       "$pipe" "$bin" "khatus_sensor_energy $bin"     'in:ENERGY'
+    fork_poller "${opts['--interval_inp_datetime']}"   "$pipe" "$bin" khatus_sensor_datetime          'in:DATE_TIME'
+    fork_poller "${opts['--interval_inp_brightness']}" "$pipe" "$bin" "$cmd_sens_screen_brightness"   'in:SCREEN_BRIGHTNESS'
+    fork_poller "${opts['--interval_inp_weather']}"    "$pipe" "$bin" "$cmd_sens_weather"             'in:WEATHER'
+    fork_poller "${opts['--interval_inp_mpd_state']}"  "$pipe" "$bin" "$cmd_sens_mpd_state"           'in:MPD_STATE'
+    fork_poller "${opts['--interval_inp_mpd_song']}"   "$pipe" "$bin" khatus_sensor_mpd_song          'in:MPD_SONG'
+    fork_poller "${opts['--interval_inp_volume']}"     "$pipe" "$bin" "$cmd_sens_volume"              'in:VOLUME'
+    fork_poller "${opts['--interval_inp_bluetooth']}"  "$pipe" "$bin" "$cmd_sens_bluetooth"           'in:BLUETOOTH_POWER'
+    fork_poller "${opts['--interval_inp_net_wifi']}"   "$pipe" "$bin" khatus_sensor_net_wifi_status   'in:NET_WIFI_STATUS'
+    fork_poller "${opts['--interval_inp_net_io']}"     "$pipe" "$bin" "$cmd_sens_net_addr_io"         'in:NET_ADDR_IO'
+    fork_poller "${opts['--interval_inp_disk_space']}" "$pipe" "$bin" "$cmd_sens_disk_space"          'in:DISK_SPACE'
+    fork_poller "${opts['--interval_inp_disk_io']}"    "$pipe" "$bin" "$cmd_sens_disk_io"             'in:DISK_IO'
+    fork_poller "${opts['--interval_inp_loadavg']}"    "$pipe" "$bin" khatus_sensor_loadavg           'in:LOAD_AVG'
+    fork_poller "${opts['--interval_inp_temp']}"       "$pipe" "$bin" "$cmd_sens_temperature"         'in:TEMPERATURE'
+    fork_poller "${opts['--interval_inp_fan']}"        "$pipe" "$bin" "$cmd_sens_fan"                 'in:FAN'
+    fork_poller "${opts['--interval_inp_mem']}"        "$pipe" "$bin" khatus_sensor_memory            'in:MEMORY'
 
     consume \
       "$pipe" \
