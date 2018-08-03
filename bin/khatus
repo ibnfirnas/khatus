@@ -5,10 +5,10 @@ set -e
 consume() {
     pipe="$1"
     debug="$2"
-    dir_bin="$3"
+    bin="$3"
     prefixes_of_net_interfaces_to_show="$4"
     tail -f "$pipe" \
-    | stdbuf -o L "$dir_bin"/khatus_controller \
+    | stdbuf -o L "$bin"/khatus_controller \
         -v opt_debug="$debug" \
         -v opt_mpd_song_max_chars=10 \
         -v opt_prefixes_of_net_interfaces_to_show="$prefixes_of_net_interfaces_to_show"
@@ -16,11 +16,11 @@ consume() {
 
 run_producer() {
     pipe="$1"
-    dir_bin="$2"
+    bin="$2"
     log="$3"
     cmd="$4"
     msg_head="$5"
-    "$dir_bin"/$cmd | while read line; do
+    "$bin"/$cmd | while read line; do
         echo "${msg_head} $line" > "$pipe"
     done \
     2> "$log"
@@ -42,250 +42,125 @@ fork_poller() {
 }
 
 main() {
-    # Defaults
-    debug=0
-    dir_bin="$HOME/bin"
-    dir_logs=$(mktemp -d)
-    file_pipe=$(mktemp)
-    weather_station_id='KJFK'
-    screen_brightness_device_name='acpi_video0'
-    prefixes_of_net_interfaces_to_show='w'  # comma-separated
-    disk_space_device='/'
-    disk_io_device='sda'
-    thermal_zone=0
-    fan_path='/proc/acpi/ibm/fan'
-
-    interval_inp_datetime=1
-    interval_inp_brightness=1
-    interval_inp_weather=$(( 30 * 60))  # 30 minutes
-    interval_inp_mpd_state=1
-    interval_inp_mpd_song=1
-    interval_inp_volume=1
-    interval_inp_bluetooth=5
-    interval_inp_net_wifi=5
-    interval_inp_net_io=1
-    interval_inp_disk_space=5
-    interval_inp_disk_io=1
-    interval_inp_loadavg=1
-    interval_inp_temp=1
-    interval_inp_fan=1
-    interval_inp_mem=1
-
-    # User-overrides
-    # ---------------------------------------------------------------------
-    # IMPORTANT:
-    # In order for automatic value reporting, at startup, to work - ensure that
-    # long option names match corresponding variable names!
-    # ---------------------------------------------------------------------
-    long_options=''
-    long_options+='debug'
-    long_options+=',dir_bin:'
-    long_options+=',dir_logs:'
-    long_options+=',file_pipe:'
-    long_options+=',weather_station_id:'
-    long_options+=',screen_brightness_device_name:'
-    long_options+=',prefixes_of_net_interfaces_to_show:'
-    long_options+=',disk_space_device:'
-    long_options+=',disk_io_device:'
-    long_options+=',thermal_zone:'
-    long_options+=',fan_path:'
-    long_options+=',interval_inp_datetime:'
-    long_options+=',interval_inp_brightness:'
-    long_options+=',interval_inp_weather:'
-    long_options+=',interval_inp_mpd_state:'
-    long_options+=',interval_inp_mpd_song:'
-    long_options+=',interval_inp_volume:'
-    long_options+=',interval_inp_bluetooth:'
-    long_options+=',interval_inp_net_wifi:'
-    long_options+=',interval_inp_net_io:'
-    long_options+=',interval_inp_disk_space:'
-    long_options+=',interval_inp_disk_io:'
-    long_options+=',interval_inp_loadavg:'
-    long_options+=',interval_inp_temp:'
-    long_options+=',interval_inp_fan:'
-    long_options+=',interval_inp_mem:'
-    OPTS=$(
-        getopt \
-            -o 'd' \
-            -l $long_options \
-            -- "$@"
+    declare -A opts=(
+        ["--debug"]=0
+        ["--dir_bin"]="$HOME/bin"
+        ["--dir_logs"]=$(mktemp -d)
+        ["--file_pipe"]=$(mktemp)
+        ["--weather_station_id"]='KJFK'
+        ["--screen_brightness_device_name"]='acpi_video0'
+        ["--prefixes_of_net_interfaces_to_show"]='w'  # comma-separated
+        ["--disk_space_device"]='/'
+        ["--disk_io_device"]='sda'
+        ["--thermal_zone"]=0
+        ["--fan_path"]='/proc/acpi/ibm/fan'
+        ["--interval_inp_datetime"]=1
+        ["--interval_inp_brightness"]=1
+        ["--interval_inp_weather"]=$(( 30 * 60))  # 30 minutes
+        ["--interval_inp_mpd_state"]=1
+        ["--interval_inp_mpd_song"]=1
+        ["--interval_inp_volume"]=1
+        ["--interval_inp_bluetooth"]=5
+        ["--interval_inp_net_wifi"]=5
+        ["--interval_inp_net_io"]=1
+        ["--interval_inp_disk_space"]=5
+        ["--interval_inp_disk_io"]=1
+        ["--interval_inp_loadavg"]=1
+        ["--interval_inp_temp"]=1
+        ["--interval_inp_fan"]=1
+        ["--interval_inp_mem"]=1
     )
-    eval set -- "$OPTS"
-    while true
+    while :
     do
-        case "$1" in
-            -d|--debug)
-                debug=1
-                shift
-                ;;
-            --dir_bin)
-                dir_bin="$2"
-                shift 2
-                ;;
-            --dir_logs)
-                dir_logs="$2"
-                shift 2
-                ;;
-            --file_pipe)
-                file_pipe="$2"
-                shift 2
-                ;;
-            --weather_station_id)
-                weather_station_id="$2"
-                shift 2
-                ;;
-            --screen_brightness_device_name)
-                screen_brightness_device_name="$2"
-                shift 2
-                ;;
-            --prefixes_of_net_interfaces_to_show)
-                prefixes_of_net_interfaces_to_show="$2"
-                shift 2
-                ;;
-            --disk_space_device)
-                disk_space_device="$2"
-                shift 2
-                ;;
-            --disk_io_device)
-                disk_io_device="$2"
-                shift 2
-                ;;
-            --thermal_zone)
-                thermal_zone="$2"
-                shift 2
-                ;;
-            --fan_path)
-                fan_path="$2"
-                shift 2
-                ;;
-            --interval_inp_datetime)
-                interval_inp_datetime="$2"
-                shift 2
-                ;;
-            --interval_inp_brightness)
-                interval_inp_brightness="$2"
-                shift 2
-                ;;
-            --interval_inp_weather)
-                interval_inp_weather="$2"
-                shift 2
-                ;;
-            --interval_inp_mpd_state)
-                interval_inp_mpd_state="$2"
-                shift 2
-                ;;
-            --interval_inp_mpd_song)
-                interval_inp_mpd_song="$2"
-                shift 2
-                ;;
-            --interval_inp_volume)
-                interval_inp_volume="$2"
-                shift 2
-                ;;
-            --interval_inp_bluetooth)
-                interval_inp_bluetooth="$2"
-                shift 2
-                ;;
-            --interval_inp_net_wifi)
-                interval_inp_net_wifi="$2"
-                shift 2
-                ;;
-            --interval_inp_net_io)
-                interval_inp_net_io="$2"
-                shift 2
-                ;;
-            --interval_inp_disk_space)
-                interval_inp_disk_space="$2"
-                shift 2
-                ;;
-            --interval_inp_disk_io)
-                interval_inp_disk_io="$2"
-                shift 2
-                ;;
-            --interval_inp_loadavg)
-                interval_inp_loadavg="$2"
-                shift 2
-                ;;
-            --interval_inp_temp)
-                interval_inp_temp="$2"
-                shift 2
-                ;;
-            --interval_inp_fan)
-                interval_inp_fan="$2"
-                shift 2
-                ;;
-            --interval_inp_mem)
-                interval_inp_mem="$2"
-                shift 2
-                ;;
-            --)
-                shift
+        key="$1"
+        val="$2"
+        case "$key" in
+            '')
                 break
                 ;;
+            * )
+                if [ -v opts["$key"] ]
+                then
+                    if [ "$key" == "--debug" ]
+                    then
+                        opts["$key"]=1
+                        shift
+                    elif [ "$val" != "" ]
+                    then
+                        opts["$key"]="$val"
+                        shift
+                        shift
+                    else
+                        echo "Option $key requires an argument" >&2
+                        exit 1
+                    fi
+                else
+                    echo "Unknown option: $key" >&2
+                    exit 1
+                fi
         esac
     done
-
-    screen_brightness_device_path='/sys/class/backlight'
-    screen_brightness_device_path+="/$screen_brightness_device_name"
 
     (
         echo '=============================================='
         echo "Khatus starting with the following parameters:"
         echo '=============================================='
-        for param in \
-            $(echo -n "$long_options" \
-            | awk -v RS=, '{sub(":$", ""); print $0}'
-            )
+        for param in ${!opts[@]}
         do
-            echo "$param := ${!param}"
+            echo "$param := ${opts[$param]}"
         done \
-        | column -ts:
+        | column -ts: \
+        | sort
         echo '----------------------------------------------'
     ) >&2
 
-    rm -f "$file_pipe"
-    mkfifo "$file_pipe"
+    screen_brightness_device_path='/sys/class/backlight'
+    screen_brightness_device_path+="/${opts['--screen_brightness_device_name']}"
+
+    # Just shorthand
+    pipe="${opts['--file_pipe']}"
+    bin="${opts['--dir_bin']}"
+    log="${opts['--dir_logs']}"/khatus_sensors.log
+
+    rm -f "$pipe"
+    mkfifo "$pipe"
 
     cmd_sens_screen_brightness='khatus_sensor_screen_brightness'
     cmd_sens_screen_brightness+=" $screen_brightness_device_path"
 
-    cmd_sens_weather="khatus_sensor_weather $weather_station_id"
-    cmd_sens_disk_space="khatus_sensor_disk_space $disk_space_device"
-    cmd_sens_disk_io="khatus_sensor_disk_io $disk_io_device"
-    cmd_sens_temperature="khatus_sensor_temperature $thermal_zone"
-    cmd_sens_fan="khatus_sensor_fan $fan_path"
-    cmd_sens_bluetooth="khatus_sensor_bluetooth_power $dir_bin"
-    cmd_sens_mpd_state="khatus_sensor_mpd_state $dir_bin"
-    cmd_sens_net_addr_io="khatus_sensor_net_addr_io $dir_bin"
-    cmd_sens_volume="khatus_sensor_volume $dir_bin"
+    cmd_sens_weather="khatus_sensor_weather ${opts['--weather_station_id']}"
+    cmd_sens_disk_space="khatus_sensor_disk_space ${opts['--disk_space_device']}"
+    cmd_sens_disk_io="khatus_sensor_disk_io ${opts['--disk_io_device']}"
+    cmd_sens_temperature="khatus_sensor_temperature ${opts['--thermal_zone']}"
+    cmd_sens_fan="khatus_sensor_fan ${opts['--fan_path']}"
+    cmd_sens_bluetooth="khatus_sensor_bluetooth_power $bin"
+    cmd_sens_mpd_state="khatus_sensor_mpd_state $bin"
+    cmd_sens_net_addr_io="khatus_sensor_net_addr_io $bin"
+    cmd_sens_volume="khatus_sensor_volume $bin"
 
     # TODO: Redirect each worker's stderr to a dedicated log file
-    pipe="$file_pipe"
-    log="$dir_logs"/khatus_sensors.log
-
-    fork_reactor                         "$pipe" "$dir_bin" "$log" "khatus_sensor_energy $dir_bin" 'in:ENERGY'
-
-    fork_poller $interval_inp_datetime   "$pipe" "$dir_bin" "$log" khatus_sensor_datetime          'in:DATE_TIME'
-    fork_poller $interval_inp_brightness "$pipe" "$dir_bin" "$log" "$cmd_sens_screen_brightness"   'in:SCREEN_BRIGHTNESS'
-    fork_poller $interval_inp_weather    "$pipe" "$dir_bin" "$log" "$cmd_sens_weather"             'in:WEATHER'
-    fork_poller $interval_inp_mpd_state  "$pipe" "$dir_bin" "$log" "$cmd_sens_mpd_state"           'in:MPD_STATE'
-    fork_poller $interval_inp_mpd_song   "$pipe" "$dir_bin" "$log" khatus_sensor_mpd_song          'in:MPD_SONG'
-    fork_poller $interval_inp_volume     "$pipe" "$dir_bin" "$log" "$cmd_sens_volume"              'in:VOLUME'
-    fork_poller $interval_inp_bluetooth  "$pipe" "$dir_bin" "$log" "$cmd_sens_bluetooth"           'in:BLUETOOTH_POWER'
-    fork_poller $interval_inp_net_wifi   "$pipe" "$dir_bin" "$log" khatus_sensor_net_wifi_status   'in:NET_WIFI_STATUS'
-    fork_poller $interval_inp_net_io     "$pipe" "$dir_bin" "$log" "$cmd_sens_net_addr_io"         'in:NET_ADDR_IO'
-    fork_poller $interval_inp_disk_space "$pipe" "$dir_bin" "$log" "$cmd_sens_disk_space"          'in:DISK_SPACE'
-    fork_poller $interval_inp_disk_io    "$pipe" "$dir_bin" "$log" "$cmd_sens_disk_io"             'in:DISK_IO'
-    fork_poller $interval_inp_loadavg    "$pipe" "$dir_bin" "$log" khatus_sensor_loadavg           'in:LOAD_AVG'
-    fork_poller $interval_inp_temp       "$pipe" "$dir_bin" "$log" "$cmd_sens_temperature"         'in:TEMPERATURE'
-    fork_poller $interval_inp_fan        "$pipe" "$dir_bin" "$log" "$cmd_sens_fan"                 'in:FAN'
-    fork_poller $interval_inp_mem        "$pipe" "$dir_bin" "$log" khatus_sensor_memory            'in:MEMORY'
+    fork_reactor                                       "$pipe" "$bin" "$log" "khatus_sensor_energy $bin"     'in:ENERGY'
+    fork_poller "${opts['--interval_inp_datetime']}"   "$pipe" "$bin" "$log" khatus_sensor_datetime          'in:DATE_TIME'
+    fork_poller "${opts['--interval_inp_brightness']}" "$pipe" "$bin" "$log" "$cmd_sens_screen_brightness"   'in:SCREEN_BRIGHTNESS'
+    fork_poller "${opts['--interval_inp_weather']}"    "$pipe" "$bin" "$log" "$cmd_sens_weather"             'in:WEATHER'
+    fork_poller "${opts['--interval_inp_mpd_state']}"  "$pipe" "$bin" "$log" "$cmd_sens_mpd_state"           'in:MPD_STATE'
+    fork_poller "${opts['--interval_inp_mpd_song']}"   "$pipe" "$bin" "$log" khatus_sensor_mpd_song          'in:MPD_SONG'
+    fork_poller "${opts['--interval_inp_volume']}"     "$pipe" "$bin" "$log" "$cmd_sens_volume"              'in:VOLUME'
+    fork_poller "${opts['--interval_inp_bluetooth']}"  "$pipe" "$bin" "$log" "$cmd_sens_bluetooth"           'in:BLUETOOTH_POWER'
+    fork_poller "${opts['--interval_inp_net_wifi']}"   "$pipe" "$bin" "$log" khatus_sensor_net_wifi_status   'in:NET_WIFI_STATUS'
+    fork_poller "${opts['--interval_inp_net_io']}"     "$pipe" "$bin" "$log" "$cmd_sens_net_addr_io"         'in:NET_ADDR_IO'
+    fork_poller "${opts['--interval_inp_disk_space']}" "$pipe" "$bin" "$log" "$cmd_sens_disk_space"          'in:DISK_SPACE'
+    fork_poller "${opts['--interval_inp_disk_io']}"    "$pipe" "$bin" "$log" "$cmd_sens_disk_io"             'in:DISK_IO'
+    fork_poller "${opts['--interval_inp_loadavg']}"    "$pipe" "$bin" "$log" khatus_sensor_loadavg           'in:LOAD_AVG'
+    fork_poller "${opts['--interval_inp_temp']}"       "$pipe" "$bin" "$log" "$cmd_sens_temperature"         'in:TEMPERATURE'
+    fork_poller "${opts['--interval_inp_fan']}"        "$pipe" "$bin" "$log" "$cmd_sens_fan"                 'in:FAN'
+    fork_poller "${opts['--interval_inp_mem']}"        "$pipe" "$bin" "$log" khatus_sensor_memory            'in:MEMORY'
 
     consume \
       "$pipe" \
-      "$debug" \
-      "$dir_bin" \
-      "$prefixes_of_net_interfaces_to_show"
+      "${opts['--debug']}" \
+      "$bin" \
+      "${opts['--prefixes_of_net_interfaces_to_show']}"
 }
 
 main $@
