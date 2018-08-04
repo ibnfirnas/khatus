@@ -162,7 +162,7 @@ function set_volume(    mute, left, right) {
     } else if (mute == "yes") {
         db["volume"] = "X"
     } else {
-        error("Unexpected value for 'mute' field: " mute)
+        error("set_volume", "Unexpected value for 'mute' field: " mute)
     }
 }
 
@@ -537,8 +537,11 @@ function debug(location, msg, values,    sep, vals, key, payload) {
     }
 }
 
-function error(msg) {
-    output_msg("ERROR", msg, "/dev/stderr")
+function error(location, msg) {
+    # TODO: Reconsider classifying internal errors as alerts
+    #       Maybe better to keep the error class distinct and provide a
+    #       an optional transformation from error to alert
+    alert_trigger_hi(location, "KhatusControllerError", msg)
 }
 
 function ensure_numeric(n) {
