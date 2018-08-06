@@ -97,3 +97,15 @@ controller, which are in turn actualized as desktop notifications by the
 `khatus_actuate_alert_to_notify_send` actuator:
 
 ![screenshot-self-error-propagation](screenshot-self-error-propagation.jpg)
+
+TODO
+----
+
+- retry/cache for sensors fetching flaky remote resources (such as weather)
+- throttling of broken sensors (constantly returns errors)
+- alert specification language
+    - trigger threshold
+    - above/bellow/equal to threshold value
+    - priority
+    - snooze time (if already alerted, when to re-alert?)
+    - text: subject/body
