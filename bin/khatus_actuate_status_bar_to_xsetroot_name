@@ -1,0 +1,8 @@
+#! /usr/bin/awk -f
+
+/^STATUS_BAR / {
+    sub("^" $1 " +", "")
+    # TODO: Move padding back to controller, now that we no-longer use readline
+    system("xsetroot -name \" " $0 "\" ")
+    next
+}

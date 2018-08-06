@@ -1,0 +1,31 @@
+#! /usr/bin/awk -f
+
+BEGIN {
+    # Set the correct value as any other AWK variable:
+    #
+    #   khatus_actuate_alert_to_notify_send -v display="$CORRECT_DISPLAY"
+    #
+    display = ":0"
+}
+
+/^ALERT / {
+    src      = $2
+    priority = $3
+    subject  = $4
+    sub("^" $1 " +" $2 " +" $3 " +" $4 " +", "")
+    body     = $0
+
+    sep = body ? "\n" : ""
+    body = body sep "--" src
+    urgency = priority
+    sub("hi" , "critical", urgency)
+    sub("med", "normal"  , urgency)
+
+    cmd = \
+        sprintf(\
+            "DISPLAY=%s notify-send -u %s %s \" %s\"",
+            display, urgency, subject, body \
+        )
+    system(cmd)
+    next
+}

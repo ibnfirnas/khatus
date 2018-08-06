@@ -213,7 +213,7 @@ function alert_check_mpd(    curr, prev, name, body) {
                 " - " db_mpd_song["Album:"] \
                 " - " db_mpd_song["Title:"]
         }
-        alert_trigger_low("alert_check_mpd", "NowPlaying", body)
+        alert_trigger_low("alert_check_mpd", "MpdNowPlaying", body)
     }
 }
 
