@@ -19,7 +19,7 @@ run_producer() {
         done
 }
 
-fork_reactor() {
+fork_watcher() {
     run_producer "$@" &
 }
 
@@ -124,7 +124,7 @@ main() {
     cmd_sens_volume="khatus_sensor_volume $bin"
 
     (
-        fork_reactor                                       "$bin" "khatus_sensor_energy $bin"     'in:ENERGY'
+        fork_watcher                                       "$bin" "khatus_sensor_energy $bin"     'in:ENERGY'
         fork_poller "${opts['--interval_inp_datetime']}"   "$bin" khatus_sensor_datetime          'in:DATE_TIME'
         fork_poller "${opts['--interval_inp_brightness']}" "$bin" "$cmd_sens_screen_brightness"   'in:SCREEN_BRIGHTNESS'
         fork_poller "${opts['--interval_inp_weather']}"    "$bin" "$cmd_sens_weather"             'in:WEATHER'
