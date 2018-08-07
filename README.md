@@ -109,4 +109,6 @@ TODO
     - priority
     - snooze time (if already alerted, when to re-alert?)
     - text: subject/body
-- use `nmcli monitor` instead of polling
+- Reduce wireless sensor resource footprint:
+    - use `nmcli monitor`, instead of polling, for state changes
+    - use `iwconfig`, instead of `nmcli`, for SSID and signal strength
