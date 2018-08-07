@@ -54,6 +54,7 @@ main() {
         ["--weather_station_id"]='KJFK'
         ["--screen_brightness_device_name"]='acpi_video0'
         ["--prefixes_of_net_interfaces_to_show"]='w'  # comma-separated
+        ["--wifi_interface"]=''
         ["--disk_space_device"]='/'
         ["--disk_io_device"]='sda'
         ["--thermal_zone"]=0
@@ -105,6 +106,12 @@ main() {
         esac
     done
 
+    if [ "${opts['--wifi_interface']}" = ''  ]
+    then
+        echo 'Please provide the required parameter: --wifi_interface' >&2
+        exit 1
+    fi
+
     (
         echo '=============================================='
         echo "Khatus starting with the following parameters:"
@@ -140,6 +147,7 @@ main() {
     cmd_sens_mpd_state="khatus_sensor_mpd_state $bin"
     cmd_sens_net_addr_io="khatus_sensor_net_addr_io $bin"
     cmd_sens_volume="khatus_sensor_volume $bin"
+    cmd_sens_wifi="khatus_sensor_net_wifi_status $bin ${opts['--wifi_interface']}"
 
     fork_watcher                                       "$pipe" "$bin" "khatus_sensor_energy $bin"     'in:ENERGY'
     fork_poller "${opts['--interval_inp_datetime']}"   "$pipe" "$bin" khatus_sensor_datetime          'in:DATE_TIME'
@@ -149,7 +157,7 @@ main() {
     fork_poller "${opts['--interval_inp_mpd_song']}"   "$pipe" "$bin" khatus_sensor_mpd_song          'in:MPD_SONG'
     fork_poller "${opts['--interval_inp_volume']}"     "$pipe" "$bin" "$cmd_sens_volume"              'in:VOLUME'
     fork_poller "${opts['--interval_inp_bluetooth']}"  "$pipe" "$bin" "$cmd_sens_bluetooth"           'in:BLUETOOTH_POWER'
-    fork_poller "${opts['--interval_inp_net_wifi']}"   "$pipe" "$bin" khatus_sensor_net_wifi_status   'in:NET_WIFI_STATUS'
+    fork_poller "${opts['--interval_inp_net_wifi']}"   "$pipe" "$bin" "$cmd_sens_wifi"                'in:NET_WIFI_STATUS'
     fork_poller "${opts['--interval_inp_net_io']}"     "$pipe" "$bin" "$cmd_sens_net_addr_io"         'in:NET_ADDR_IO'
     fork_poller "${opts['--interval_inp_disk_space']}" "$pipe" "$bin" "$cmd_sens_disk_space"          'in:DISK_SPACE'
     fork_poller "${opts['--interval_inp_disk_io']}"    "$pipe" "$bin" "$cmd_sens_disk_io"             'in:DISK_IO'

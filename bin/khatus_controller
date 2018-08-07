@@ -97,7 +97,7 @@
 {
     shift()
     shift()
-    db["net_wifi_status"] = $0
+    set_net_wifi_status()
 }
 
 /^OK in:BLUETOOTH_POWER/\
@@ -338,6 +338,12 @@ function set_disk_io(    curr_w, curr_r, prev_w, prev_r) {
     db["disk_io_diff_r"] = curr_r - prev_r
 }
 
+function set_net_wifi_status(    interface) {
+    interface = $1
+    shift()
+    db["net_wifi_status", interface] = $0
+}
+
 function set_net_addr_io(    \
     interface, address, io_curr_w, io_curr_r, io_prev_w, io_prev_r\
 ) {
@@ -475,7 +481,7 @@ function make_status_net(    \
                     io_stat = "--"
                 }
                 if (interface ~ "^w") {
-                    label = label ":" db["net_wifi_status"]
+                    label = label ":" db["net_wifi_status", interface]
                 }
                 if (++count_printed > 1) {
                     sep = "  "
