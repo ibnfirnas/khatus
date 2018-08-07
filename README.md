@@ -109,3 +109,4 @@ TODO
     - priority
     - snooze time (if already alerted, when to re-alert?)
     - text: subject/body
+- use `nmcli monitor` instead of polling
