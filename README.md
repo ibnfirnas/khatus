@@ -109,3 +109,9 @@ TODO
     - priority
     - snooze time (if already alerted, when to re-alert?)
     - text: subject/body
+
+Redesign notes
+--------------
+
+- controller should not do formatting
+- need in-memory db for diskless feedback/throttling and cache
