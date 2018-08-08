@@ -141,12 +141,12 @@
     db["weather_temperature"] = $0
 }
 
-/^OK in:WEATHER phenomena/\
+/^OK in:WEATHER phenomenon/\
 {
     shift()
     shift()
     shift()
-    alert_trigger_low("weather_phenomena", "WeatherPhenomena", $0)
+    alert_trigger_low("weather_phenomenon", "WeatherPhenomenon", $0)
 }
 
 /^OK in:DATE_TIME/\

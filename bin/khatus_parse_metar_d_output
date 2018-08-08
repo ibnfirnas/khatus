@@ -38,7 +38,10 @@ END {
         temp_fahrenheit = (temp_celsius * (9 / 5)) + 32
         print "temperature " temp_fahrenheit "°F"
         for (i=first["Phenomena"]; i<=last["Phenomena"]; i++) {
-            print "phenomena " values[i]
+            phenomenon = values[i]
+            if (phenomenon) {
+                print "phenomenon " phenomenon
+            }
         }
     }
 }
