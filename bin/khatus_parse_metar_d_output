@@ -4,7 +4,7 @@
 # metar format.
 
 function strip(s) {
-	sub("^ *", "", s)
+    sub("^ *", "", s)
     sub(" *$", "", s)
     return s
 }
