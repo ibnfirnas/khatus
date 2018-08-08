@@ -19,7 +19,26 @@ run_producer() {
     bin="$2"
     cmd="$3"
     msg_head="$4"
-    "$bin"/$cmd \
+    perf_log="$5"
+
+    if [ ! "$perf_log" = '' ]
+    then
+        # %S system  time in seconds
+        # %U user    time in seconds
+        # %e elapsed time in seconds
+        # %c context switches involuntary
+        # %w context switches voluntary
+        # %x exit code
+        time_fmt='%S %U %e %c %w %x'
+        time="/usr/bin/time -ao ${perf_log} -f "
+        time_sep=' '
+    else
+        time_fmt=''
+        time=''
+        time_sep=''
+    fi
+
+    ${time}"${time_fmt}"${time_sep}$bin/$cmd \
     2> >(
         while read line
         do
@@ -38,10 +57,20 @@ fork_watcher() {
 
 fork_poller() {
     interval="$1"
-    shift
+    perf_log_dir="$2"
+    shift 2
+
+    if [ ! "$perf_log_dir" = '' ]
+    then
+        cmd="$3"
+        perf_log_file=$(basename "$(echo $cmd | awk '{print $1; exit}')").log
+        mkdir -p "$perf_log_dir"
+        perf_log_path="$perf_log_dir/$perf_log_file"
+    fi
+
     while :
     do
-        run_producer "$@"
+        run_producer "$@" "$perf_log_path"
         sleep "$interval"
     done &
 }
@@ -50,6 +79,7 @@ main() {
     declare -A opts=(
         ["--debug"]=0
         ["--dir_bin"]="$HOME/bin"
+        ["--dir_perf_logs"]=''
         ["--file_pipe"]=$(mktemp)
         ["--weather_station_id"]='KJFK'
         ["--screen_brightness_device_name"]='acpi_video0'
@@ -131,6 +161,7 @@ main() {
     # Just shorthand
     pipe="${opts['--file_pipe']}"
     bin="${opts['--dir_bin']}"
+    perf="${opts['--dir_perf_logs']}"
 
     rm -f "$pipe"
     mkfifo "$pipe"
@@ -149,22 +180,22 @@ main() {
     cmd_sens_volume="khatus_sensor_volume $bin"
     cmd_sens_wifi="khatus_sensor_net_wifi_status $bin ${opts['--wifi_interface']}"
 
-    fork_watcher                                       "$pipe" "$bin" "khatus_sensor_energy $bin"     'in:ENERGY'
-    fork_poller "${opts['--interval_inp_datetime']}"   "$pipe" "$bin" khatus_sensor_datetime          'in:DATE_TIME'
-    fork_poller "${opts['--interval_inp_brightness']}" "$pipe" "$bin" "$cmd_sens_screen_brightness"   'in:SCREEN_BRIGHTNESS'
-    fork_poller "${opts['--interval_inp_weather']}"    "$pipe" "$bin" "$cmd_sens_weather"             'in:WEATHER'
-    fork_poller "${opts['--interval_inp_mpd_state']}"  "$pipe" "$bin" "$cmd_sens_mpd_state"           'in:MPD_STATE'
-    fork_poller "${opts['--interval_inp_mpd_song']}"   "$pipe" "$bin" khatus_sensor_mpd_song          'in:MPD_SONG'
-    fork_poller "${opts['--interval_inp_volume']}"     "$pipe" "$bin" "$cmd_sens_volume"              'in:VOLUME'
-    fork_poller "${opts['--interval_inp_bluetooth']}"  "$pipe" "$bin" "$cmd_sens_bluetooth"           'in:BLUETOOTH_POWER'
-    fork_poller "${opts['--interval_inp_net_wifi']}"   "$pipe" "$bin" "$cmd_sens_wifi"                'in:NET_WIFI_STATUS'
-    fork_poller "${opts['--interval_inp_net_io']}"     "$pipe" "$bin" "$cmd_sens_net_addr_io"         'in:NET_ADDR_IO'
-    fork_poller "${opts['--interval_inp_disk_space']}" "$pipe" "$bin" "$cmd_sens_disk_space"          'in:DISK_SPACE'
-    fork_poller "${opts['--interval_inp_disk_io']}"    "$pipe" "$bin" "$cmd_sens_disk_io"             'in:DISK_IO'
-    fork_poller "${opts['--interval_inp_loadavg']}"    "$pipe" "$bin" khatus_sensor_loadavg           'in:LOAD_AVG'
-    fork_poller "${opts['--interval_inp_temp']}"       "$pipe" "$bin" "$cmd_sens_temperature"         'in:TEMPERATURE'
-    fork_poller "${opts['--interval_inp_fan']}"        "$pipe" "$bin" "$cmd_sens_fan"                 'in:FAN'
-    fork_poller "${opts['--interval_inp_mem']}"        "$pipe" "$bin" khatus_sensor_memory            'in:MEMORY'
+    fork_watcher                                               "$pipe" "$bin" "khatus_sensor_energy $bin"     'in:ENERGY'
+    fork_poller "${opts['--interval_inp_datetime']}"   "$perf" "$pipe" "$bin" khatus_sensor_datetime          'in:DATE_TIME'
+    fork_poller "${opts['--interval_inp_brightness']}" "$perf" "$pipe" "$bin" "$cmd_sens_screen_brightness"   'in:SCREEN_BRIGHTNESS'
+    fork_poller "${opts['--interval_inp_weather']}"    "$perf" "$pipe" "$bin" "$cmd_sens_weather"             'in:WEATHER'
+    fork_poller "${opts['--interval_inp_mpd_state']}"  "$perf" "$pipe" "$bin" "$cmd_sens_mpd_state"           'in:MPD_STATE'
+    fork_poller "${opts['--interval_inp_mpd_song']}"   "$perf" "$pipe" "$bin" khatus_sensor_mpd_song          'in:MPD_SONG'
+    fork_poller "${opts['--interval_inp_volume']}"     "$perf" "$pipe" "$bin" "$cmd_sens_volume"              'in:VOLUME'
+    fork_poller "${opts['--interval_inp_bluetooth']}"  "$perf" "$pipe" "$bin" "$cmd_sens_bluetooth"           'in:BLUETOOTH_POWER'
+    fork_poller "${opts['--interval_inp_net_wifi']}"   "$perf" "$pipe" "$bin" "$cmd_sens_wifi"                'in:NET_WIFI_STATUS'
+    fork_poller "${opts['--interval_inp_net_io']}"     "$perf" "$pipe" "$bin" "$cmd_sens_net_addr_io"         'in:NET_ADDR_IO'
+    fork_poller "${opts['--interval_inp_disk_space']}" "$perf" "$pipe" "$bin" "$cmd_sens_disk_space"          'in:DISK_SPACE'
+    fork_poller "${opts['--interval_inp_disk_io']}"    "$perf" "$pipe" "$bin" "$cmd_sens_disk_io"             'in:DISK_IO'
+    fork_poller "${opts['--interval_inp_loadavg']}"    "$perf" "$pipe" "$bin" khatus_sensor_loadavg           'in:LOAD_AVG'
+    fork_poller "${opts['--interval_inp_temp']}"       "$perf" "$pipe" "$bin" "$cmd_sens_temperature"         'in:TEMPERATURE'
+    fork_poller "${opts['--interval_inp_fan']}"        "$perf" "$pipe" "$bin" "$cmd_sens_fan"                 'in:FAN'
+    fork_poller "${opts['--interval_inp_mem']}"        "$perf" "$pipe" "$bin" khatus_sensor_memory            'in:MEMORY'
 
     consume \
       "$pipe" \
