@@ -133,11 +133,20 @@
     db["mpd_status_percent"] = $3
 }
 
-/^OK in:WEATHER/\
+/^OK in:WEATHER temperature/\
 {
     shift()
     shift()
+    shift()
     db["weather_temperature"] = $0
+}
+
+/^OK in:WEATHER phenomena/\
+{
+    shift()
+    shift()
+    shift()
+    alert_trigger_low("weather_phenomena", "WeatherPhenomena", $0)
 }
 
 /^OK in:DATE_TIME/\

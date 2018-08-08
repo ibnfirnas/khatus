@@ -138,7 +138,7 @@ main() {
     cmd_sens_screen_brightness='khatus_sensor_screen_brightness'
     cmd_sens_screen_brightness+=" $screen_brightness_device_path"
 
-    cmd_sens_weather="khatus_sensor_weather ${opts['--weather_station_id']}"
+    cmd_sens_weather="khatus_sensor_weather $bin ${opts['--weather_station_id']}"
     cmd_sens_disk_space="khatus_sensor_disk_space ${opts['--disk_space_device']}"
     cmd_sens_disk_io="khatus_sensor_disk_io ${opts['--disk_io_device']}"
     cmd_sens_temperature="khatus_sensor_temperature ${opts['--thermal_zone']}"
