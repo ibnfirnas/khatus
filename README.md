@@ -109,6 +109,7 @@ TODO
     - priority
     - snooze time (if already alerted, when to re-alert?)
     - text: subject/body
+- more-structured controller API: a sensor submits a list of k/v pairs
 
 Redesign notes
 --------------
