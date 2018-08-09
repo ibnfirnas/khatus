@@ -32,6 +32,6 @@
 
 END {
     i = requested_interface
-    status = link[i] ? sprintf("%s %s:%d%%", i, essid[i], link[i]) : "--"
+    status = link[i] ? sprintf("%s %s:%d%%", i, essid[i], link[i]) : i " --"
     print(status)
 }
