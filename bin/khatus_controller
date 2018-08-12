@@ -3,12 +3,12 @@
 /^OK/ { debug("OK line", $0) }
 
 /^ERROR/ {
-	debug("ERROR line", $0)
-	shift()
-	msg_head = $1
-	shift()
-	msg_body = $0
-	alert_trigger_hi(msg_head, "KhatusSensorError", msg_body)
+    debug("ERROR line", $0)
+    shift()
+    msg_head = $1
+    shift()
+    msg_body = $0
+    alert_trigger_hi(msg_head, "KhatusSensorError", msg_body)
 }
 
 /^OK in:ENERGY battery/\
