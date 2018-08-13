@@ -2,6 +2,15 @@
 
 /^OK/ { debug("OK line", $0) }
 
+/^ERROR in:MPD.*NON_ZERO_EXIT_CODE/ {
+    for (mpd_key in db) {
+        if (mpd_key ~ "^mpd_") {
+            delete db[mpd_key]
+        }
+    }
+    next
+}
+
 /^ERROR/ {
     debug("ERROR line", $0)
     shift()
