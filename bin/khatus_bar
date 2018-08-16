@@ -115,8 +115,8 @@ function make_status_bar(    position, bar, sep, i, j) {
 }
 
 function make_status_energy(    state, charge, direction_of_change) {
-    state  = Data_get("khatus_sensor_energy", "battery_state")
-    charge = Data_get("khatus_sensor_energy", "battery_percentage")
+    state  = Data_get("khatus_sensor_energy", "battery_state"     , 0)
+    charge = Data_get("khatus_sensor_energy", "battery_percentage", 0)
 
     if (state == "discharging") {
         direction_of_change = "<"
