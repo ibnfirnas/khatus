@@ -258,7 +258,7 @@ function make_status_volume(    sink, mute, vol_l, vol_r, show) {
         else {
             print_msg_error(\
                 "make_status_volume", \
-                "Unexpected value for 'mute' field: " mute \
+                "Unexpected value for 'mute' field: " mute["value"] \
             )
         }
     } else {
