@@ -209,26 +209,6 @@ main() {
     fork_poller "${opts['--interval_inp_mem']}"        "$perf" "$pipe" "$bin" "$cmd_sens_memory"
 
     stdbuf -o L tail -f "$pipe" \
-    | stdbuf -o L "$bin"/khatus_transform_total_to_diff \
-        -F "$MSG_FS" \
-        -v status='OK' \
-        -v src='khatus_sensor_net_addr_io' \
-        -v key_prefix='bytes_read' \
-    | stdbuf -o L "$bin"/khatus_transform_total_to_diff \
-        -F "$MSG_FS" \
-        -v status='OK' \
-        -v src='khatus_sensor_net_addr_io' \
-        -v key_prefix='bytes_written' \
-    | stdbuf -o L "$bin"/khatus_transform_total_to_diff \
-        -F "$MSG_FS" \
-        -v status='OK' \
-        -v src='khatus_sensor_disk_io' \
-        -v key_prefix='sectors_read' \
-    | stdbuf -o L "$bin"/khatus_transform_total_to_diff \
-        -F "$MSG_FS" \
-        -v status='OK' \
-        -v src='khatus_sensor_disk_io' \
-        -v key_prefix='sectors_written' \
     | stdbuf -o L "$bin"/khatus_bar \
         -F "$MSG_FS" \
         -v opt_debug=""${opts['--debug']}"" \

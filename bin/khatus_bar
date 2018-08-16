@@ -4,6 +4,11 @@ BEGIN {
      FS = msg_fs ? msg_fs : "|"
     OFS = msg_fs ? msg_fs : "|"
     Kfs = key_fs ? key_fs : ":"
+
+    _total_to_diff["khatus_sensor_net_addr_io", "bytes_read"     ] = 1
+    _total_to_diff["khatus_sensor_net_addr_io", "bytes_written"  ] = 1
+    _total_to_diff["khatus_sensor_disk_io"    , "sectors_read"   ] = 1
+    _total_to_diff["khatus_sensor_disk_io"    , "sectors_written"] = 1
 }
 
 # -----------------------------------------------------------------------------
@@ -36,7 +41,7 @@ function Data_update(    src, key, val, len_line, len_head, len_val, time) {
     len_val  = len_line - len_head
     val = substr($0, len_head + 1, len_val)
 
-    Data[src, key] = val
+    Data[src, key] = Data_maybe_total_to_diff(src, key, val)
     time = Data_get_time()
     M_time[src, key] = time
 
@@ -70,6 +75,17 @@ function Data_gc(    src_and_key, unused_for) {
             )
             delete Data[src_and_key]
         }
+    }
+}
+
+function Data_maybe_total_to_diff(src, key, val,    key_parts) {
+    split(key, key_parts, Kfs)
+    if (_total_to_diff[src, key_parts[1]]) {
+        _prev[src, key] = _curr[src, key]
+        _curr[src, key] = val
+        return (_curr[src, key] - _prev[src, key])
+    } else {
+        return val
     }
 }
 
