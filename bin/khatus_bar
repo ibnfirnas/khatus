@@ -47,11 +47,11 @@ function Data_update(    src, key, val, len_line, len_head, len_val, time) {
     }
 }
 
-function Data_get(src, key, age_max,    time, age, is_expired) {
+function Data_get(src, key, ttl,    time, age, is_expired) {
     time = Data_get_time()
     A_time[src, key] = time
     age = time - M_time[src, key]
-    is_expired = age_max && age > age_max
+    is_expired = ttl && age > ttl
     return is_expired ? "" : Data[src, key]
 }
 
