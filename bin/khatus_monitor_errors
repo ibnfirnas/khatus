@@ -1,0 +1,28 @@
+#! /usr/bin/awk -f
+
+BEGIN {
+     FS = msg_fs ? msg_fs : "|"
+    OFS = msg_fs ? msg_fs : "|"
+    Kfs = key_fs ? key_fs : ":"
+}
+
+/^ERROR/ {
+    src = $2
+    # Not just using $6 for body - because body might contain a character
+    # identical to FS
+    len_line = length($0)
+    len_head = length($1 FS $2 FS)
+    len_body = len_line - len_head
+    body = substr($0, len_head + 1, len_body)
+    alert("hi", "Error_in_" src, body)
+}
+
+# After peeking, let everything pass through!
+//
+
+function alert(priority, subject, body) {
+    # priority : "low" | "med" | "hi"
+    # subject  : no spaces
+    # body     : anything
+    print("OK", "khatus_monitor_errors", "alert", priority, subject, body)
+}

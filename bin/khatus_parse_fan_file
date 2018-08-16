@@ -1,0 +1,13 @@
+#! /usr/bin/awk -f
+
+BEGIN {
+    OFS = msg_fs ? msg_fs : "|"
+    Kfs = key_fs ? key_fs : ":"
+}
+
+{
+    key = $1
+    sub(":$", "", key)
+    val = $2
+    print(key, val)
+}

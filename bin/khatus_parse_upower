@@ -1,5 +1,10 @@
 #! /usr/bin/awk -f
 
+BEGIN {
+    OFS = msg_fs ? msg_fs : "|"
+    Kfs = key_fs ? key_fs : ":"
+}
+
 # When parsing 'upower --dump'
 /^Device:[ \t]+/ {
     device["path"] = $2
@@ -25,11 +30,13 @@
 
 /    percentage:/ && device["is_battery"] {
     device["battery_percentage"] = $2
+    sub("%$", "", device["battery_percentage"])
     next
 }
 
 /^$/ && device["is_battery"] {
-    printf("battery %s %s\n", device["battery_state"], device["battery_percentage"])
+    print("battery_state"     , device["battery_state"])
+    print("battery_percentage", device["battery_percentage"])
 }
 # END battery
 
@@ -45,7 +52,7 @@
 }
 
 /^$/ && device["is_line_power"] {
-    printf("line_power %s\n", device["line_power_online"])
+    print("line_power", device["line_power_online"])
 }
 # END line-power
 

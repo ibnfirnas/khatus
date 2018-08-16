@@ -1,5 +1,10 @@
 #! /usr/bin/awk -f
 
+BEGIN {
+    OFS = msg_fs ? msg_fs : "|"
+    Kfs = key_fs ? key_fs : ":"
+}
+
 /^Sink \#[0-9]+$/ {
     sub("^#", "", $2)
     sink = $2
@@ -34,9 +39,9 @@
 
 END {
     for (sink in state) {
-        printf(\
-            "%s %s %s %s %s\n",
-            sink, state[sink], mute[sink], vol_left[sink], vol_right[sink] \
-        )
+        print("state"     Kfs sink, state[sink])
+        print("mute"      Kfs sink, mute[sink])
+        print("vol_left"  Kfs sink, vol_left[sink])
+        print("vol_right" Kfs sink, vol_right[sink])
     }
 }

@@ -3,10 +3,9 @@
 # Qualifying the name as "_d_output" lest it be mistaken for parser of actual
 # metar format.
 
-function strip(s) {
-    sub("^ *", "", s)
-    sub(" *$", "", s)
-    return s
+BEGIN {
+    OFS = msg_fs ? msg_fs : "|"
+    Kfs = key_fs ? key_fs : ":"
 }
 
 /METAR pattern not found in NOAA data/ {
@@ -36,12 +35,19 @@ END {
         split(temp_string, temp_parts, " +")
         temp_celsius = temp_parts[1]
         temp_fahrenheit = (temp_celsius * (9 / 5)) + 32
-        print "temperature " temp_fahrenheit "°F"
+        print("temperature_c", temp_celsius)     # °C
+        print("temperature_f", temp_fahrenheit)  # °F
         for (i=first["Phenomena"]; i<=last["Phenomena"]; i++) {
             phenomenon = values[i]
             if (phenomenon) {
-                print "phenomenon " phenomenon
+                print("phenomenon" Kfs i, phenomenon)
             }
         }
     }
+}
+
+function strip(s) {
+    sub("^ *", "", s)
+    sub(" *$", "", s)
+    return s
 }

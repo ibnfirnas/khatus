@@ -1,0 +1,310 @@
+#! /usr/bin/awk -f
+
+BEGIN {
+     FS = msg_fs ? msg_fs : "|"
+    OFS = msg_fs ? msg_fs : "|"
+    Kfs = key_fs ? key_fs : ":"
+}
+
+# -----------------------------------------------------------------------------
+# Input
+# -----------------------------------------------------------------------------
+$1 == "OK" {
+    Data_update()
+}
+
+$1 == "OK" && \
+$2 == "khatus_sensor_datetime" {
+    print_msg_ok("status_bar", make_status_bar())
+}
+
+# Let everything else through
+//
+
+# -----------------------------------------------------------------------------
+# Data
+# -----------------------------------------------------------------------------
+
+function Data_update(    src, key, val, len_line, len_head, len_val, time) {
+    src = $2
+    key = $3
+
+    # Not just using $4 for val - because an unstructured value (like name of a
+    # song) might contain a character identical to FS
+    len_line = length($0)
+    len_head = length($1 FS $2 FS $3 FS)
+    len_val  = len_line - len_head
+    val = substr($0, len_head + 1, len_val)
+
+    Data[src, key] = val
+    time = Data_get_time()
+    M_time[src, key] = time
+
+    if (time % 3600 == 0) {
+        Data_gc()
+    }
+}
+
+function Data_get(src, key, age_max,    time, age, is_expired) {
+    time = Data_get_time()
+    A_time[src, key] = time
+    age = time - M_time[src, key]
+    is_expired = age_max && age > age_max
+    return is_expired ? "" : Data[src, key]
+}
+
+function Data_get_time(    src, key, time) {
+    src = "khatus_sensor_datetime"
+    key = "epoch"
+    time = Data[src, key]
+    A_time[src, key] = time
+    return time
+}
+
+function Data_gc(    src_and_key, unused_for) {
+    for (src_and_key in Data) {
+        unused_for = Data_get_time() - A_time[src_and_key]
+        if (unused_for > 3600) {
+            print_msg_error(\
+                "Data_gc", "Deleting unused src_and_key: " src_and_key \
+            )
+            delete Data[src_and_key]
+        }
+    }
+}
+
+# -----------------------------------------------------------------------------
+# Status bar
+# -----------------------------------------------------------------------------
+
+function make_status_bar(    position, bar, sep, i, j) {
+    position[++i] = ""
+    position[++i] = make_status_energy()
+    position[++i] = make_status_mem()
+    position[++i] = make_status_cpu()
+    position[++i] = make_status_disk()
+    position[++i] = make_status_net()
+    position[++i] = make_status_bluetooth()
+    position[++i] = make_status_screen_brightness()
+    position[++i] = make_status_volume()
+    position[++i] = make_status_mpd()
+    position[++i] = make_status_weather()
+    position[++i] = make_status_datetime()
+    position[++i] = ""
+    bar = ""
+    sep = ""
+    for (j = 1; j <= i; j++) {
+        bar = bar sep position[j]
+        sep = " "
+    }
+    return bar
+}
+
+function make_status_energy(    state, charge, direction_of_change) {
+    state  = Data_get("khatus_sensor_energy", "battery_state")
+    charge = Data_get("khatus_sensor_energy", "battery_percentage")
+
+    if (state == "discharging") {
+        direction_of_change = "<"
+    } else if (state == "charging") {
+        direction_of_change = ">"
+    } else {
+        direction_of_change = "="
+    }
+
+    return sprintf("E%s%d%%", direction_of_change, charge)
+}
+
+function make_status_mem(    total, used, percent, status) {
+    total = Data_get("khatus_sensor_memory", "total", 2)
+    used  = Data_get("khatus_sensor_memory", "used" , 2)
+    # To avoid division by zero when data is missing
+    if (total && used) {
+        percent = round((used / total) * 100)
+        status = sprintf("%d%%", percent)
+    } else {
+        status = "__"
+    }
+    return sprintf("M=%s", status)
+}
+
+function make_status_cpu(    load, temp, fan) {
+    load = Data_get("khatus_sensor_loadavg"    , "load_avg_1min", 2)
+    temp = Data_get("khatus_sensor_temperature", "temp_c"       , 2)
+    fan  = Data_get("khatus_sensor_fan"        , "speed"        , 2)
+
+    load = load ? sprintf("%4.2f", load) : "--"
+    temp = temp ? sprintf("%d"   , temp) : "--"
+    fan  = fan  ? sprintf("%4d"  , fan)  : "--"
+
+    return sprintf("C=[%s %s°C %srpm]", load, temp, fan)
+}
+
+function make_status_disk(    bytes_per_sector, bytes_per_mb, w, r, u) {
+    bytes_per_sector = 512
+    bytes_per_mb     = 1024 * 1024
+
+    w = Data_get("khatus_sensor_disk_io"   , "sectors_written"      , 2)
+    r = Data_get("khatus_sensor_disk_io"   , "sectors_read"         , 2)
+    u = Data_get("khatus_sensor_disk_space", "disk_usage_percentage", 10)
+
+    w = w ? sprintf("%0.3f", (w * bytes_per_sector) / bytes_per_mb) : "--"
+    r = r ? sprintf("%0.3f", (r * bytes_per_sector) / bytes_per_mb) : "--"
+    u = u ?                                                       u : "--"
+
+    return sprintf("D=[%s%% %s▲ %s▼]", u, w, r)
+}
+
+function make_status_net(    \
+    number_of_net_interfaces_to_show, \
+    net_interfaces_to_show, \
+    sensor_io, \
+    sensor_wi, \
+    out, \
+    sep, \
+    i, \
+    interface, \
+    label, \
+    addr, \
+    w, \
+    r, \
+    bytes_per_mb, \
+    io_stat, \
+    wifi \
+) {
+    number_of_net_interfaces_to_show = \
+        split(opt_net_interfaces_to_show, net_interfaces_to_show, ",")
+
+    sensor_io = "khatus_sensor_net_addr_io"
+    sensor_wi = "khatus_sensor_net_wifi_status"
+
+    out = ""
+    sep = ""
+    for (i = number_of_net_interfaces_to_show; i > 0; i--) {
+        interface = net_interfaces_to_show[i]
+        label = substr(interface, 1, 1)
+
+        addr = Data_get(sensor_io, "addr"          Kfs interface, 2)
+        w    = Data_get(sensor_io, "bytes_written" Kfs interface, 2)
+        r    = Data_get(sensor_io, "bytes_read"    Kfs interface, 2)
+
+        if (addr) {
+            bytes_per_mb = 1024 * 1024
+            w = w ? sprintf("%0.3f", w / bytes_per_mb) : "--"
+            r = r ? sprintf("%0.3f", r / bytes_per_mb) : "--"
+            io_stat = sprintf("%s▲ %s▼", w, r)
+        } else {
+            io_stat = "--"
+        }
+
+        if (interface ~ "^w") {
+            wifi = Data_get(sensor_wi, "status" Kfs interface, 5)
+            label = label ":" (wifi ? wifi : "--")
+        }
+
+        out = out sep label ":" io_stat
+        sep = " "
+    }
+
+    return sprintf("N[%s]", out)
+}
+
+function make_status_bluetooth(    status) {
+    status = Data_get("khatus_sensor_bluetooth_power", "power_status", 5)
+    return sprintf("B=%s", status ? status : "--")
+}
+
+function make_status_screen_brightness(    percentage) {
+    percentage = Data_get("khatus_sensor_screen_brightness", "percentage", 5)
+    percentage = percentage ? sprintf("%d", percentage) : "--"
+    return sprintf("*%s%%", percentage)
+}
+
+function make_status_volume(    sink, mute, vol_l, vol_r, status) {
+    sink = opt_pulseaudio_sink
+    mute  = Data_get("khatus_sensor_volume", "mute"      Kfs sink, 2)
+    vol_l = Data_get("khatus_sensor_volume", "vol_left"  Kfs sink, 2)
+    vol_r = Data_get("khatus_sensor_volume", "vol_right" Kfs sink, 2)
+
+    if (mute && vol_l && vol_r) {
+             if (mute == "yes") {status = "X"}
+        else if (mute == "no")  {status = sprintf("%s %s", vol_l, vol_r)}
+        else {
+            print_msg_error(\
+                "make_status_volume", \
+                "Unexpected value for 'mute' field: " mute \
+            )
+        }
+    } else {
+        status = "--"
+    }
+
+    return sprintf("(%s)", status)
+}
+
+function make_status_mpd(    state, status) {
+    if (state = Data_get("khatus_sensor_mpd", "state", 2)) {
+        if (state == "play") {
+            status = make_status_mpd_state_known("▶")
+        } else if (state == "pause") {
+            status = make_status_mpd_state_known("❚❚")
+        } else if (state == "stop") {
+            status = make_status_mpd_state_known("⬛")
+        } else {
+            print_msg_error(\
+                "make_status_mpd", \
+                "Unexpected value for 'state' field: " state \
+            )
+            status = "--"
+        }
+    } else {
+        status = "--"
+    }
+
+    return sprintf("[%s]", status)
+}
+
+function make_status_mpd_state_known(symbol,    s, song, time, percentage) {
+    s = "khatus_sensor_mpd"
+    song    = Data_get(s, "song"                   , 2)
+    time    = Data_get(s, "play_time_minimal_units", 2)
+    percent = Data_get(s, "play_time_percentage"   , 2)
+    song    = substr(song, 1, opt_mpd_song_max_chars)
+    return sprintf("%s %s %s %s", symbol, time, percent, song)
+}
+
+function make_status_weather(    hour, t_f) {
+    hour = 60 * 60
+    t_f = Data_get("khatus_sensor_weather", "temperature_f", 3 * hour)
+    t_f = t_f ? sprintf("%d", t_f) : "--"
+    return sprintf("%s°F", t_f)
+}
+
+function make_status_datetime(    dt) {
+    dt = Data_get("khatus_sensor_datetime", "datetime", 2)
+    return dt ? dt : "--"
+}
+
+# -----------------------------------------------------------------------------
+# Output
+# -----------------------------------------------------------------------------
+
+function print_msg_ok(key, val) {
+    print_msg("OK", key, val, "/dev/stdout")
+}
+
+function print_msg_error(location, msg) {
+    print_msg("ERROR", location, msg, "/dev/stderr")
+}
+
+function print_msg(status, key, val, channel) {
+    print(status, "khatus_bar", key, val) > channel
+}
+
+# -----------------------------------------------------------------------------
+# Numbers
+# -----------------------------------------------------------------------------
+
+function round(n) {
+    return int(n + 0.5)
+}

@@ -2,6 +2,7 @@
 
 set -e
 
-fan_path="$1"
+dir_bin="$1"
+fan_path="$2"
 
-cat "$fan_path"
+"$dir_bin"/khatus_parse_fan_file "$fan_path"

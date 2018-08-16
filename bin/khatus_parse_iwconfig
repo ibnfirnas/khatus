@@ -15,6 +15,11 @@
 #
 # USAGE: khatus_parse_iwconfig -v requested_interface="$wifi_interface"
 
+BEGIN {
+    OFS = msg_fs ? msg_fs : "|"
+    Kfs = key_fs ? key_fs : ":"
+}
+
 /^[a-z0-9]+ +IEEE 802\.11 +ESSID:/ {
     interface = $1
     split($4, essid_parts, ":")
@@ -32,6 +37,6 @@
 
 END {
     i = requested_interface
-    status = link[i] ? sprintf("%s %s:%d%%", i, essid[i], link[i]) : i " --"
-    print(status)
+    status = link[i] ? sprintf("%s:%d%%", essid[i], link[i]) : "--:--%"
+    print("status" Kfs i, status)
 }
