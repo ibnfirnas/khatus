@@ -209,16 +209,21 @@ main() {
     fork_poller "${opts['--interval_inp_mem']}"        "$perf" "$pipe" "$bin" "$cmd_sens_memory"
 
     stdbuf -o L tail -f "$pipe" \
-    | stdbuf -o L "$bin"/khatus_bar \
-        -F "$MSG_FS" \
-        -v opt_debug=""${opts['--debug']}"" \
-        -v opt_mpd_song_max_chars=10 \
-        -v opt_net_interfaces_to_show="${opts['--net_interfaces_to_show']}" \
-        -v opt_pulseaudio_sink="${opts['--pulseaudio_sink']}" \
-    | stdbuf -o L tee >("$bin"/khatus_actuate_status_bar_to_xsetroot_name) \
-    | stdbuf -o L "$bin"/khatus_monitor_energy \
-    | stdbuf -o L "$bin"/khatus_monitor_errors \
-    | stdbuf -o L tee >("$bin"/khatus_actuate_alert_to_notify_send) \
+    | stdbuf -o L tee \
+        >(stdbuf -o L "$bin"/khatus_bar \
+            -F "$MSG_FS" \
+            -v opt_debug=""${opts['--debug']}"" \
+            -v opt_mpd_song_max_chars=10 \
+            -v opt_net_interfaces_to_show="${opts['--net_interfaces_to_show']}" \
+            -v opt_pulseaudio_sink="${opts['--pulseaudio_sink']}" \
+        | "$bin"/khatus_actuate_status_bar_to_xsetroot_name \
+        ) \
+        >(stdbuf -o L "$bin"/khatus_monitor_energy \
+        | "$bin"/khatus_actuate_alert_to_notify_send \
+        ) \
+        >(stdbuf -o L "$bin"/khatus_monitor_errors \
+        | "$bin"/khatus_actuate_alert_to_notify_send \
+        ) \
     > /dev/null
 
 }

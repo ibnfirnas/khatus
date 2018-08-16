@@ -17,9 +17,6 @@ BEGIN {
     alert("hi", "Error_in_" src, body)
 }
 
-# After peeking, let everything pass through!
-//
-
 function alert(priority, subject, body) {
     # priority : "low" | "med" | "hi"
     # subject  : no spaces

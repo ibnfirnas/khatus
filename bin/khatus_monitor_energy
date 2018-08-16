@@ -53,9 +53,6 @@ $3 == "battery_percentage" {
     }
 }
 
-# After peeking, let everything pass through!
-//
-
 function alert(priority, subject, body) {
     # priority : "low" | "med" | "hi"
     # subject  : no spaces
