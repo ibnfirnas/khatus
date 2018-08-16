@@ -116,8 +116,8 @@ function make_status_energy(    state, charge, direction_of_change) {
 }
 
 function make_status_mem(    total, used, percent, status) {
-    total = Data_get("khatus_sensor_memory", "total", 2)
-    used  = Data_get("khatus_sensor_memory", "used" , 2)
+    total = Data_get("khatus_sensor_memory", "total", 5)
+    used  = Data_get("khatus_sensor_memory", "used" , 5)
     # To avoid division by zero when data is missing
     if (total && used) {
         percent = round((used / total) * 100)
@@ -129,9 +129,9 @@ function make_status_mem(    total, used, percent, status) {
 }
 
 function make_status_cpu(    load, temp, fan) {
-    load = Data_get("khatus_sensor_loadavg"    , "load_avg_1min", 2)
-    temp = Data_get("khatus_sensor_temperature", "temp_c"       , 2)
-    fan  = Data_get("khatus_sensor_fan"        , "speed"        , 2)
+    load = Data_get("khatus_sensor_loadavg"    , "load_avg_1min", 5)
+    temp = Data_get("khatus_sensor_temperature", "temp_c"       , 5)
+    fan  = Data_get("khatus_sensor_fan"        , "speed"        , 5)
 
     load = load ? sprintf("%4.2f", load) : "--"
     temp = temp ? sprintf("%d"   , temp) : "--"
@@ -144,8 +144,8 @@ function make_status_disk(    bytes_per_sector, bytes_per_mb, w, r, u) {
     bytes_per_sector = 512
     bytes_per_mb     = 1024 * 1024
 
-    w = Data_get("khatus_sensor_disk_io"   , "sectors_written"      , 2)
-    r = Data_get("khatus_sensor_disk_io"   , "sectors_read"         , 2)
+    w = Data_get("khatus_sensor_disk_io"   , "sectors_written"      , 5)
+    r = Data_get("khatus_sensor_disk_io"   , "sectors_read"         , 5)
     u = Data_get("khatus_sensor_disk_space", "disk_usage_percentage", 10)
 
     w = w ? sprintf("%0.3f", (w * bytes_per_sector) / bytes_per_mb) : "--"
@@ -184,9 +184,9 @@ function make_status_net(    \
         interface = net_interfaces_to_show[i]
         label = substr(interface, 1, 1)
 
-        addr = Data_get(sensor_io, "addr"          Kfs interface, 2)
-        w    = Data_get(sensor_io, "bytes_written" Kfs interface, 2)
-        r    = Data_get(sensor_io, "bytes_read"    Kfs interface, 2)
+        addr = Data_get(sensor_io, "addr"          Kfs interface, 5)
+        w    = Data_get(sensor_io, "bytes_written" Kfs interface, 5)
+        r    = Data_get(sensor_io, "bytes_read"    Kfs interface, 5)
 
         if (addr) {
             bytes_per_mb = 1024 * 1024
@@ -198,7 +198,7 @@ function make_status_net(    \
         }
 
         if (interface ~ "^w") {
-            wifi = Data_get(sensor_wi, "status" Kfs interface, 5)
+            wifi = Data_get(sensor_wi, "status" Kfs interface, 10)
             label = label ":" (wifi ? wifi : "--")
         }
 
@@ -210,7 +210,7 @@ function make_status_net(    \
 }
 
 function make_status_bluetooth(    status) {
-    status = Data_get("khatus_sensor_bluetooth_power", "power_status", 5)
+    status = Data_get("khatus_sensor_bluetooth_power", "power_status", 10)
     return sprintf("B=%s", status ? status : "--")
 }
 
@@ -222,9 +222,9 @@ function make_status_screen_brightness(    percentage) {
 
 function make_status_volume(    sink, mute, vol_l, vol_r, status) {
     sink = opt_pulseaudio_sink
-    mute  = Data_get("khatus_sensor_volume", "mute"      Kfs sink, 2)
-    vol_l = Data_get("khatus_sensor_volume", "vol_left"  Kfs sink, 2)
-    vol_r = Data_get("khatus_sensor_volume", "vol_right" Kfs sink, 2)
+    mute  = Data_get("khatus_sensor_volume", "mute"      Kfs sink, 5)
+    vol_l = Data_get("khatus_sensor_volume", "vol_left"  Kfs sink, 5)
+    vol_r = Data_get("khatus_sensor_volume", "vol_right" Kfs sink, 5)
 
     if (mute && vol_l && vol_r) {
              if (mute == "yes") {status = "X"}
@@ -243,7 +243,7 @@ function make_status_volume(    sink, mute, vol_l, vol_r, status) {
 }
 
 function make_status_mpd(    state, status) {
-    if (state = Data_get("khatus_sensor_mpd", "state", 2)) {
+    if (state = Data_get("khatus_sensor_mpd", "state", 5)) {
         if (state == "play") {
             status = make_status_mpd_state_known("▶")
         } else if (state == "pause") {
@@ -266,9 +266,9 @@ function make_status_mpd(    state, status) {
 
 function make_status_mpd_state_known(symbol,    s, song, time, percentage) {
     s = "khatus_sensor_mpd"
-    song    = Data_get(s, "song"                   , 2)
-    time    = Data_get(s, "play_time_minimal_units", 2)
-    percent = Data_get(s, "play_time_percentage"   , 2)
+    song    = Data_get(s, "song"                   , 5)
+    time    = Data_get(s, "play_time_minimal_units", 5)
+    percent = Data_get(s, "play_time_percentage"   , 5)
     song    = substr(song, 1, opt_mpd_song_max_chars)
     return sprintf("%s %s %s %s", symbol, time, percent, song)
 }
@@ -281,7 +281,7 @@ function make_status_weather(    hour, t_f) {
 }
 
 function make_status_datetime(    dt) {
-    dt = Data_get("khatus_sensor_datetime", "datetime", 2)
+    dt = Data_get("khatus_sensor_datetime", "datetime", 5)
     return dt ? dt : "--"
 }
 
