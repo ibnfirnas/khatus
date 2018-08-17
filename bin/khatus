@@ -100,20 +100,20 @@ main() {
         ["--thermal_zone"]=0
         ["--fan_path"]='/proc/acpi/ibm/fan'
         ["--pulseaudio_sink"]='0'
-        ["--interval_inp_datetime"]=1
-        ["--interval_inp_brightness"]=1
-        ["--interval_inp_weather"]=$(( 30 * 60))  # 30 minutes
-        ["--interval_inp_mpd"]=1
-        ["--interval_inp_volume"]=1
-        ["--interval_inp_bluetooth"]=1
-        ["--interval_inp_net_wifi"]=1
-        ["--interval_inp_net_io"]=1
-        ["--interval_inp_disk_space"]=1
-        ["--interval_inp_disk_io"]=1
-        ["--interval_inp_loadavg"]=1
-        ["--interval_inp_temp"]=1
-        ["--interval_inp_fan"]=1
-        ["--interval_inp_mem"]=1
+        ["--interval_datetime"]=1
+        ["--interval_brightness"]=1
+        ["--interval_weather"]=$(( 30 * 60))  # 30 minutes
+        ["--interval_mpd"]=1
+        ["--interval_volume"]=1
+        ["--interval_bluetooth"]=1
+        ["--interval_net_wifi"]=1
+        ["--interval_net_io"]=1
+        ["--interval_disk_space"]=1
+        ["--interval_disk_io"]=1
+        ["--interval_loadavg"]=1
+        ["--interval_temp"]=1
+        ["--interval_fan"]=1
+        ["--interval_mem"]=1
     )
     while :
     do
@@ -192,21 +192,21 @@ main() {
     cmd_sens_loadavg="khatus_sensor_loadavg $bin"
     cmd_sens_memory="khatus_sensor_memory $bin"
 
-    fork_watcher                                               "$pipe" "$bin" "khatus_sensor_energy $bin"
-    fork_poller "${opts['--interval_inp_datetime']}"   "$perf" "$pipe" "$bin" khatus_sensor_datetime
-    fork_poller "${opts['--interval_inp_brightness']}" "$perf" "$pipe" "$bin" "$cmd_sens_screen_brightness"
-    fork_poller "${opts['--interval_inp_weather']}"    "$perf" "$pipe" "$bin" "$cmd_sens_weather"
-    fork_poller "${opts['--interval_inp_mpd']}"        "$perf" "$pipe" "$bin" "$cmd_sens_mpd"
-    fork_poller "${opts['--interval_inp_volume']}"     "$perf" "$pipe" "$bin" "$cmd_sens_volume"
-    fork_poller "${opts['--interval_inp_bluetooth']}"  "$perf" "$pipe" "$bin" "$cmd_sens_bluetooth"
-    fork_poller "${opts['--interval_inp_net_wifi']}"   "$perf" "$pipe" "$bin" "$cmd_sens_wifi"
-    fork_poller "${opts['--interval_inp_net_io']}"     "$perf" "$pipe" "$bin" "$cmd_sens_net_addr_io"
-    fork_poller "${opts['--interval_inp_disk_space']}" "$perf" "$pipe" "$bin" "$cmd_sens_disk_space"
-    fork_poller "${opts['--interval_inp_disk_io']}"    "$perf" "$pipe" "$bin" "$cmd_sens_disk_io"
-    fork_poller "${opts['--interval_inp_loadavg']}"    "$perf" "$pipe" "$bin" "$cmd_sens_loadavg"
-    fork_poller "${opts['--interval_inp_temp']}"       "$perf" "$pipe" "$bin" "$cmd_sens_temperature"
-    fork_poller "${opts['--interval_inp_fan']}"        "$perf" "$pipe" "$bin" "$cmd_sens_fan"
-    fork_poller "${opts['--interval_inp_mem']}"        "$perf" "$pipe" "$bin" "$cmd_sens_memory"
+    fork_watcher                                           "$pipe" "$bin" "khatus_sensor_energy $bin"
+    fork_poller "${opts['--interval_datetime']}"   "$perf" "$pipe" "$bin" khatus_sensor_datetime
+    fork_poller "${opts['--interval_brightness']}" "$perf" "$pipe" "$bin" "$cmd_sens_screen_brightness"
+    fork_poller "${opts['--interval_weather']}"    "$perf" "$pipe" "$bin" "$cmd_sens_weather"
+    fork_poller "${opts['--interval_mpd']}"        "$perf" "$pipe" "$bin" "$cmd_sens_mpd"
+    fork_poller "${opts['--interval_volume']}"     "$perf" "$pipe" "$bin" "$cmd_sens_volume"
+    fork_poller "${opts['--interval_bluetooth']}"  "$perf" "$pipe" "$bin" "$cmd_sens_bluetooth"
+    fork_poller "${opts['--interval_net_wifi']}"   "$perf" "$pipe" "$bin" "$cmd_sens_wifi"
+    fork_poller "${opts['--interval_net_io']}"     "$perf" "$pipe" "$bin" "$cmd_sens_net_addr_io"
+    fork_poller "${opts['--interval_disk_space']}" "$perf" "$pipe" "$bin" "$cmd_sens_disk_space"
+    fork_poller "${opts['--interval_disk_io']}"    "$perf" "$pipe" "$bin" "$cmd_sens_disk_io"
+    fork_poller "${opts['--interval_loadavg']}"    "$perf" "$pipe" "$bin" "$cmd_sens_loadavg"
+    fork_poller "${opts['--interval_temp']}"       "$perf" "$pipe" "$bin" "$cmd_sens_temperature"
+    fork_poller "${opts['--interval_fan']}"        "$perf" "$pipe" "$bin" "$cmd_sens_fan"
+    fork_poller "${opts['--interval_mem']}"        "$perf" "$pipe" "$bin" "$cmd_sens_memory"
 
     stdbuf -o L tail -f "$pipe" \
     | stdbuf -o L tee \
