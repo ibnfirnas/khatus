@@ -100,7 +100,7 @@ function cache_gc(    src_and_key, unused_for) {
     for (src_and_key in _cache) {
         unused_for = cache_get_time() - _cache_atime[src_and_key]
         if (unused_for > 3600) {
-            print_msg_error(\
+            print_msg_info(\
                 "cache_gc", "Deleting unused src_and_key: " src_and_key \
             )
             delete _cache[src_and_key]
@@ -321,6 +321,10 @@ function make_status_datetime(    dt) {
 
 function print_msg_ok(key, val) {
     print_msg("OK", key, val, "/dev/stdout")
+}
+
+function print_msg_info(location, msg) {
+    print_msg("INFO", location, msg, "/dev/stderr")
 }
 
 function print_msg_error(location, msg) {
