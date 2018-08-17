@@ -1,5 +1,14 @@
 #! /usr/bin/awk -f
 
+# Naming convention:
+#     Variables:
+#         - global, builtin : ALLCAPS
+#         - global, public  : CamelCase
+#         - global, private : _snake_case_prefixed_underscore
+#         - local           : snake_case
+#     Functions:
+#         - global, public  : snake_case
+
 BEGIN {
      FS = msg_fs ? msg_fs : "|"
     OFS = msg_fs ? msg_fs : "|"
@@ -14,23 +23,23 @@ BEGIN {
     #   ==> w = y / z
     # (x * bytes_per_sector) / bytes_per_mb = x * scaling_factor
     #   ==> scaling_factor = bytes_per_sector / bytes_per_mb
-    bytes_per_sector = 512
-    bytes_per_mb     = 1024 * 1024
-    _scale["khatus_sensor_disk_io", "sectors_written"] = bytes_per_sector / bytes_per_mb
-    _scale["khatus_sensor_disk_io", "sectors_read"   ] = bytes_per_sector / bytes_per_mb
+    _bytes_per_sector = 512
+    _bytes_per_mb     = 1024 * 1024
+    _scale["khatus_sensor_disk_io", "sectors_written"] = _bytes_per_sector / _bytes_per_mb
+    _scale["khatus_sensor_disk_io", "sectors_read"   ] = _bytes_per_sector / _bytes_per_mb
     # (x / y) = x * z
     #   ==> z = 1 / y
     # x / bytes_per_mb = x * scaling_factor
     #   ==> scaling_factor = 1 / bytes_per_mb
-    _scale["khatus_sensor_net_addr_io", "bytes_written"] = 1 / bytes_per_mb
-    _scale["khatus_sensor_net_addr_io", "bytes_read"   ] = 1 / bytes_per_mb
+    _scale["khatus_sensor_net_addr_io", "bytes_written"] = 1 / _bytes_per_mb
+    _scale["khatus_sensor_net_addr_io", "bytes_read"   ] = 1 / _bytes_per_mb
 }
 
 # -----------------------------------------------------------------------------
 # Input
 # -----------------------------------------------------------------------------
 $1 == "OK" {
-    Data_update()
+    cache_update()
 }
 
 $1 == "OK" && \
@@ -39,71 +48,67 @@ $2 == "khatus_sensor_datetime" {
 }
 
 # -----------------------------------------------------------------------------
-# Data
+# Cache
 # -----------------------------------------------------------------------------
 
-function Data_update(    src, key, val, len_line, len_head, len_val, time) {
+function cache_update(    src, key, val, len_line, len_head, len_val, time) {
     src = $2
     key = $3
-
     # Not just using $4 for val - because an unstructured value (like name of a
     # song) might contain a character identical to FS
     len_line = length($0)
     len_head = length($1 FS $2 FS $3 FS)
     len_val  = len_line - len_head
     val = substr($0, len_head + 1, len_val)
-
-    val = Data_maybe_total_to_diff(src, key, val)
-    val = Data_maybe_scale(src, key, val)
-    Data[src, key] = val
-    time = Data_get_time()
-    M_time[src, key] = time
-
+    val = cache_maybe_total_to_diff(src, key, val)
+    val = cache_maybe_scale(src, key, val)
+    _cache[src, key] = val
+    time = cache_get_time()
+    _cache_mtime[src, key] = time
     if (time % 3600 == 0) {
-        Data_gc()
+        cache_gc()
     }
 }
 
-function Data_get(result, src, key, ttl,    time, age, is_expired) {
-    time = Data_get_time()
-    A_time[src, key] = time
-    age = time - M_time[src, key]
-    # ttl = 0 => forever
-    result["is_expired"] = ttl && age > ttl
-    result["value"] = Data[src, key]
+function cache_get(result, src, key, ttl,    time, age, is_expired) {
+    time = cache_get_time()
+    _cache_atime[src, key] = time
+    age = time - _cache_mtime[src, key]
+    result["is_expired"] = ttl && age > ttl  # ttl = 0 => forever
+    result["value"] = _cache[src, key]
 }
 
-function Data_res_fmt_or_def(result, format, default) {
+function cache_res_fmt_or_def(result, format, default) {
     return result["is_expired"] ? default : sprintf(format, result["value"])
 }
 
-function Data_get_fmt_def(src, key, ttl, format, default,    result) {
+function cache_get_fmt_def(src, key, ttl, format, default,    result) {
     default = default ? default : "--"
-    Data_get(result, src, key, ttl)
-    return Data_res_fmt_or_def(result, format, default)
+    cache_get(result, src, key, ttl)
+    return cache_res_fmt_or_def(result, format, default)
 }
 
-function Data_get_time(    src, key, time) {
+function cache_get_time(    src, key, time) {
     src = "khatus_sensor_datetime"
     key = "epoch"
-    time = Data[src, key]
-    A_time[src, key] = time
+    time = _cache[src, key]
+    _cache_atime[src, key] = time
     return time
 }
 
-function Data_gc(    src_and_key, unused_for) {
-    for (src_and_key in Data) {
-        unused_for = Data_get_time() - A_time[src_and_key]
+function cache_gc(    src_and_key, unused_for) {
+    for (src_and_key in _cache) {
+        unused_for = cache_get_time() - _cache_atime[src_and_key]
         if (unused_for > 3600) {
             print_msg_error(\
-                "Data_gc", "Deleting unused src_and_key: " src_and_key \
+                "cache_gc", "Deleting unused src_and_key: " src_and_key \
             )
-            delete Data[src_and_key]
+            delete _cache[src_and_key]
         }
     }
 }
 
-function Data_maybe_total_to_diff(src, key, val,    key_parts) {
+function cache_maybe_total_to_diff(src, key, val,    key_parts) {
     split(key, key_parts, Kfs)
     if (_total_to_diff[src, key_parts[1]]) {
         _prev[src, key] = _curr[src, key]
@@ -114,7 +119,7 @@ function Data_maybe_total_to_diff(src, key, val,    key_parts) {
     }
 }
 
-function Data_maybe_scale(src, key, val,    key_parts) {
+function cache_maybe_scale(src, key, val,    key_parts) {
     split(key, key_parts, Kfs)
     if ((src SUBSEP key_parts[1]) in _scale) {
         return val * _scale[src, key_parts[1]]
@@ -151,8 +156,8 @@ function make_status_bar(    position, bar, sep, i, j) {
 }
 
 function make_status_energy(    state, charge, direction_of_change) {
-    Data_get(state , "khatus_sensor_energy", "battery_state"     , 0)
-    Data_get(charge, "khatus_sensor_energy", "battery_percentage", 0)
+    cache_get(state , "khatus_sensor_energy", "battery_state"     , 0)
+    cache_get(charge, "khatus_sensor_energy", "battery_percentage", 0)
 
     if (state["value"] == "discharging") {
         direction_of_change = "<"
@@ -166,8 +171,8 @@ function make_status_energy(    state, charge, direction_of_change) {
 }
 
 function make_status_mem(    total, used, percent, status) {
-    Data_get(total, "khatus_sensor_memory", "total", 5)
-    Data_get(used , "khatus_sensor_memory", "used" , 5)
+    cache_get(total, "khatus_sensor_memory", "total", 5)
+    cache_get(used , "khatus_sensor_memory", "used" , 5)
     # Checking total["value"] to avoid division by zero when data is missing
     if (!total["is_expired"] && \
         !used["is_expired"] && \
@@ -182,16 +187,16 @@ function make_status_mem(    total, used, percent, status) {
 }
 
 function make_status_cpu(    l, t, f) {
-    l = Data_get_fmt_def("khatus_sensor_loadavg"    , "load_avg_1min", 5, "%4.2f")
-    t = Data_get_fmt_def("khatus_sensor_temperature", "temp_c"       , 5, "%d"   )
-    f = Data_get_fmt_def("khatus_sensor_fan"        , "speed"        , 5, "%4d"  )
+    l = cache_get_fmt_def("khatus_sensor_loadavg"    , "load_avg_1min", 5, "%4.2f")
+    t = cache_get_fmt_def("khatus_sensor_temperature", "temp_c"       , 5, "%d"   )
+    f = cache_get_fmt_def("khatus_sensor_fan"        , "speed"        , 5, "%4d"  )
     return sprintf("C=[%s %s°C %srpm]", l, t, f)
 }
 
 function make_status_disk(    u, w, r) {
-    u = Data_get_fmt_def("khatus_sensor_disk_space", "disk_usage_percentage", 10, "%s")
-    w = Data_get_fmt_def("khatus_sensor_disk_io"   , "sectors_written"      ,  5, "%0.3f")
-    r = Data_get_fmt_def("khatus_sensor_disk_io"   , "sectors_read"         ,  5, "%0.3f")
+    u = cache_get_fmt_def("khatus_sensor_disk_space", "disk_usage_percentage", 10, "%s")
+    w = cache_get_fmt_def("khatus_sensor_disk_io"   , "sectors_written"      ,  5, "%0.3f")
+    r = cache_get_fmt_def("khatus_sensor_disk_io"   , "sectors_read"         ,  5, "%0.3f")
     return sprintf("D=[%s%% %s▲ %s▼]", u, w, r)
 }
 
@@ -221,12 +226,12 @@ function make_status_net(    \
         interface = net_interfaces_to_show[i]
         label = substr(interface, 1, 1)
         if (interface ~ "^w") {
-            wifi = Data_get_fmt_def(sensor_wi, "status" Kfs interface, 10, "%s")
+            wifi = cache_get_fmt_def(sensor_wi, "status" Kfs interface, 10, "%s")
             label = label ":" wifi
         }
-        addr = Data_get_fmt_def(sensor_io, "addr"          Kfs interface, 5, "%s", "")
-        w    = Data_get_fmt_def(sensor_io, "bytes_written" Kfs interface, 5, "%0.3f")
-        r    = Data_get_fmt_def(sensor_io, "bytes_read"    Kfs interface, 5, "%0.3f")
+        addr = cache_get_fmt_def(sensor_io, "addr"          Kfs interface, 5, "%s", "")
+        w    = cache_get_fmt_def(sensor_io, "bytes_written" Kfs interface, 5, "%0.3f")
+        r    = cache_get_fmt_def(sensor_io, "bytes_read"    Kfs interface, 5, "%0.3f")
         io_stat = addr ? sprintf("%s▲ %s▼", w, r) : "--"
         out = out sep label ":" io_stat
         sep = " "
@@ -237,20 +242,20 @@ function make_status_net(    \
 function make_status_bluetooth(    src, key) {
     src = "khatus_sensor_bluetooth_power"
     key = "power_status"
-    return sprintf("B=%s", Data_get_fmt_def(src, key, 10, "%s"))
+    return sprintf("B=%s", cache_get_fmt_def(src, key, 10, "%s"))
 }
 
 function make_status_screen_brightness(    src, key) {
     src = "khatus_sensor_screen_brightness"
     key = "percentage"
-    return sprintf("*%s%%", Data_get_fmt_def(src, key, 5, "%d"))
+    return sprintf("*%s%%", cache_get_fmt_def(src, key, 5, "%d"))
 }
 
 function make_status_volume(    sink, mute, vol_l, vol_r, show) {
     sink = opt_pulseaudio_sink
-    Data_get(mute , "khatus_sensor_volume", "mute"      Kfs sink, 5)
-    Data_get(vol_l, "khatus_sensor_volume", "vol_left"  Kfs sink, 5)
-    Data_get(vol_r, "khatus_sensor_volume", "vol_right" Kfs sink, 5)
+    cache_get(mute , "khatus_sensor_volume", "mute"      Kfs sink, 5)
+    cache_get(vol_l, "khatus_sensor_volume", "vol_left"  Kfs sink, 5)
+    cache_get(vol_r, "khatus_sensor_volume", "vol_right" Kfs sink, 5)
 
     if (!mute["is_expired"] && !vol_l["is_expired"] && !vol_r["is_expired"]) {
              if (mute["value"] == "yes") {show = "X"}
@@ -269,7 +274,7 @@ function make_status_volume(    sink, mute, vol_l, vol_r, show) {
 }
 
 function make_status_mpd(    state, status) {
-    Data_get(state, "khatus_sensor_mpd", "state", 5)
+    cache_get(state, "khatus_sensor_mpd", "state", 5)
     if (!state["is_expired"] && state["value"]) {
         if (state["value"] == "play") {
             status = make_status_mpd_state_known("▶")
@@ -293,21 +298,21 @@ function make_status_mpd(    state, status) {
 
 function make_status_mpd_state_known(symbol,    s, song, time, percentage) {
     s = "khatus_sensor_mpd"
-    song    = Data_get_fmt_def(s, "song"                   , 5, "%s", "?")
-    time    = Data_get_fmt_def(s, "play_time_minimal_units", 5, "%s", "?")
-    percent = Data_get_fmt_def(s, "play_time_percentage"   , 5, "%s", "?")
+    song    = cache_get_fmt_def(s, "song"                   , 5, "%s", "?")
+    time    = cache_get_fmt_def(s, "play_time_minimal_units", 5, "%s", "?")
+    percent = cache_get_fmt_def(s, "play_time_percentage"   , 5, "%s", "?")
     song    = substr(song, 1, opt_mpd_song_max_chars)
     return sprintf("%s %s %s %s", symbol, time, percent, song)
 }
 
 function make_status_weather(    hour, t_f) {
     hour = 60 * 60
-    t_f = Data_get_fmt_def("khatus_sensor_weather", "temperature_f", 3 * hour, "%d")
+    t_f = cache_get_fmt_def("khatus_sensor_weather", "temperature_f", 3 * hour, "%d")
     return sprintf("%s°F", t_f)
 }
 
 function make_status_datetime(    dt) {
-    return Data_get_fmt_def("khatus_sensor_datetime", "datetime", 5, "%s")
+    return cache_get_fmt_def("khatus_sensor_datetime", "datetime", 5, "%s")
 }
 
 # -----------------------------------------------------------------------------
