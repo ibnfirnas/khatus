@@ -3,7 +3,7 @@
 # Naming convention:
 #     Variables:
 #         - global, builtin : ALLCAPS
-#         - global, public  : CamelCase
+#         - global, public  : Camel_Snake_Man_Bear_Pig
 #         - global, private : _snake_case_prefixed_underscore
 #         - local           : snake_case
 #     Functions:
@@ -222,7 +222,7 @@ function make_status_net(    \
     sep \
 ) {
     number_of_net_interfaces_to_show = \
-        split(opt_net_interfaces_to_show, net_interfaces_to_show, ",")
+        split(Opt_Net_Interfaces_To_Show, net_interfaces_to_show, ",")
     io = "khatus_sensor_net_addr_io"
     wi = "khatus_sensor_net_wifi_status"
     out = ""
@@ -257,7 +257,7 @@ function make_status_screen_brightness(    src, key) {
 }
 
 function make_status_volume(    sink, mu, vl, vr, show) {
-    sink = opt_pulseaudio_sink
+    sink = Opt_Pulseaudio_Sink
     cache_get(mu, "khatus_sensor_volume", "mute"      Kfs sink, 5)
     cache_get(vl, "khatus_sensor_volume", "vol_left"  Kfs sink, 5)
     cache_get(vr, "khatus_sensor_volume", "vol_right" Kfs sink, 5)
@@ -303,7 +303,7 @@ function make_status_mpd_state_known(symbol,    s, song, time, percentage) {
     song    = cache_get_fmt_def(s, "song"                   , 5, "%s", "?")
     time    = cache_get_fmt_def(s, "play_time_minimal_units", 5, "%s", "?")
     percent = cache_get_fmt_def(s, "play_time_percentage"   , 5, "%s", "?")
-    song    = substr(song, 1, opt_mpd_song_max_chars)
+    song    = substr(song, 1, Opt_Mpd_Song_Max_Chars)
     return sprintf("%s %s %s %s", symbol, time, percent, song)
 }
 
