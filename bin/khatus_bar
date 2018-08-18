@@ -187,24 +187,29 @@ function make_status_mem(    total, used, percent, status) {
 }
 
 function make_status_cpu(    l, t, f) {
-    l = cache_get_fmt_def("khatus_sensor_loadavg"    , "load_avg_1min", 5, "%4.2f")
-    t = cache_get_fmt_def("khatus_sensor_temperature", "temp_c"       , 5, "%d"   )
-    f = cache_get_fmt_def("khatus_sensor_fan"        , "speed"        , 5, "%4d"  )
+    l_src = "khatus_sensor_loadavg"
+    t_src = "khatus_sensor_temperature"
+    f_src = "khatus_sensor_fan"
+    l = cache_get_fmt_def(l_src, "load_avg_1min", 5, "%4.2f")
+    t = cache_get_fmt_def(t_src, "temp_c"       , 5, "%d"   )
+    f = cache_get_fmt_def(f_src, "speed"        , 5, "%4d"  )
     return sprintf("C=[%s %s°C %srpm]", l, t, f)
 }
 
-function make_status_disk(    u, w, r) {
-    u = cache_get_fmt_def("khatus_sensor_disk_space", "disk_usage_percentage", 10, "%s")
-    w = cache_get_fmt_def("khatus_sensor_disk_io"   , "sectors_written"      ,  5, "%0.3f")
-    r = cache_get_fmt_def("khatus_sensor_disk_io"   , "sectors_read"         ,  5, "%0.3f")
+function make_status_disk(    u, w, r, src_u, src_io) {
+    src_u  = "khatus_sensor_disk_space"
+    src_io = "khatus_sensor_disk_io"
+    u = cache_get_fmt_def(src_space, "disk_usage_percentage", 10, "%s")
+    w = cache_get_fmt_def(src_io   , "sectors_written"      ,  5, "%0.3f")
+    r = cache_get_fmt_def(src_io   , "sectors_read"         ,  5, "%0.3f")
     return sprintf("D=[%s%% %s▲ %s▼]", u, w, r)
 }
 
 function make_status_net(    \
     number_of_net_interfaces_to_show, \
     net_interfaces_to_show, \
-    sensor_io, \
-    sensor_wi, \
+    io, \
+    wi, \
     i, \
     interface, \
     label, \
@@ -218,20 +223,20 @@ function make_status_net(    \
 ) {
     number_of_net_interfaces_to_show = \
         split(opt_net_interfaces_to_show, net_interfaces_to_show, ",")
-    sensor_io = "khatus_sensor_net_addr_io"
-    sensor_wi = "khatus_sensor_net_wifi_status"
+    io = "khatus_sensor_net_addr_io"
+    wi = "khatus_sensor_net_wifi_status"
     out = ""
     sep = ""
     for (i = number_of_net_interfaces_to_show; i > 0; i--) {
         interface = net_interfaces_to_show[i]
         label = substr(interface, 1, 1)
         if (interface ~ "^w") {
-            wifi = cache_get_fmt_def(sensor_wi, "status" Kfs interface, 10, "%s")
+            wifi = cache_get_fmt_def(wi, "status" Kfs interface, 10, "%s")
             label = label ":" wifi
         }
-        addr = cache_get_fmt_def(sensor_io, "addr"          Kfs interface, 5, "%s", "")
-        w    = cache_get_fmt_def(sensor_io, "bytes_written" Kfs interface, 5, "%0.3f")
-        r    = cache_get_fmt_def(sensor_io, "bytes_read"    Kfs interface, 5, "%0.3f")
+        addr = cache_get_fmt_def(io, "addr"          Kfs interface, 5, "%s", "")
+        w    = cache_get_fmt_def(io, "bytes_written" Kfs interface, 5, "%0.3f")
+        r    = cache_get_fmt_def(io, "bytes_read"    Kfs interface, 5, "%0.3f")
         io_stat = addr ? sprintf("%s▲ %s▼", w, r) : "--"
         out = out sep label ":" io_stat
         sep = " "
@@ -251,19 +256,19 @@ function make_status_screen_brightness(    src, key) {
     return sprintf("*%s%%", cache_get_fmt_def(src, key, 5, "%d"))
 }
 
-function make_status_volume(    sink, mute, vol_l, vol_r, show) {
+function make_status_volume(    sink, mu, vl, vr, show) {
     sink = opt_pulseaudio_sink
-    cache_get(mute , "khatus_sensor_volume", "mute"      Kfs sink, 5)
-    cache_get(vol_l, "khatus_sensor_volume", "vol_left"  Kfs sink, 5)
-    cache_get(vol_r, "khatus_sensor_volume", "vol_right" Kfs sink, 5)
+    cache_get(mu, "khatus_sensor_volume", "mute"      Kfs sink, 5)
+    cache_get(vl, "khatus_sensor_volume", "vol_left"  Kfs sink, 5)
+    cache_get(vr, "khatus_sensor_volume", "vol_right" Kfs sink, 5)
 
-    if (!mute["is_expired"] && !vol_l["is_expired"] && !vol_r["is_expired"]) {
-             if (mute["value"] == "yes") {show = "X"}
-        else if (mute["value"] == "no")  {show = vol_l["value"] " " vol_r["value"]}
+    if (!mu["is_expired"] && !vl["is_expired"] && !vr["is_expired"]) {
+             if (mu["value"] == "yes") {show = "X"}
+        else if (mu["value"] == "no")  {show = vl["value"] " " vr["value"]}
         else {
             print_msg_error(\
                 "make_status_volume", \
-                "Unexpected value for 'mute' field: " mute["value"] \
+                "Unexpected value for 'mute' field: " mu["value"] \
             )
         }
     } else {
@@ -305,9 +310,10 @@ function make_status_mpd_state_known(symbol,    s, song, time, percentage) {
     return sprintf("%s %s %s %s", symbol, time, percent, song)
 }
 
-function make_status_weather(    hour, t_f) {
+function make_status_weather(    src, hour, t_f) {
+    src = "khatus_sensor_weather"
     hour = 60 * 60
-    t_f = cache_get_fmt_def("khatus_sensor_weather", "temperature_f", 3 * hour, "%d")
+    t_f = cache_get_fmt_def(src, "temperature_f", 3 * hour, "%d")
     return sprintf("%s°F", t_f)
 }
 
