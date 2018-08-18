@@ -87,7 +87,6 @@ fork_poller() {
 
 main() {
     declare -A opts=(
-        ["--debug"]=0
         ["--dir_bin"]="$HOME/bin"
         ["--dir_perf_logs"]=''
         ["--file_pipe"]=$(mktemp)
@@ -126,11 +125,7 @@ main() {
             * )
                 if [ -v opts["$key"] ]
                 then
-                    if [ "$key" == "--debug" ]
-                    then
-                        opts["$key"]=1
-                        shift
-                    elif [ "$val" != "" ]
+                    if [ "$val" != "" ]
                     then
                         opts["$key"]="$val"
                         shift
@@ -212,7 +207,6 @@ main() {
     | stdbuf -o L tee \
         >(stdbuf -o L "$bin"/khatus_bar \
             -F "$MSG_FS" \
-            -v opt_debug=""${opts['--debug']}"" \
             -v opt_mpd_song_max_chars=10 \
             -v opt_net_interfaces_to_show="${opts['--net_interfaces_to_show']}" \
             -v opt_pulseaudio_sink="${opts['--pulseaudio_sink']}" \
