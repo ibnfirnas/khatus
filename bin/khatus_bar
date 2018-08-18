@@ -261,7 +261,6 @@ function make_status_volume(    sink, mu, vl, vr, show) {
     cache_get(mu, "khatus_sensor_volume", "mute"      Kfs sink, 5)
     cache_get(vl, "khatus_sensor_volume", "vol_left"  Kfs sink, 5)
     cache_get(vr, "khatus_sensor_volume", "vol_right" Kfs sink, 5)
-
     if (!mu["is_expired"] && !vl["is_expired"] && !vr["is_expired"]) {
              if (mu["value"] == "yes") {show = "X"}
         else if (mu["value"] == "no")  {show = vl["value"] " " vr["value"]}
@@ -270,11 +269,11 @@ function make_status_volume(    sink, mu, vl, vr, show) {
                 "make_status_volume", \
                 "Unexpected value for 'mute' field: " mu["value"] \
             )
+            show = "--"
         }
     } else {
         show = "--"
     }
-
     return sprintf("(%s)", show)
 }
 
