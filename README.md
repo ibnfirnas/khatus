@@ -54,7 +54,7 @@ now, is superfluous), so now it is essentially a pub-sub - parallel publishers
 subscribers that can filter-out what they need and then do whatever they want
 with the data. Status bar is one such subscriber:
 
-`P1 > pipe&; P2 > pipe&; ... PN > pipe&; tail -f pipe | tee >(S1) >(S2) ... >(SN) > /dev/null
+`P1 > pipe&; P2 > pipe&; ... PN > pipe&; tail -f pipe | tee >(S1) >(S2) ... >(SN) > /dev/null`
 
 The cool thing is that, because the pipe is always read (`tail -f ... > /dev/null`),
 the publishers are never blocked, so we get a live stream of event to which we
