@@ -1,8 +1,21 @@
 #! /usr/bin/awk -f
 
-/^STATUS_BAR / {
-    sub("^" $1 " +", "")
-    # TODO: Move padding back to controller, now that we no-longer use readline
-    system("xsetroot -name \" " $0 "\" ")
+BEGIN {
+     FS = msg_fs ? msg_fs : "|"
+    OFS = msg_fs ? msg_fs : "|"
+    Kfs = key_fs ? key_fs : ":"
+}
+
+$1 == "OK" && \
+$2 == "khatus_bar" && \
+$3 == "status_bar" {
+    # Not just using $4 for val - because val might contain a character
+    # identical to FS
+    len_line = length($0)
+    len_head = length($1 FS $2 FS $3 FS)
+    len_val  = len_line - len_head
+    val = substr($0, len_head + 1, len_val)
+
+    system("xsetroot -name \"" val "\"")
     next
 }

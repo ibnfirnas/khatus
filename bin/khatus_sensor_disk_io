@@ -2,13 +2,7 @@
 
 set -e
 
-disk_io_device="$1"
+dir_bin="$1"
+disk_io_device="$2"
 
-awk '
-    {
-        r = $3
-        w = $7
-        print w, r
-    }
-    ' \
-    "/sys/block/$disk_io_device/stat"
+"$dir_bin"/khatus_parse_sys_block_stat "/sys/block/$disk_io_device/stat"

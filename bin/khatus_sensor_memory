@@ -2,4 +2,6 @@
 
 set -e
 
-free | awk '$1 == "Mem:" {print $2, $3}'
+dir_bin="$1"
+
+free | "$dir_bin"/khatus_parse_free

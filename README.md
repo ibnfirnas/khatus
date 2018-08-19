@@ -2,14 +2,95 @@ khatus
 ======
 ![mascot](mascot.jpg)
 
-Experimental, system monitor and status (bar) reporter I use with
+Experimental system-monitor and status (bar) reporter I use with
 [dwm](https://dwm.suckless.org/) on GNU/Linux.
 
 ![screenshot](screenshot.jpg)
 
+Usage
+-----
+
+In my `~/.xinitrc` I have something like the following:
+
+```sh
+( $BIN/khatus \
+    --wifi_interface 'wlp3s0' \
+| stdbuf -o L tee \
+    >(stdbuf -o L "$BIN"/khatus_bar \
+        -v Opt_Mpd_Song_Max_Chars=10 \
+        -v Opt_Net_Interfaces_To_Show=wlp3s0 \
+        -v Opt_Pulseaudio_Sink=0 \
+    | "$BIN"/khatus_actuate_status_bar_to_xsetroot_name \
+    ) \
+    >(stdbuf -o L "$BIN"/khatus_monitor_energy \
+    | "$BIN"/khatus_actuate_alert_to_notify_send \
+    ) \
+    >(stdbuf -o L "$BIN"/khatus_monitor_errors \
+    | "$BIN"/khatus_actuate_alert_to_notify_send \
+    ) \
+) \
+2> >($BIN/twrap.sh >> $HOME/var/log/khatus/main.log) \
+1> /dev/null \
+&
+```
+(where `twrap` is a simple script which prefixes a timestamp to each line)
+
+The idea is to support appending any number of ad-hoc, experimental monitors by
+giving maximum flexibility for what to do with the sensor outputs, while
+maintaining some uniformity of msg formats (again, to ease ad-hoc combinations
+(e.g. Does the CPU get hotter when MPD is playing Wu-Tang?)).  `khatus_bar`,
+`khatus_monitor_energy` and `khatus_monitor_errors` are just some initial
+examples.
 
 Design
 ------
+
+### 2.0
+
+In an effort to simplify the components and their interfaces, I removed the
+concept of a global controller from the previous design (which, at least for
+now, is superfluous), so now it is essentially a pub-sub - parallel publishers
+(sensors) write to a pipe, which is then copied to any number of interested
+subscribers that can filter-out what they need and then do whatever they want
+with the data. Status bar is one such subscriber:
+
+`P1 > pipe&; P2 > pipe&; ... PN > pipe&; tail -f pipe | tee >(S1) >(S2) ... >(SN) > /dev/null
+
+The cool thing is that, because the pipe is always read (`tail -f ... > /dev/null`),
+the publishers are never blocked, so we get a live stream of event to which we
+can attach any number of interested subscribers (` ... tee ... `) and, because
+the pipe is named, if a subscriber needs to - it too can publish something to
+the pipe without being blocked.
+
+```
+parallel    +----------+  +----------+          +----------+
+stateless   | sensor_1 |  | sensor_2 |    ...   | sensor_n |
+collectors  +----------+  +----------+          +----------+
+                 |             |           |         |
+               data          data        data      data
+                 |             |           |         |
+                 V             V           V         V
+multiplexing     +-------------+-----------+---------+
+to a pipe                      |
+                               |
+                               V
+copying to       +-------------+-+---------+---------+
+subscribers      |               |         |         |
+                 V               V         V         V
+              +------------+         ...      +----------------+
+any number of | status bar |                  | energy monitor |
+parallel      +------------+                  +----------------+
+subscribers      |                                    |
+                 V                                    V
+              +----------------+              +-------------+
+              | xsetroot -name |              | notify-send |
+              +----------------+              +-------------+
+```
+
+### 1.0
+
+This was an improvement of having everything in one script, but the controller
+was still way too complicated for no good reason.
 
 ```
 parallel    +----------+  +----------+          +----------+
@@ -53,6 +134,20 @@ executors   +------------+ +------------+     +------------+
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
+### 0.x
+
+A single script, re-executed in a loop at some intervals, serially grabbing all
+the needed data and outputting a status bar string, then passed to `xsetroot -name`,
+while saving state in files (e.g. previous totals, to be converted to deltas).
+
+This actually worked surprisingly-OK, but had limitations:
+
+- I use an SSD and want to minimize disk writes
+- not flexible-enough to support my main goal - easy experimentation with
+  various ad-hoc monitors:
+    - I want to set different update intervals for different data sources
+    - I don't want long-running data collectors to block the main loop
+
 ### Actuator
 Actuator is anything that takes action upon controller messages. A few generic
 ones are included:
@@ -60,36 +155,8 @@ ones are included:
 - `khatus_actuate_alert_to_notify_send`
 - `khatus_actuate_status_bar_to_xsetroot_name`
 
-and, by default, are left disconnected from the controller's output, so if
-desired - it needs to be manually attached when starting `khatus`. For example,
-in my `.xinitrc` I have:
-
-```sh
-$BIN/khatus \
-2> >($BIN/twrap >> $HOME/var/log/khatus.log) \
-| tee \
-    >($BIN/khatus_actuate_status_bar_to_xsetroot_name) \
-    >(grep -v MpdNowPlaying | $BIN/khatus_actuate_alert_to_notify_send) \
-2> >($BIN/twrap >> $HOME/var/log/khatus-actuators.log) \
-&
-```
-(where `twrap` is a simple script which prefixes a timestamp to each line)
-
-The idea is to give maximum flexibility for what to do with the controller
-output, say, for instance:
-
-```sh
-$BIN/khatus \
-| tee \
-... \
->(grep '^REPORT' | actuate_report_to_email) \
->(grep '^ALERT' | grep mpd | actuate_alert_to_email) \
->(grep '^ALERT' | grep IntrusionAttempt | actuate_intruder_to_iptables_drop) \
->(grep '^ALERT' | grep NewDevice | actuate_alert_to_notify_send)
->(grep '^ALERT' | grep DiskError | actuate_call_mom)
-...
-```
-... and so on, for any other such fun you might imagine.
+and, by default, are left disconnected from the data feed, so if desired - need
+to be manually attached when starting `khatus`. See usage section.
 
 ### Errors
 Any errors encountered by any sensor are propagated as alerts by the
@@ -101,6 +168,7 @@ controller, which are in turn actualized as desktop notifications by the
 TODO
 ----
 
+- status bar templating language
 - retry/cache for sensors fetching flaky remote resources (such as weather)
 - throttling of broken sensors (constantly returns errors)
 - alert specification language
@@ -109,7 +177,6 @@ TODO
     - priority
     - snooze time (if already alerted, when to re-alert?)
     - text: subject/body
-- more-structured controller API: a sensor submits a list of k/v pairs
 
 Redesign notes
 --------------

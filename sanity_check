@@ -1,0 +1,12 @@
+#! /bin/bash
+
+./bin/khatus --dir_bin ./bin --net_interfaces_to_show wlp3s0 --wifi_interface wlp3s0 \
+| stdbuf -o L tee \
+    >(stdbuf -o L ./bin/khatus_bar \
+        -v Opt_Mpd_Song_Max_Chars=10 \
+        -v Opt_Net_Interfaces_To_Show=wlp3s0 \
+        -v Opt_Pulseaudio_Sink=0 \
+    ) \
+    >(stdbuf -o L ./bin/khatus_monitor_energy) \
+    >(stdbuf -o L ./bin/khatus_monitor_errors) \
+> /dev/null

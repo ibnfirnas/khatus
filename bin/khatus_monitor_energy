@@ -1,0 +1,95 @@
+#! /usr/bin/awk -f
+
+BEGIN {
+     FS = msg_fs ? msg_fs : "|"
+    OFS = msg_fs ? msg_fs : "|"
+    Kfs = key_fs ? key_fs : ":"
+
+    # TODO: Read spec from a file
+    bat_alert_spec[100] = "low|Energy_Bellow_Full|Must have perfection!"
+    bat_alert_spec[50] = "low|Energy_Bellow_Half|Where is the charger?"
+    bat_alert_spec[20] = "med|Energy_Low|Get the charger."
+    bat_alert_spec[15] = "med|Energy_Low|Get the charger!"
+    bat_alert_spec[10] = "hi|Energy_Low|Plug it in, ASAP!"
+    bat_alert_spec[5]  = "hi|Energy_CRITICALLY_Low|CHARGE NOW!!! GO GO GO!!!"
+}
+
+$1 == "OK" && \
+$2 == "khatus_sensor_energy" && \
+$3 == "line_power" {
+    line_power_prev = line_power_curr
+    line_power_curr = $4
+    if (line_power_curr == "no" && line_power_prev != "no") {
+        alert("low", "PowerUnplugged", "")
+    }
+}
+
+$1 == "OK" && \
+$2 == "khatus_sensor_energy" && \
+$3 == "battery_state" {
+    battery_state_prev = battery_state_curr
+    battery_state_curr = $4
+}
+
+$1 == "OK" && \
+$2 == "khatus_sensor_energy" && \
+$3 == "battery_percentage" {
+    # TODO: Re-think the spec - can't rely on order of keys
+    battery_percentage = ensure_numeric($4)
+    if (battery_state_curr == "discharging") {
+        for (threshold in bat_alert_spec) {
+            threshold = ensure_numeric(threshold)
+            if (battery_percentage <= threshold && !alerted[threshold]) {
+                split(bat_alert_spec[threshold], msg, "|")
+                priority = msg[1]
+                subject = msg[2]
+                body = sprintf("%d%% %s", battery_percentage, msg[3])
+                alert(priority, subject, body)
+                alerted[threshold]++
+            }
+        }
+    } else {
+        delete alerted
+    }
+}
+
+function alert(priority, subject, body) {
+    # priority : "low" | "med" | "hi"
+    # subject  : no spaces
+    # body     : anything
+    print("OK", "khatus_monitor_energy", "alert", priority, subject, body)
+}
+
+function ensure_numeric(n) {
+    return n + 0
+}
+
+#-------------------------------
+# Why do we need ensure_numeric?
+#-------------------------------
+# awk appears to be guessing the type of an inputted scalar based on usage, so
+# if we read-in a number, but did not use it in any numeric operations, but did
+# use as a string (even in just a format string!) - it will be treated as a
+# string and can lead to REALLY SURPRISING behavior in conditional statements,
+# where smaller number may compare as greater than the bigger ones, such as.
+#
+# Demo:
+#
+# $ awk 'BEGIN {x = "75"; y = "100"; sprintf("x: %d, y: %d\n", x, y); if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 < 100
+# $ awk 'BEGIN {x = "75"; y = "100"; sprintf("x: %s, y: %d\n", x, y); if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 > 100
+
+# However, once used as a number, seems to stay that way even after being
+# used as string:
+#
+# $ awk 'BEGIN {x = "75"; y = "100"; x + y; sprintf("x: %s, y: %d\n", x, y); if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 < 100
+# 
+# $ awk 'BEGIN {x = "75"; y = "100"; x + y; sprintf("x: %s, y: %d\n", x, y); z = x y; if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 < 100
+# 
+# $ awk 'BEGIN {x = "75"; y = "100"; x + y; z = x y; if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 < 100
+# $ awk 'BEGIN {x = "75"; y = "100"; z = x y; if (x > y) {print "75 > 100"} else if (x < y) {print "75 < 100"}}'
+# 75 > 100
