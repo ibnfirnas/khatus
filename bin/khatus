@@ -92,7 +92,6 @@ main() {
         ["--file_pipe"]=$(mktemp)
         ["--weather_station_id"]='KJFK'
         ["--screen_brightness_device_name"]='acpi_video0'
-        ["--net_interfaces_to_show"]=''  # comma-separated
         ["--wifi_interface"]=''
         ["--disk_space_device"]='/'
         ["--disk_io_device"]='sda'
@@ -203,23 +202,7 @@ main() {
     fork_poller "${opts['--interval_fan']}"        "$perf" "$pipe" "$bin" "$cmd_sens_fan"
     fork_poller "${opts['--interval_mem']}"        "$perf" "$pipe" "$bin" "$cmd_sens_memory"
 
-    stdbuf -o L tail -f "$pipe" \
-    | stdbuf -o L tee \
-        >(stdbuf -o L "$bin"/khatus_bar \
-            -F "$MSG_FS" \
-            -v Opt_Mpd_Song_Max_Chars=10 \
-            -v Opt_Net_Interfaces_To_Show="${opts['--net_interfaces_to_show']}" \
-            -v Opt_Pulseaudio_Sink="${opts['--pulseaudio_sink']}" \
-        | "$bin"/khatus_actuate_status_bar_to_xsetroot_name \
-        ) \
-        >(stdbuf -o L "$bin"/khatus_monitor_energy \
-        | "$bin"/khatus_actuate_alert_to_notify_send \
-        ) \
-        >(stdbuf -o L "$bin"/khatus_monitor_errors \
-        | "$bin"/khatus_actuate_alert_to_notify_send \
-        ) \
-    > /dev/null
-
+    stdbuf -o L tail -f "$pipe"
 }
 
 main $@
