@@ -57,7 +57,7 @@ with the data. Status bar is one such subscriber:
 `P1 > pipe&; P2 > pipe&; ... PN > pipe&; tail -f pipe | tee >(S1) >(S2) ... >(SN) > /dev/null`
 
 The cool thing is that, because the pipe is always read (`tail -f ... > /dev/null`),
-the publishers are never blocked, so we get a live stream of event to which we
+the publishers are never blocked, so we get a live stream of events to which we
 can attach any number of interested subscribers (` ... tee ... `) and, because
 the pipe is named, if a subscriber needs to - it too can publish something to
 the pipe without being blocked.
