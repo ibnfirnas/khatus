@@ -199,9 +199,9 @@ function make_status_cpu(    l, t, f) {
 function make_status_disk(    u, w, r, src_u, src_io) {
     src_u  = "khatus_sensor_disk_space"
     src_io = "khatus_sensor_disk_io"
-    u = cache_get_fmt_def(src_u    , "disk_usage_percentage", 10, "%s")
-    w = cache_get_fmt_def(src_io   , "sectors_written"      ,  5, "%0.3f")
-    r = cache_get_fmt_def(src_io   , "sectors_read"         ,  5, "%0.3f")
+    u = cache_get_fmt_def(src_u , "disk_usage_percentage", 10, "%s")
+    w = cache_get_fmt_def(src_io, "sectors_written"      ,  5, "%0.3f")
+    r = cache_get_fmt_def(src_io, "sectors_read"         ,  5, "%0.3f")
     return sprintf("D=[%s%% %s▲ %s▼]", u, w, r)
 }
 
