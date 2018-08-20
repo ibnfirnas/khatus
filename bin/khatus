@@ -187,6 +187,7 @@ main() {
     cmd_sens_memory="khatus_sensor_memory $bin"
 
     fork_watcher                                           "$pipe" "$bin" "khatus_sensor_energy $bin"
+    fork_watcher                                           "$pipe" "$bin" "khatus_sensor_devices $bin"
     fork_poller "${opts['--interval_datetime']}"   "$perf" "$pipe" "$bin" khatus_sensor_datetime
     fork_poller "${opts['--interval_brightness']}" "$perf" "$pipe" "$bin" "$cmd_sens_screen_brightness"
     fork_poller "${opts['--interval_weather']}"    "$perf" "$pipe" "$bin" "$cmd_sens_weather"

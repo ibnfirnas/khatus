@@ -11,4 +11,5 @@
     ) \
     >(stdbuf -o L ./bin/khatus_monitor_energy) \
     >(stdbuf -o L ./bin/khatus_monitor_errors) \
+    >(stdbuf -o L ./bin/khatus_monitor_devices) \
 > /dev/null
