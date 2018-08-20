@@ -1,6 +1,8 @@
 #! /bin/bash
 
-./bin/khatus --dir_bin ./bin --wifi_interface wlp3s0 \
+./bin/khatus \
+    --dir_bin ./bin \
+    --wifi_interface wlp3s0 \
 | stdbuf -o L tee \
     >(stdbuf -o L ./bin/khatus_bar \
         -v Opt_Mpd_Song_Max_Chars=10 \
