@@ -96,14 +96,18 @@ function cache_get_time(    src, key, time) {
     return time
 }
 
-function cache_gc(    src_and_key, unused_for) {
+function cache_gc(    src_and_key, parts, src, key, unused_for) {
     for (src_and_key in _cache) {
-        unused_for = cache_get_time() - _cache_atime[src_and_key]
+        split(src_and_key, parts, SUBSEP)
+        src = parts[1]
+        key = parts[2]
+        unused_for = cache_get_time() - _cache_atime[src, key]
         if (unused_for > 3600) {
             print_msg_info(\
-                "cache_gc", "Deleting unused src_and_key: " src_and_key \
+                "cache_gc",
+                sprintf("Deleting unused SRC=%s KEY=%s", src, key) \
             )
-            delete _cache[src_and_key]
+            delete _cache[src, key]
         }
     }
 }
