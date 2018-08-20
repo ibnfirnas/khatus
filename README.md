@@ -183,3 +183,12 @@ Redesign notes
 
 - controller should not do formatting
 - need in-memory db for diskless feedback/throttling and cache
+- decouple sensor execution from sleep, i.e. a sensor is blocked not by sleep
+  process directly, but by reading of a pipe, to where a sleep process will
+  write a message announcing interval completion and thus signaling execution.
+  This will allow us to manually signal a sensor to update (concretely - I just
+  openned my laptop from sleep and want to force the weather to update
+  immediately); likewise, the sleep process should be blocked on pipe-read
+  until sensor execution is complete - this will allow us to reconfigure
+  intervals at runtime (which seems like a better idea than the above in-memory
+  DB one).
