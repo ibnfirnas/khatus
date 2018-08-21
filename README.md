@@ -188,6 +188,8 @@ TODO
     - CPU hogs
     - memory hogs
     - memory leaks (if some process consistently grows)
+- report detailed status upon request (to a terminal)
+    - use color to indicate age of data
 
 Redesign notes
 --------------
@@ -208,8 +210,6 @@ Ideas
 -----
 
 - store data with rrdtool
-- report detailed status upon request (to a terminal)
-    - use color to indicate age of data
 - monitor tracking numbers (17track should be easiest to get started with)
 - monitor stock prices
 - monitor some item price(s) at some store(s) (Amazon, etc.)
