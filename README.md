@@ -183,6 +183,11 @@ TODO
     - priority
     - snooze time (if already alerted, when to re-alert?)
     - text: subject/body
+- monitor processes
+    - zombies
+    - CPU hogs
+    - memory hogs
+    - memory leaks (if some process consistently grows)
 
 Redesign notes
 --------------
@@ -259,11 +264,6 @@ Ideas
     - https://nvd.nist.gov/
     - https://vuldb.com/
     - http://cve.mitre.org/
-- monitor processes
-    - zombies
-    - CPU hogs
-    - memory hogs
-    - memory leaks (if some process consistently grows)
 - browse https://www.programmableweb.com/ for some more ideas
 - GC trick: instead of actually doing GC, do a dummy run of building a status
   bar at `BEGIN`, to fill-in the atimes for keys we need, then use the atimes
