@@ -211,6 +211,7 @@ Ideas
 
 - store data with rrdtool
 - monitor tracking numbers (17track should be easiest to get started with)
+- monitor password digests against known leaked password databases
 - monitor stock prices
 - monitor some item price(s) at some store(s) (Amazon, etc.)
 - monitor eBay auctions (https://en.wikipedia.org/wiki/EBay_API)
