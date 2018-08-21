@@ -184,12 +184,30 @@ TODO
     - snooze time (if already alerted, when to re-alert?)
     - text: subject/body
 - monitor processes
+    - totals (grand and per state)
     - zombies
+    - threads
     - CPU hogs
     - memory hogs
     - memory leaks (if some process consistently grows)
+    - is select process up?
+    - log resource usage of select processes
+- monitor arbitrary HTTP endpoint availability
+    - is status within expected range?
+    - response time
+        - is responce time within acceptable range?
 - report detailed status upon request (to a terminal)
     - use color to indicate age of data
+- monitor logins
+    - totals (per time period)
+        - failures
+        - successes
+    - most recent
+        - success
+        - failure
+- monitor battery time remaining
+    - monitor accuracy (is percentage change rate on track to meet estimate?)
+    - adjust estimate based on observed inaccuracies in past estimates (Kalman?)
 
 Redesign notes
 --------------
@@ -209,11 +227,22 @@ Redesign notes
 Ideas
 -----
 
+- make `khatus` a daemon, so we don't have to re-launch X to re-launch `khatus`
+- offline mode - quick disable all network-using subsystems (sensors, monitors, etc)
+- classify each sensor as either "local" or "remote" (what about `iwconfig`, et al?)
 - store data with rrdtool
+- some kind of personal calendar thing integration
 - monitor tracking numbers (17track should be easiest to get started with)
 - monitor password digests against known leaked password databases
 - monitor stock prices
 - monitor some item price(s) at some store(s) (Amazon, etc.)
+    - https://docs.aws.amazon.com/AWSECommerceService/latest/DG/EX_RetrievingPriceInformation.html
+    - https://docs.aws.amazon.com/AWSECommerceService/latest/DG/ReturningPrices.html
+    - https://developer.amazonservices.com/
+- monitor Amazon order status
+    - https://developer.amazonservices.com/gp/mws/api.html?group=orders&section=orders
+- monitor eBay order status
+    - http://developer.ebay.com/DevZone/XML/docs/Reference/eBay/GetOrders.html
 - monitor eBay auctions (https://en.wikipedia.org/wiki/EBay_API)
 - monitor PayPal (https://www.programmableweb.com/api/paypal)
 - monitor bank account balance and transactions
@@ -265,6 +294,11 @@ Ideas
     - https://nvd.nist.gov/
     - https://vuldb.com/
     - http://cve.mitre.org/
+- vacation planning optimization
+    - I want to visit a set of places within some time period. Given the
+      current set of prices, a set of constraints (I need to stay some amount
+      of days at each, I must be in X at Y date, etc), which visiting dates for
+      each are cheapest?
 - browse https://www.programmableweb.com/ for some more ideas
 - GC trick: instead of actually doing GC, do a dummy run of building a status
   bar at `BEGIN`, to fill-in the atimes for keys we need, then use the atimes
