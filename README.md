@@ -227,7 +227,15 @@ Redesign notes
 Ideas
 -----
 
-- make `khatus` a daemon, so we don't have to re-launch X to re-launch `khatus`
+- daemonize `khatus`, so we don't have to re-launch `X11` to re-launch `khatus`
+- interoperate with other khatus instances
+    - prefix machine ID to each data source
+      (What should that ID be? Hostname? Pub key?)
+    - fetch remote data and process locally
+    - what transport to use?
+        - ssh + rsync + cache dumps per some interval?
+    - `A` can setup self penetration testing, by setting up probe of `A` on `B`
+      and fetching results from `B` to `A`
 - offline mode - quick disable all network-using subsystems (sensors, monitors, etc)
 - classify each sensor as either "local" or "remote" (what about `iwconfig`, et al?)
 - store data with rrdtool
