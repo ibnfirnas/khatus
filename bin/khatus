@@ -99,6 +99,7 @@ main() {
         ["--fan_path"]='/proc/acpi/ibm/fan'
         ["--pulseaudio_sink"]='0'
         ["--interval_datetime"]=1
+        ["--interval_procs"]=1
         ["--interval_brightness"]=1
         ["--interval_weather"]=$(( 30 * 60))  # 30 minutes
         ["--interval_mpd"]=1
@@ -189,6 +190,7 @@ main() {
     fork_watcher                                           "$pipe" "$bin" "khatus_sensor_energy $bin"
     fork_watcher                                           "$pipe" "$bin" "khatus_sensor_devices $bin"
     fork_poller "${opts['--interval_datetime']}"   "$perf" "$pipe" "$bin" khatus_sensor_datetime
+    fork_poller "${opts['--interval_procs']}"      "$perf" "$pipe" "$bin" "khatus_sensor_procs $bin"
     fork_poller "${opts['--interval_brightness']}" "$perf" "$pipe" "$bin" "$cmd_sens_screen_brightness"
     fork_poller "${opts['--interval_weather']}"    "$perf" "$pipe" "$bin" "$cmd_sens_weather"
     fork_poller "${opts['--interval_mpd']}"        "$perf" "$pipe" "$bin" "$cmd_sens_mpd"

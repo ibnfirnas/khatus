@@ -8,7 +8,7 @@
         -v Opt_Mpd_Song_Max_Chars=10 \
         -v Opt_Net_Interfaces_To_Show=wlp3s0 \
         -v Opt_Pulseaudio_Sink=0 \
-        -v GC_Interval=5 \
+        -v GC_Interval=10 \
     ) \
     >(stdbuf -o L ./bin/khatus_monitor_energy) \
     >(stdbuf -o L ./bin/khatus_monitor_errors) \

@@ -102,11 +102,15 @@ function cache_gc(    src_and_key, parts, src, key, unused_for) {
         split(src_and_key, parts, SUBSEP)
         src = parts[1]
         key = parts[2]
+        val = _cache[src, key]
         unused_for = cache_get_time() - _cache_atime[src, key]
         if (unused_for > GC_Interval) {
             print_msg_info(\
                 "cache_gc",
-                sprintf("Deleting unused data SRC=%s KEY=%s", src, key) \
+                sprintf(\
+                    "Deleting unused data SRC=%s KEY=%s VAL=%s",
+                    src, key, val\
+                ) \
             )
             delete _cache[src, key]
         }
@@ -141,6 +145,7 @@ function make_status_bar(    position, bar, sep, i, j) {
     position[++i] = ""
     position[++i] = make_status_energy()
     position[++i] = make_status_mem()
+    position[++i] = make_status_procs()
     position[++i] = make_status_cpu()
     position[++i] = make_status_disk()
     position[++i] = make_status_net()
@@ -189,6 +194,17 @@ function make_status_mem(    total, used, percent, status) {
         status = "__"
     }
     return sprintf("M=%s", status)
+}
+
+function make_status_procs() {
+    src = "khatus_sensor_procs"
+    all = cache_get_fmt_def(src, "total_procs"            , 15, "%d")
+    r   = cache_get_fmt_def(src, "total_per_state" Kfs "R", 15, "%d", "0")
+    d   = cache_get_fmt_def(src, "total_per_state" Kfs "D", 15, "%d", "0")
+    t   = cache_get_fmt_def(src, "total_per_state" Kfs "T", 15, "%d", "0")
+    i   = cache_get_fmt_def(src, "total_per_state" Kfs "I", 15, "%d", "0")
+    z   = cache_get_fmt_def(src, "total_per_state" Kfs "Z", 15, "%d", "0")
+    return sprintf("P=[%s %sr %sd %st %si %sz]", all, r, d, t, i, z)
 }
 
 function make_status_cpu(    l, t, f) {
