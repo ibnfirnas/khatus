@@ -8,15 +8,8 @@ BEGIN {
 {
     pid       = $1
     state     = $2
-    rss       = $3
-    command_i = index($0, $4)
-    command   = substr($0, command_i, length($0) - (command_i - 1))
-
     Pids[pid] = 1
     Total_Per_State[state]++
-    print("state"   Kfs pid, state)
-    print("rss"     Kfs pid, rss)
-    print("command" Kfs pid, command)
 }
 
 END {
