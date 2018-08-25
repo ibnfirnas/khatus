@@ -227,6 +227,10 @@ Redesign notes
 Ideas
 -----
 
+- track devices:
+    - alert when never before seen device is plugged-in
+    - report history and trends on when and how-often each
+      device/category is plugged-in, how-long it stays plaugged-in, etc.
 - daemonize `khatus`, so we don't have to re-launch `X11` to re-launch `khatus`
 - interoperate with other khatus instances
     - prefix machine ID to each data source
