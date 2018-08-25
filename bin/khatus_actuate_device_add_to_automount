@@ -5,6 +5,8 @@ BEGIN {
     OFS = msg_fs ? msg_fs : "|"
     Kfs = key_fs ? key_fs : ":"
     Module = "khatus_actuate_device_add_to_automount"
+    # Typically some file manager (thunar, pcmanfm, etc.), but can be whatever.
+    Execute_On_Mount = Execute_On_Mount ? Execute_On_Mount : ""
 }
 
 $1 == "OK" && \
@@ -33,6 +35,9 @@ function mount_device(path,    cmd, line, lines, line_count, status, i,
                 sub("^Mounted " path_dev " at ", "", path_mnt)
                 sub("\.$", "", path_mnt)
                 alert("low", "successfully-mounted", path_dev " to " path_mnt)
+                if (Execute_On_Mount) {
+                    system(Execute_On_Mount " '" path_mnt "'")
+                }
             } else {
                 alert("hi", "unexpected-success-line", line)
             }

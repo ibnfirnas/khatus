@@ -13,5 +13,7 @@
     >(stdbuf -o L ./bin/khatus_monitor_energy) \
     >(stdbuf -o L ./bin/khatus_monitor_errors) \
     >(stdbuf -o L ./bin/khatus_monitor_devices) \
-    >(stdbuf -o L ./bin/khatus_actuate_device_add_to_automount) \
+    >(stdbuf -o L ./bin/khatus_actuate_device_add_to_automount \
+        -v Execute_On_Mount=thunar \
+    ) \
 > /dev/null
