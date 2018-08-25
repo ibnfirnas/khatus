@@ -168,6 +168,7 @@ controller, which are in turn actualized as desktop notifications by the
 TODO
 ----
 
+- formalize message format and protocol
 - tests (design is starting to take shape, so it is time)
 - show how many Debian package updates are available
 - show how many Debian package security-updates are available
