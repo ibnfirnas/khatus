@@ -10,6 +10,10 @@ Experimental system-monitor and status (bar) reporter I use with
 Usage
 -----
 
+`make build && make install`
+
+`make install` copies everything from `./bin` to `$HOME/bin`
+
 In my `~/.xinitrc` I have something like the following:
 
 ```sh
