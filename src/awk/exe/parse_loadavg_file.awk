@@ -1,10 +1,3 @@
-#! /usr/bin/awk -f
-
-BEGIN {
-    OFS = msg_fs ? msg_fs : "|"
-    Kfs = key_fs ? key_fs : ":"
-}
-
 # 0.71 1.04 1.12 1/325 2409
 {
     split($4, sched, "/")

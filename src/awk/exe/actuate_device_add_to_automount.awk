@@ -1,10 +1,4 @@
-#! /usr/bin/awk -f
-
 BEGIN {
-     FS = msg_fs ? msg_fs : "|"
-    OFS = msg_fs ? msg_fs : "|"
-    Kfs = key_fs ? key_fs : ":"
-    Module = "khatus_actuate_device_add_to_automount"
     # Typically some file manager (thunar, pcmanfm, etc.), but can be whatever.
     Execute_On_Mount = Execute_On_Mount ? Execute_On_Mount : ""
 }
@@ -45,11 +39,4 @@ function mount_device(path,    cmd, line, lines, line_count, status, i,
     } else {
         alert("hi", "failed-to-mount-device", path)
     }
-}
-
-function alert(priority, subject, body) {
-    # priority : "low" | "med" | "hi"
-    # subject  : no spaces
-    # body     : anything
-    print("OK", Module, "alert", priority, subject, body)
 }

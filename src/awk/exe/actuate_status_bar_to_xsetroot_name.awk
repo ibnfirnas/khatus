@@ -1,11 +1,3 @@
-#! /usr/bin/awk -f
-
-BEGIN {
-     FS = msg_fs ? msg_fs : "|"
-    OFS = msg_fs ? msg_fs : "|"
-    Kfs = key_fs ? key_fs : ":"
-}
-
 $1 == "OK" && \
 $2 == "khatus_bar" && \
 $3 == "status_bar" {

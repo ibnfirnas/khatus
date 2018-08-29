@@ -1,10 +1,3 @@
-#! /usr/bin/awk -f
-
-BEGIN {
-    OFS = "|"
-    Kfs = ":"
-}
-
 {
     pid       = $1
     state     = $2

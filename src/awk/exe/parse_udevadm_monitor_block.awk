@@ -1,9 +1,4 @@
-#! /usr/bin/awk -f
-
 BEGIN {
-    OFS = msg_fs ? msg_fs : "|"
-    Kfs = key_fs ? key_fs : ":"
-
     Re_Begin = "^UDEV + \[ *[0-9]+\.[0-9]+\] +"
 }
 

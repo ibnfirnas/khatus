@@ -1,10 +1,3 @@
-#! /usr/bin/awk -f
-
-BEGIN {
-    OFS = msg_fs ? msg_fs : "|"
-    Kfs = key_fs ? key_fs : ":"
-}
-
 /^[0-9]+:/ {
     sub(":$", "", $1)
     sub(":$", "", $2)

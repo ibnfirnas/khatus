@@ -9,7 +9,7 @@
         -v Opt_Net_Interfaces_To_Show=wlp3s0 \
         -v Opt_Pulseaudio_Sink=0 \
         -v GC_Interval=300 \
-        -f <(./bin/khatus_gen_make_status_bar \
+        -f <(./bin/khatus_gen_bar_make_status \
                 -v Status_Bar='@energy,@memory,@processes,@cpu,@disk,@net,@bluetooth,@backlight,@volume,@mpd,@weather,@datetime' \
             ) \
     ) \

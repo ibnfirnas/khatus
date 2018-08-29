@@ -1,5 +1,3 @@
-#! /usr/bin/awk -f
-#
 # Example iwconfig output:
 # -----------------------
 # $ iwconfig wlp3s0
@@ -14,11 +12,6 @@
 #
 #
 # USAGE: khatus_parse_iwconfig -v requested_interface="$wifi_interface"
-
-BEGIN {
-    OFS = msg_fs ? msg_fs : "|"
-    Kfs = key_fs ? key_fs : ":"
-}
 
 /^[a-z0-9]+ +IEEE 802\.11 +ESSID:/ {
     interface = $1

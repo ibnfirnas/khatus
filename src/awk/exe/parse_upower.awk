@@ -1,10 +1,3 @@
-#! /usr/bin/awk -f
-
-BEGIN {
-    OFS = msg_fs ? msg_fs : "|"
-    Kfs = key_fs ? key_fs : ":"
-}
-
 # When parsing 'upower --dump'
 /^Device:[ \t]+/ {
     device["path"] = $2

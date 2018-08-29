@@ -1,12 +1,5 @@
-#! /usr/bin/awk -f
-#
 # Qualifying the name as "_d_output" lest it be mistaken for parser of actual
 # metar format.
-
-BEGIN {
-    OFS = msg_fs ? msg_fs : "|"
-    Kfs = key_fs ? key_fs : ":"
-}
 
 /METAR pattern not found in NOAA data/ {
     failures++
@@ -15,15 +8,15 @@ BEGIN {
 
 /[A-z][a-z]+ *: / {
     split($0, line, ":")
-    key = strip(line[1])
-    val = strip(line[2])
+    key = util_strip(line[1])
+    val = util_strip(line[2])
     values[NR] = val
     first[key] = NR
     last[key] = NR
 }
 
 /^ +/ {
-    values[NR] = strip($0)
+    values[NR] = util_strip($0)
     last[key] = NR
 }
 
@@ -44,10 +37,4 @@ END {
             }
         }
     }
-}
-
-function strip(s) {
-    sub("^ *", "", s)
-    sub(" *$", "", s)
-    return s
 }
