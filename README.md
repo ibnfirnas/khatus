@@ -20,6 +20,9 @@ In my `~/.xinitrc` I have something like the following:
         -v Opt_Mpd_Song_Max_Chars=10 \
         -v Opt_Net_Interfaces_To_Show=wlp3s0 \
         -v Opt_Pulseaudio_Sink=0 \
+        -f <(./bin/khatus_gen_make_status_bar \
+                -v Status_Bar='@energy,@memory,@processes,@cpu,@disk,@net,@bluetooth,@backlight,@volume,@mpd,@weather,@datetime' \
+            ) \
     | "$BIN"/khatus_actuate_status_bar_to_xsetroot_name \
     ) \
     >(stdbuf -o L "$BIN"/khatus_monitor_energy \

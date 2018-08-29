@@ -45,6 +45,8 @@ $1 == "OK" {
 
 $1 == "OK" && \
 $2 == "khatus_sensor_datetime" {
+    # Code for make_status_bar definition is expected to be passed as an
+    # additional source file, using  -f  flag.
     print_msg_ok("status_bar", make_status_bar())
 }
 
@@ -140,30 +142,6 @@ function cache_maybe_scale(src, key, val,    key_parts) {
 # -----------------------------------------------------------------------------
 # Status bar
 # -----------------------------------------------------------------------------
-
-function make_status_bar(    position, bar, sep, i, j) {
-    position[++i] = ""
-    position[++i] = make_status_energy()
-    position[++i] = make_status_mem()
-    position[++i] = make_status_procs()
-    position[++i] = make_status_cpu()
-    position[++i] = make_status_disk()
-    position[++i] = make_status_net()
-    position[++i] = make_status_bluetooth()
-    position[++i] = make_status_screen_brightness()
-    position[++i] = make_status_volume()
-    position[++i] = make_status_mpd()
-    position[++i] = make_status_weather()
-    position[++i] = make_status_datetime()
-    position[++i] = ""
-    bar = ""
-    sep = ""
-    for (j = 1; j <= i; j++) {
-        bar = bar sep position[j]
-        sep = " "
-    }
-    return bar
-}
 
 function make_status_energy(    state, charge, direction_of_change) {
     cache_get(state , "khatus_sensor_energy", "battery_state"     , 0)
