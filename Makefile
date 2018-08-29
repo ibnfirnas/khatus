@@ -36,7 +36,7 @@ endef
 build: $(AWK_EXECUTABLES)
 
 clean:
-	rm $(AWK_EXECUTABLES)
+	rm -f $(AWK_EXECUTABLES)
 
 
 bin/khatus_bar: \
