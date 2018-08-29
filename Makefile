@@ -1,3 +1,4 @@
+PREFIX := $(HOME)
 PATH_TO_AWK := /usr/bin/awk
 AWK_EXECUTABLES := \
 	bin/khatus_bar \
@@ -31,9 +32,13 @@ endef
 
 .PHONY: \
 	build \
+	install \
 	clean
 
 build: $(AWK_EXECUTABLES)
+
+install:
+	$(foreach filename,$(wildcard bin/*),cp -p "$(filename)" "$(PREFIX)/$(filename)"; )
 
 clean:
 	rm -f $(AWK_EXECUTABLES)
