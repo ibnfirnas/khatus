@@ -24,6 +24,7 @@ AWK_EXECUTABLES := \
 
 define BUILD_AWK_EXE
 	echo '#! $(PATH_TO_AWK) -f' > $@ && \
+	echo 'BEGIN {Module = "$(notdir $@)"}' >> $@ && \
 	cat $^ >> $@ && \
 	chmod +x $@
 endef
@@ -31,7 +32,6 @@ endef
 .PHONY: \
 	build \
 	clean
-
 
 build: $(AWK_EXECUTABLES)
 

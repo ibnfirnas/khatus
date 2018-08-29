@@ -16,5 +16,5 @@ function msg_out_error(location, msg) {
 }
 
 function msg_out(status, key, val, channel) {
-    print(status, key, val) > channel
+    print(status, Module, key, val) > channel
 }
