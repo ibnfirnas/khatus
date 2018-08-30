@@ -26,15 +26,8 @@ $2 == "khatus_sensor_datetime" {
 # Energy
 # -----------------------------------------------------------------------------
 
-function bar_make_status_energy(    d, p) {
-    d = bar_make_status_energy_direction()
-    p = bar_make_status_energy_percent()
-    return sprintf("E%s%d%%", d, p)
-}
-
-function bar_make_status_energy_percent(    charge) {
-    cache_get(charge, "khatus_sensor_energy", "battery_percentage", 0)
-    return charge["value"]
+function bar_make_status_energy_percent() {
+    return cache_get_fmt_def("khatus_sensor_energy", "battery_percentage", 0, "%d")
 }
 
 function bar_make_status_energy_direction(    state, direction_of_change) {
@@ -52,10 +45,6 @@ function bar_make_status_energy_direction(    state, direction_of_change) {
 # -----------------------------------------------------------------------------
 # Memory
 # -----------------------------------------------------------------------------
-
-function bar_make_status_mem() {
-    return sprintf("M=%s%%", bar_make_status_mem_percent())
-}
 
 function bar_make_status_mem_percent(    total, used, percent, percent_str) {
     cache_get(total, "khatus_sensor_memory", "total", 5)
@@ -76,29 +65,18 @@ function bar_make_status_mem_percent(    total, used, percent, percent_str) {
 # -----------------------------------------------------------------------------
 # Processes
 # -----------------------------------------------------------------------------
-
-function bar_make_status_procs() {
-    # From man ps:
-    #   D    uninterruptible sleep (usually IO)
-    #   R    running or runnable (on run queue)
-    #   S    interruptible sleep (waiting for an event to complete)
-    #   T    stopped by job control signal
-    #   t    stopped by debugger during the tracing
-    #   W    paging (not valid since the 2.6.xx kernel)
-    #   X    dead (should never be seen)
-    #   Z    defunct ("zombie") process, terminated but not reaped by its parent
-    #
-    # Additionally, not documented in ps man page:
-    #   I    Idle
-    #
-    all = bar_make_status_procs_count_all()
-    r   = bar_make_status_procs_count_r()
-    d   = bar_make_status_procs_count_d()
-    t   = bar_make_status_procs_count_t()
-    i   = bar_make_status_procs_count_i()
-    z   = bar_make_status_procs_count_z()
-    return sprintf("P=[%s %sr %sd %st %si %sz]", all, r, d, t, i, z)
-}
+# From man ps:
+#   D    uninterruptible sleep (usually IO)
+#   R    running or runnable (on run queue)
+#   S    interruptible sleep (waiting for an event to complete)
+#   T    stopped by job control signal
+#   t    stopped by debugger during the tracing
+#   W    paging (not valid since the 2.6.xx kernel)
+#   X    dead (should never be seen)
+#   Z    defunct ("zombie") process, terminated but not reaped by its parent
+#
+# Additionally, not documented in ps man page:
+#   I    Idle
 
 function bar_make_status_procs_count_all() {
     return cache_get_fmt_def("khatus_sensor_procs", "total_procs", 15, "%d")
@@ -133,13 +111,6 @@ function bar_make_status_procs_count_z(    src) {
 # CPU
 # -----------------------------------------------------------------------------
 
-function bar_make_status_cpu(    l, t, f) {
-    l = bar_make_status_cpu_loadavg()
-    t = bar_make_status_cpu_temperature()
-    f = bar_make_status_cpu_fan_speed()
-    return sprintf("C=[%s %s°C %srpm]", l, t, f)
-}
-
 function bar_make_status_cpu_loadavg(    src) {
     src = "khatus_sensor_loadavg"
     return cache_get_fmt_def(src, "load_avg_1min", 5, "%4.2f")
@@ -156,13 +127,6 @@ function bar_make_status_cpu_fan_speed() {
 # -----------------------------------------------------------------------------
 # Disk
 # -----------------------------------------------------------------------------
-
-function bar_make_status_disk(    u, w, r) {
-    u = bar_make_status_disk_space()
-    w = bar_make_status_disk_io_w()
-    r = bar_make_status_disk_io_r()
-    return sprintf("D=[%s%% %s▲ %s▼]", u, w, r)
-}
 
 function bar_make_status_disk_space(    src) {
     src = "khatus_sensor_disk_space"
@@ -182,37 +146,6 @@ function bar_make_status_disk_io_r(    src) {
 # -----------------------------------------------------------------------------
 # Network
 # -----------------------------------------------------------------------------
-
-function bar_make_status_net(    \
-    number_of_net_interfaces_to_show, \
-    net_interfaces_to_show, \
-    i, \
-    interface, \
-    label, \
-    addr, \
-    w, \
-    r, \
-    out, \
-    sep \
-) {
-    number_of_net_interfaces_to_show = \
-        split(Opt_Net_Interfaces_To_Show, net_interfaces_to_show, ",")
-    out = ""
-    sep = ""
-    for (i = number_of_net_interfaces_to_show; i > 0; i--) {
-        interface = net_interfaces_to_show[i]
-        label = substr(interface, 1, 1)
-        if (interface ~ "^w") {
-            label = label ":" bar_make_status_net_wifi(interface)
-        }
-        addr = bar_make_status_net_addr(interface)
-        w    = bar_make_status_net_io_w(interface)
-        r    = bar_make_status_net_io_r(interface)
-        out = out sep label ":" sprintf("%s▲ %s▼", w, r)
-        sep = " "
-    }
-    return sprintf("N[%s]", out)
-}
 
 function bar_make_status_net_addr(interface,    src) {
     src = "khatus_sensor_net_addr_io"
@@ -238,22 +171,14 @@ function bar_make_status_net_wifi(interface,    src) {
 # Bluetooth
 # -----------------------------------------------------------------------------
 
-function bar_make_status_bluetooth() {
-    return sprintf("B=%s", bar_make_status_bluetooth_power())
-}
-
 function bar_make_status_bluetooth_power(    src) {
     src = "khatus_sensor_bluetooth_power"
     return cache_get_fmt_def(src, "power_status", 10, "%s")
 }
 
 # -----------------------------------------------------------------------------
-# Backlight
+# Backlight (screen brightness)
 # -----------------------------------------------------------------------------
-
-function bar_make_status_screen_brightness() {
-    return sprintf("*%s%%", bar_make_status_backlight_percent())
-}
 
 function bar_make_status_backlight_percent(    src) {
     src = "khatus_sensor_screen_brightness"
@@ -264,13 +189,7 @@ function bar_make_status_backlight_percent(    src) {
 # Volume
 # -----------------------------------------------------------------------------
 
-function bar_make_status_volume() {
-    return sprintf("(%s)", bar_make_status_volume_value())
-}
-
-# TODO: better name than "bar_make_status_volume_value" ... :)
-function bar_make_status_volume_value(    sink, mu, vl, vr, show) {
-    sink = Opt_Pulseaudio_Sink
+function bar_make_status_volume_pulseaudio_sink(sink,    mu, vl, vr, show) {
     cache_get(mu, "khatus_sensor_volume", "mute"      Kfs sink, 5)
     cache_get(vl, "khatus_sensor_volume", "vol_left"  Kfs sink, 5)
     cache_get(vr, "khatus_sensor_volume", "vol_right" Kfs sink, 5)
@@ -280,7 +199,7 @@ function bar_make_status_volume_value(    sink, mu, vl, vr, show) {
         else if (mu["value"] == "no")  {show = vl["value"] " " vr["value"]}
         else {
             msg_out_error(\
-                "bar_make_status_volume", \
+                "bar_make_status_volume_pulseaudio_sink: " sink ". ", \
                 "Unexpected value for 'mute' field: " mu["value"] \
             )
         }
@@ -292,11 +211,7 @@ function bar_make_status_volume_value(    sink, mu, vl, vr, show) {
 # MPD
 # -----------------------------------------------------------------------------
 
-function bar_make_status_mpd() {
-    return sprintf("[%s]", bar_make_status_mpd_value())
-}
-
-function bar_make_status_mpd_value(    state, status) {
+function bar_make_status_mpd(    state, status) {
     cache_get(state, "khatus_sensor_mpd", "state", 5)
     if (!state["is_expired"] && state["value"]) {
         if (state["value"] == "play") {
@@ -330,10 +245,6 @@ function bar_make_status_mpd_state_known(symbol,    s, song, time, percentage) {
 # -----------------------------------------------------------------------------
 # Weather
 # -----------------------------------------------------------------------------
-
-function bar_make_status_weather() {
-    return sprintf("%s°F", bar_make_status_weather_temp_f())
-}
 
 function bar_make_status_weather_temp_f(    src, hour) {
     src = "khatus_sensor_weather"
