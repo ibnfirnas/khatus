@@ -1,8 +1,9 @@
-data/
-bin/khatus_bar
+_build/
 bin/khatus_actuate_alert_to_notify_send
 bin/khatus_actuate_device_add_to_automount
 bin/khatus_actuate_status_bar_to_xsetroot_name
+bin/khatus_bar
+bin/khatus_dashboard
 bin/khatus_monitor_devices
 bin/khatus_monitor_energy
 bin/khatus_monitor_errors
@@ -20,3 +21,4 @@ bin/khatus_parse_ps
 bin/khatus_parse_sys_block_stat
 bin/khatus_parse_udevadm_monitor_block
 bin/khatus_parse_upower
+data/

@@ -22,6 +22,8 @@ AWK_EXECUTABLES := \
 	bin/khatus_parse_sys_block_stat \
 	bin/khatus_parse_udevadm_monitor_block \
 	bin/khatus_parse_upower
+OCAML_EXECUTABLES := \
+	bin/khatus_dashboard
 
 define BUILD_AWK_EXE
 	echo '#! $(PATH_TO_AWK) -f'                                > $@ && \
@@ -36,14 +38,18 @@ endef
 	install \
 	clean
 
-build: $(AWK_EXECUTABLES)
+build: $(AWK_EXECUTABLES) $(OCAML_EXECUTABLES)
 
 install:
 	$(foreach filename,$(wildcard bin/*),cp -p "$(filename)" "$(PREFIX)/$(filename)"; )
 
 clean:
 	rm -f $(AWK_EXECUTABLES)
+	rm -f $(OCAML_EXECUTABLES)
 
+#-----------------------------------------------------------------------------
+# AWK
+#-----------------------------------------------------------------------------
 bin/khatus_bar: \
 	src/awk/exe/bar.awk \
 	src/awk/lib/cache.awk \
@@ -164,3 +170,11 @@ bin/khatus_parse_upower: \
 	src/awk/exe/parse_upower.awk \
 	src/awk/lib/msg_out.awk
 	$(BUILD_AWK_EXE)
+
+#-----------------------------------------------------------------------------
+# OCaml
+#-----------------------------------------------------------------------------
+bin/khatus_cache_dumper: src/ocaml/exe/khatus_cache_dumper.ml
+	ocamlbuild -cflags '-w A' -pkg unix -I src/ocaml/exe -I src/ocaml/lib khatus_cache_dumper.byte
+	mv _build/src/ocaml/exe/khatus_cache_dumper.byte bin/khatus_cache_dumper
+	rm -f khatus_cache_dumper.byte
