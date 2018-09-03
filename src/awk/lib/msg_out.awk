@@ -3,6 +3,15 @@ BEGIN {
     Kfs = Key_fs ? Key_fs : ":"
 }
 
+function msg_out_ok_alert(priority, subject, body,    key, val) {
+    # priority : "low" | "med" | "hi"
+    # subject  : string without spaces
+    # body     : anything
+    key = "alert" Kfs priority Kfs subject
+    val = body
+    msg_out_ok(key, val)
+}
+
 function msg_out_ok(key, val) {
     msg_out("OK", key, val, "/dev/stdout")
 }

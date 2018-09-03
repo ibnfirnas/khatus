@@ -1,5 +1,5 @@
 $1 == "OK" && \
 $2 == "khatus_sensor_devices" \
 {
-    alert("low", "BlockDeviceEvent", $3 " " $4)
+    msg_out_ok_alert("low", "BlockDeviceEvent", $3 " " $4)
 }

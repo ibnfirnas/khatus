@@ -14,7 +14,7 @@ $3 == "line_power" {
     line_power_prev = line_power_curr
     line_power_curr = $4
     if (line_power_curr == "no" && line_power_prev != "no") {
-        alert("low", "PowerUnplugged", "")
+        msg_out_ok_alert("low", "PowerUnplugged", "")
     }
 }
 
@@ -38,7 +38,7 @@ $3 == "battery_percentage" {
                 priority = msg[1]
                 subject = msg[2]
                 body = sprintf("%d%% %s", battery_percentage, msg[3])
-                alert(priority, subject, body)
+                msg_out_ok_alert(priority, subject, body)
                 _alerted[threshold]++
             }
         }

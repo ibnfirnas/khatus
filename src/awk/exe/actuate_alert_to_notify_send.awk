@@ -7,10 +7,12 @@ BEGIN {
 }
 
 $1 == "OK" && \
-$3 == "alert" {
+$3 ~ /^alert/ {
     src      = $2
-    priority = $4
-    subject  = $5
+    key      = $3
+    split(key, key_parts, Kfs)
+    priority = key_parts[2]
+    subject  = key_parts[3]
 
     # Not just using $6 for body - because body might contain a character
     # identical to FS

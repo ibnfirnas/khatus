@@ -43,7 +43,6 @@ install:
 clean:
 	rm -f $(AWK_EXECUTABLES)
 
-
 bin/khatus_bar: \
 	src/awk/exe/bar.awk \
 	src/awk/lib/cache.awk \
@@ -60,8 +59,7 @@ bin/khatus_actuate_alert_to_notify_send: \
 bin/khatus_actuate_device_add_to_automount: \
 	src/awk/exe/actuate_device_add_to_automount.awk \
 	src/awk/lib/msg_in.awk \
-	src/awk/lib/msg_out.awk \
-	src/awk/lib/alert.awk
+	src/awk/lib/msg_out.awk
 	$(BUILD_AWK_EXE)
 
 bin/khatus_actuate_status_bar_to_xsetroot_name: \
@@ -72,23 +70,20 @@ bin/khatus_actuate_status_bar_to_xsetroot_name: \
 bin/khatus_monitor_devices: \
 	src/awk/exe/monitor_devices.awk \
 	src/awk/lib/msg_in.awk \
-	src/awk/lib/msg_out.awk \
-	src/awk/lib/alert.awk
+	src/awk/lib/msg_out.awk
 	$(BUILD_AWK_EXE)
 
 bin/khatus_monitor_energy: \
 	src/awk/exe/monitor_energy.awk \
 	src/awk/lib/msg_in.awk \
 	src/awk/lib/msg_out.awk \
-	src/awk/lib/alert.awk \
 	src/awk/lib/util.awk
 	$(BUILD_AWK_EXE)
 
 bin/khatus_monitor_errors: \
 	src/awk/exe/monitor_errors.awk \
 	src/awk/lib/msg_in.awk \
-	src/awk/lib/msg_out.awk \
-	src/awk/lib/alert.awk
+	src/awk/lib/msg_out.awk
 	$(BUILD_AWK_EXE)
 
 bin/khatus_parse_bluetoothctl_show: \

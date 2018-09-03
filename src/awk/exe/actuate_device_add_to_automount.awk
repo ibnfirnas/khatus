@@ -28,15 +28,15 @@ function mount_device(path,    cmd, line, lines, line_count, status, i,
                 path_mnt=line
                 sub("^Mounted " path_dev " at ", "", path_mnt)
                 sub("\.$", "", path_mnt)
-                alert("low", "successfully-mounted", path_dev " to " path_mnt)
+                msg_out_ok_alert("low", "successfully-mounted", path_dev " to " path_mnt)
                 if (Execute_On_Mount) {
                     system(Execute_On_Mount " '" path_mnt "'")
                 }
             } else {
-                alert("hi", "unexpected-success-line", line)
+                msg_out_ok_alert("hi", "unexpected-success-line", line)
             }
         }
     } else {
-        alert("hi", "failed-to-mount-device", path)
+        msg_out_ok_alert("hi", "failed-to-mount-device", path)
     }
 }
