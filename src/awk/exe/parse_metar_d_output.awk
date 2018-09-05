@@ -8,15 +8,15 @@
 
 /[A-z][a-z]+ *: / {
     split($0, line, ":")
-    key = util_strip(line[1])
-    val = util_strip(line[2])
+    key = str_strip(line[1])
+    val = str_strip(line[2])
     values[NR] = val
     first[key] = NR
     last[key] = NR
 }
 
 /^ +/ {
-    values[NR] = util_strip($0)
+    values[NR] = str_strip($0)
     last[key] = NR
 }
 

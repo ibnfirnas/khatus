@@ -10,17 +10,19 @@
 # -----------------------------------------------------------------------------
 # Input
 # -----------------------------------------------------------------------------
-$1 == "OK" {
-    cache_update()
+$3 == "data" {
+    delete msg
+    msg_in_parse(msg, $0)
+    cache_update(msg["node"], msg["module"], msg["key"], msg["val"])
 }
 
-$1 == "OK" && \
-$2 == "khatus_sensor_datetime" {
+$1 == Node && \
+$2 == "khatus_sensor_datetime" && \
+$3 == "data" {
     # Code for bar_make_status is expected to be passed as an
     # additional source file, using  -f  flag.
-    msg_out_ok("status_bar", bar_make_status())
+    msg_out_status_bar(bar_make_status())
 }
-
 
 # -----------------------------------------------------------------------------
 # Energy
@@ -54,7 +56,7 @@ function bar_make_status_mem_percent(    total, used, percent, percent_str) {
         !used["is_expired"] && \
         total["value"] \
         ) {
-        percent = util_round((used["value"] / total["value"]) * 100)
+        percent = num_round((used["value"] / total["value"]) * 100)
         percent_str = sprintf("%d", percent)
     } else {
         percent_str = "__"
@@ -198,7 +200,7 @@ function bar_make_status_volume_pulseaudio_sink(sink,    mu, vl, vr, show) {
              if (mu["value"] == "yes") {show = "X"}
         else if (mu["value"] == "no")  {show = vl["value"] " " vr["value"]}
         else {
-            msg_out_error(\
+            msg_out_log_error(\
                 "bar_make_status_volume_pulseaudio_sink: " sink ". ", \
                 "Unexpected value for 'mute' field: " mu["value"] \
             )
@@ -221,7 +223,7 @@ function bar_make_status_mpd(    state, status) {
         } else if (state["value"] == "stop") {
             status = bar_make_status_mpd_state_known("⬛")
         } else {
-            msg_out_error(\
+            msg_out_log_error(\
                 "bar_make_status_mpd", \
                 "Unexpected value for 'state' field: " state["value"] \
             )

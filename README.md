@@ -258,7 +258,7 @@ Idea grab bag
     - report history and trends on when and how-often each
       device/category is plugged-in, how-long it stays plaugged-in, etc.
 - daemonize `khatus`, so we don't have to re-launch `X11` to re-launch `khatus`
-- interoperate with other khatus instances
+- interoperate with other khatus nodes
     - prefix machine ID to each data source
       (What should that ID be? Hostname? Pub key?)
     - fetch remote data and process locally

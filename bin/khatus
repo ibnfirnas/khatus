@@ -36,18 +36,18 @@ run_producer() {
     2> >(
         while read line
         do
-            echo "ERROR${MSG_FS}${executable_name}${MSG_FS}$line" > "$pipe"
+            echo "${NODE}${MSG_FS}${executable_name}${MSG_FS}error${MSG_FS}$line" > "$pipe"
         done \
     ) \
     | while read line
         do
-            echo "OK${MSG_FS}${executable_name}${MSG_FS}$line" > "$pipe"
+            echo "${NODE}${MSG_FS}${executable_name}${MSG_FS}data${MSG_FS}$line" > "$pipe"
         done
     cmd_exit_code=${PIPESTATUS[0]}
     if [ "$cmd_exit_code" -ne 0 ]
     then
         echo
-            "ERROR${MSG_FS}${executable_name}${MSG_FS}NON_ZERO_EXIT_CODE${MSG_FS}$cmd_exit_code" \
+            "${NODE}${MSG_FS}${executable_name}${MSG_FS}error${MSG_FS}NON_ZERO_EXIT_CODE${MSG_FS}$cmd_exit_code" \
             > "$pipe"
     fi
 }
@@ -87,6 +87,7 @@ fork_poller() {
 
 main() {
     declare -A opts=(
+        ["--node"]=$(hostname)
         ["--dir_bin"]="$HOME/bin"
         ["--dir_perf_logs"]=''
         ["--file_pipe"]=$(mktemp)
@@ -159,6 +160,8 @@ main() {
         | sort
         echo '----------------------------------------------'
     ) >&2
+
+    NODE="${opts['--node']}"
 
     screen_brightness_device_path='/sys/class/backlight'
     screen_brightness_device_path+="/${opts['--screen_brightness_device_name']}"

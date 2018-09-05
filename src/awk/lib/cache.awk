@@ -31,86 +31,79 @@ BEGIN {
     _scale["khatus_sensor_net_addr_io", "bytes_read"   ] = 1 / _bytes_per_mb
 }
 
-function cache_update(    src, key, val, len_line, len_head, len_val, time) {
-    src = $2
-    key = $3
-    # Not just using $4 for val - because an unstructured value (like name of a
-    # song) might contain a character identical to FS
-    len_line = length($0)
-    len_head = length($1 FS $2 FS $3 FS)
-    len_val  = len_line - len_head
-    val = substr($0, len_head + 1, len_val)
-    val = cache_maybe_total_to_diff(src, key, val)
-    val = cache_maybe_scale(src, key, val)
-    _cache[src, key] = val
+function cache_update(node, module, key, val,    time) {
+    # TODO: Use node value
+    val = cache_maybe_total_to_diff(module, key, val)
+    val = cache_maybe_scale(module, key, val)
+    _cache[module, key] = val
     time = cache_get_time()
-    _cache_mtime[src, key] = time
+    _cache_mtime[module, key] = time
     if (time % GC_Interval == 0) {
         cache_gc()
     }
 }
 
-function cache_get(result, src, key, ttl,    time, age, is_expired) {
+function cache_get(result, module, key, ttl,    time, age, is_expired) {
     time = cache_get_time()
-    _cache_atime[src, key] = time
-    age = time - _cache_mtime[src, key]
+    _cache_atime[module, key] = time
+    age = time - _cache_mtime[module, key]
     result["is_expired"] = ttl && age > ttl  # ttl = 0 => forever
-    result["value"] = _cache[src, key]
+    result["value"] = _cache[module, key]
 }
 
 function cache_res_fmt_or_def(result, format, default) {
     return result["is_expired"] ? default : sprintf(format, result["value"])
 }
 
-function cache_get_fmt_def(src, key, ttl, format, default,    result) {
+function cache_get_fmt_def(module, key, ttl, format, default,    result) {
     default = default ? default : "--"
-    cache_get(result, src, key, ttl)
+    cache_get(result, module, key, ttl)
     return cache_res_fmt_or_def(result, format, default)
 }
 
-function cache_get_time(    src, key, time) {
-    src = "khatus_sensor_datetime"
+function cache_get_time(    module, key, time) {
+    module = "khatus_sensor_datetime"
     key = "epoch"
-    time = _cache[src, key]
-    _cache_atime[src, key] = time
+    time = _cache[module, key]
+    _cache_atime[module, key] = time
     return time
 }
 
-function cache_gc(    src_and_key, parts, src, key, unused_for) {
-    for (src_and_key in _cache) {
-        split(src_and_key, parts, SUBSEP)
-        src = parts[1]
+function cache_gc(    module_and_key, parts, module, key, unused_for) {
+    for (module_and_key in _cache) {
+        split(module_and_key, parts, SUBSEP)
+        module = parts[1]
         key = parts[2]
-        val = _cache[src, key]
-        unused_for = cache_get_time() - _cache_atime[src, key]
+        val = _cache[module, key]
+        unused_for = cache_get_time() - _cache_atime[module, key]
         if (unused_for > GC_Interval) {
-            msg_out_info(\
+            msg_out_log_info(\
                 "cache_gc",
                 sprintf(\
-                    "Deleting unused data SRC=%s KEY=%s VAL=%s",
-                    src, key, val\
+                    "Deleting unused data MODULE=%s KEY=%s VAL=%s",
+                    module, key, val\
                 ) \
             )
-            delete _cache[src, key]
+            delete _cache[module, key]
         }
     }
 }
 
-function cache_maybe_total_to_diff(src, key, val,    key_parts) {
+function cache_maybe_total_to_diff(module, key, val,    key_parts) {
     split(key, key_parts, Kfs)
-    if (_total_to_diff[src, key_parts[1]]) {
-        _prev[src, key] = _curr[src, key]
-        _curr[src, key] = val
-        return (_curr[src, key] - _prev[src, key])
+    if (_total_to_diff[module, key_parts[1]]) {
+        _prev[module, key] = _curr[module, key]
+        _curr[module, key] = val
+        return (_curr[module, key] - _prev[module, key])
     } else {
         return val
     }
 }
 
-function cache_maybe_scale(src, key, val,    key_parts) {
+function cache_maybe_scale(module, key, val,    key_parts) {
     split(key, key_parts, Kfs)
-    if ((src SUBSEP key_parts[1]) in _scale) {
-        return val * _scale[src, key_parts[1]]
+    if ((module SUBSEP key_parts[1]) in _scale) {
+        return val * _scale[module, key_parts[1]]
     } else {
         return val
     }
