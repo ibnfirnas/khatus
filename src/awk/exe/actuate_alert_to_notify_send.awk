@@ -6,31 +6,22 @@ BEGIN {
     Display = Display ? Display : ":0"
 }
 
-$1 == "OK" && \
-$3 ~ /^alert/ {
-    src      = $2
-    key      = $3
-    split(key, key_parts, Kfs)
-    priority = key_parts[2]
-    subject  = key_parts[3]
 
-    # Not just using $6 for body - because body might contain a character
-    # identical to FS
-    len_line = length($0)
-    len_head = length($1 FS $2 FS $3 FS $4 FS $5 FS)
-    len_body = len_line - len_head
-    body = substr($0, len_head + 1, len_body)
 
+$3 == "alert" {
+    delete msg
+    msg_in_parse(msg, $0)
+    body = msg["body"]
     sep = body ? "\n" : ""
-    body = body sep "--" src
-    urgency = priority
+    body = body sep "--" msg["node"] ":" msg["module"]
+    urgency = msg["priority"]
     sub("hi" , "critical", urgency)
     sub("med", "normal"  , urgency)
 
     cmd = \
         sprintf(\
             "DISPLAY=%s notify-send -u %s %s \" %s\"",
-            Display, urgency, subject, body \
+            Display, urgency, msg["subject"], body \
         )
     system(cmd)
     next

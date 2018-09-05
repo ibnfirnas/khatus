@@ -3,11 +3,12 @@ BEGIN {
     Execute_On_Mount = Execute_On_Mount ? Execute_On_Mount : ""
 }
 
-$1 == "OK" && \
+$1 == Node && \
 $2 == "khatus_sensor_devices" && \
-$3 == "add" && \
-$4 ~ /[0-9]$/ {
-    mount_device($4)
+$3 == "data" && \
+$4 == "add" && \
+$5 ~ /[0-9]$/ {
+    mount_device($5)
 }
 
 function mount_device(path,    cmd, line, lines, line_count, status, i,
@@ -28,15 +29,15 @@ function mount_device(path,    cmd, line, lines, line_count, status, i,
                 path_mnt=line
                 sub("^Mounted " path_dev " at ", "", path_mnt)
                 sub("\.$", "", path_mnt)
-                msg_out_ok_alert("low", "successfully-mounted", path_dev " to " path_mnt)
+                msg_out_alert_low("successfully-mounted", path_dev " to " path_mnt)
                 if (Execute_On_Mount) {
                     system(Execute_On_Mount " '" path_mnt "'")
                 }
             } else {
-                msg_out_ok_alert("hi", "unexpected-success-line", line)
+                msg_out_alert_hi("unexpected-success-line", line)
             }
         }
     } else {
-        msg_out_ok_alert("hi", "failed-to-mount-device", path)
+        msg_out_alert_hi("failed-to-mount-device", path)
     }
 }

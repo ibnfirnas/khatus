@@ -1,20 +1,14 @@
-function util_strip(s) {
-    sub("^ *", "", s)
-    sub(" *$", "", s)
-    return s
-}
-
-function util_round(n) {
+function num_round(n) {
     return int(n + 0.5)
 }
 
-function util_ensure_numeric(n) {
+function num_ensure_numeric(n) {
     return n + 0
 }
 
-#------------------------------------
-# Why do we need util_ensure_numeric?
-#------------------------------------
+#-----------------------------------
+# Why do we need num_ensure_numeric?
+#-----------------------------------
 # awk appears to be guessing the type of an inputted scalar based on usage, so
 # if we read-in a number, but did not use it in any numeric operations, but did
 # use as a string (even in just a format string!) - it will be treated as a
