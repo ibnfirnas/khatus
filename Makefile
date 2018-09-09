@@ -1,3 +1,5 @@
+MAKEFLAGS := --no-builtin-rules
+
 PREFIX := $(HOME)
 PATH_TO_AWK := /usr/bin/awk
 AWK_EXECUTABLES := \
@@ -22,6 +24,30 @@ AWK_EXECUTABLES := \
 	bin/khatus_parse_sys_block_stat \
 	bin/khatus_parse_udevadm_monitor_block \
 	bin/khatus_parse_upower
+BASH_EXECUTABLE_NAMES := \
+	khatus \
+	khatus_gen_bar_make_status \
+	khatus_sensor_bluetooth_power \
+	khatus_sensor_datetime \
+	khatus_sensor_devices \
+	khatus_sensor_disk_io \
+	khatus_sensor_disk_space \
+	khatus_sensor_energy \
+	khatus_sensor_fan \
+	khatus_sensor_loadavg \
+	khatus_sensor_memory \
+	khatus_sensor_mpd \
+	khatus_sensor_net_addr_io \
+	khatus_sensor_net_wifi_status \
+	khatus_sensor_procs \
+	khatus_sensor_screen_brightness \
+	khatus_sensor_temperature \
+	khatus_sensor_volume \
+	khatus_sensor_weather
+BASH_EXECUTABLES := $(foreach exe,$(BASH_EXECUTABLE_NAMES),bin/$(exe))
+OCAML_EXECUTABLES := \
+	bin/khatus_cache_dumper
+EXECUTABLES := $(AWK_EXECUTABLES) $(BASH_EXECUTABLES) $(OCAML_EXECUTABLES)
 
 define BUILD_AWK_EXE
 	echo '#! $(PATH_TO_AWK) -f'                                > $@ && \
@@ -31,19 +57,42 @@ define BUILD_AWK_EXE
 	chmod +x $@
 endef
 
+define BUILD_BASH_EXE
+	cat $^ > $@ && \
+	chmod +x $@
+endef
+
+define GEN_BASH_EXE_RULE
+bin/$(1) : src/bash/exe/$(1).sh
+	$$(BUILD_BASH_EXE)
+endef
+
 .PHONY: \
 	build \
 	install \
 	clean
 
-build: $(AWK_EXECUTABLES)
+build: | bin
+build: $(EXECUTABLES)
 
 install:
 	$(foreach filename,$(wildcard bin/*),cp -p "$(filename)" "$(PREFIX)/$(filename)"; )
 
 clean:
-	rm -f $(AWK_EXECUTABLES)
+	rm -rf bin
+	ocamlbuild -clean
 
+bin:
+	mkdir -p bin
+
+#-----------------------------------------------------------------------------
+# Bash
+#-----------------------------------------------------------------------------
+$(foreach exe,$(BASH_EXECUTABLE_NAMES),$(eval $(call GEN_BASH_EXE_RULE,$(exe))))
+
+#-----------------------------------------------------------------------------
+# AWK
+#-----------------------------------------------------------------------------
 bin/khatus_bar: \
 	src/awk/exe/bar.awk \
 	src/awk/lib/cache.awk \
@@ -164,3 +213,11 @@ bin/khatus_parse_upower: \
 	src/awk/exe/parse_upower.awk \
 	src/awk/lib/msg_out.awk
 	$(BUILD_AWK_EXE)
+
+#-----------------------------------------------------------------------------
+# OCaml
+#-----------------------------------------------------------------------------
+bin/khatus_cache_dumper: src/ocaml/exe/khatus_cache_dumper.ml
+	ocamlbuild -cflags '-w A' -pkg unix -I src/ocaml/exe -I src/ocaml/lib khatus_cache_dumper.byte
+	mv _build/src/ocaml/exe/khatus_cache_dumper.byte bin/khatus_cache_dumper
+	rm -f khatus_cache_dumper.byte
