@@ -80,6 +80,7 @@ install:
 
 clean:
 	rm -rf bin
+	ocamlbuild -clean
 
 bin:
 	mkdir -p bin
