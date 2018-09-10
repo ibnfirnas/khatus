@@ -15,6 +15,9 @@ type content =
 type t =
   {node : string; modul : string; content : content}
 
+type 'a data_handler =
+  (node:string -> modul:string -> key:string list -> value:string -> 'a)
+
 val to_string : t -> string
 
-val next_time : t -> node:string -> time:Khatus_time.t -> Khatus_time.t
+val handle_data : t -> f:'a data_handler -> otherwise:'a -> 'a

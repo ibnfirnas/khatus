@@ -11,6 +11,10 @@ val update
   -> time  : Khatus_time.t
   -> unit
 
-val update_if_data : t -> msg:Khatus_msg.t -> time:Khatus_time.t -> unit
-
-val dump : t -> node:string -> modul:string -> oc:out_channel -> unit
+val dump_to_dir
+  : t
+  -> time:Khatus_time.t
+  -> node:string
+  -> modul:string
+  -> dir:string
+  -> unit

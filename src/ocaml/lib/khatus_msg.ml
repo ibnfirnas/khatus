@@ -17,6 +17,9 @@ type content =
 type t =
   {node : string; modul : string; content : content}
 
+type 'a data_handler =
+  node:string -> modul:string -> key:string list -> value:string -> 'a
+
 let sep_1 = "|"
 let sep_2 = ":"
 
@@ -51,20 +54,14 @@ let to_string {node; modul; content} =
   | Status_bar text ->
       String.concat sep_1 [node; modul; "status_bar"; text]
 
-let next_time t ~node ~time:time0 =
+let handle_data t ~f ~otherwise =
   match t with
-  | { modul   = "khatus_sensor_datetime"
-    ; content = Data {key = ["epoch"]; value = time1}
-    ; node    = node'
-    } when node' = node ->
-      (* TODO: Going forawrd, perhaps throwing exceptions is the wrong way. *)
-      (* TODO: Should we check this one at msg parse time? *)
-      Time.of_string time1
-  | {content = Data       _; _}
+  | {content = Data {key; value}; node; modul} ->
+      f ~node ~modul ~key ~value
   | {content = Alert      _; _}
   | {content = Cache      _; _}
   | {content = Error      _; _}
   | {content = Log        _; _}
   | {content = Status_bar _; _}
   ->
-      time0
+      otherwise

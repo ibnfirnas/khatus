@@ -1,3 +1,5 @@
+open Printf
+
 module Hashtbl = MoreLabels.Hashtbl
 
 module Msg  = Khatus_msg
@@ -18,19 +20,7 @@ let update {values; mtimes} ~node ~modul ~key ~value:data ~time =
   Hashtbl.replace values ~key ~data;
   Hashtbl.replace mtimes ~key ~data:time
 
-let update_if_data t ~msg ~time =
-  match msg with
-  | Msg.({content = Data {key; value}; node; modul}) ->
-      update t ~node ~modul ~key ~value ~time
-  | {Msg.content = Msg.Alert      _; _}
-  | {Msg.content = Msg.Cache      _; _}
-  | {Msg.content = Msg.Error      _; _}
-  | {Msg.content = Msg.Log        _; _}
-  | {Msg.content = Msg.Status_bar _; _}
-  ->
-      ()
-
-let dump {values; mtimes} ~node ~modul ~oc =
+let dump_to_channel {values; mtimes} ~node ~modul ~oc =
   Hashtbl.iter values ~f:(fun ~key ~data:value ->
     let mtime =
       match Hashtbl.find_opt mtimes key with
@@ -50,3 +40,30 @@ let dump {values; mtimes} ~node ~modul ~oc =
       oc
       (msg ^ "\n")
   )
+
+let (/) = Filename.concat
+
+let mkdir_p dir =
+  match Sys.command("mkdir -p " ^ dir) with
+  | 0 -> ()
+  | n ->
+      failwith
+        (sprintf "Failed to create directory: %S. mkdir status: %d\n" dir n)
+
+let gzip path =
+  match Sys.command("gzip " ^ path) with
+  | 0 -> ()
+  | n ->
+      failwith
+        (sprintf "Failed to gzip path: %S. gzip status: %d\n" path n)
+
+let dump_to_dir t ~time ~node ~modul ~dir =
+  (* TODO: Just log the errors and keep it moving, instead of failing. *)
+  mkdir_p dir;
+  let dump_filename = dir / "khatus-cache-dump.psv.gz" in
+  let tmp_filename = "khatus-cache-dump-" ^ (Time.to_string time) in
+  let oc = open_out tmp_filename in
+  dump_to_channel t ~node ~modul ~oc;
+  close_out oc;
+  gzip tmp_filename;
+  Sys.rename (tmp_filename ^ ".gz") dump_filename

@@ -1,6 +1,12 @@
 {
   module Msg  = Khatus_msg
   module Time = Khatus_time
+
+  type error =
+    [ `Bad_format_of_msg_head
+    | `Bad_format_of_msg_content
+    ]
+
   let sep_2    = ':'
 }
 

@@ -21,4 +21,5 @@ let to_string t =
   |> List.hd
 
 let of_string s =
+  (* TODO: Shall we validate time string format at msg parse time? *)
   float_of_string s
