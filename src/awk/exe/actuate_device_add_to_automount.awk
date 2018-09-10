@@ -3,12 +3,17 @@ BEGIN {
     Execute_On_Mount = Execute_On_Mount ? Execute_On_Mount : ""
 }
 
-$1 == Node && \
-$2 == "khatus_sensor_devices" && \
-$3 == "data" && \
-$4 == "add" && \
-$5 ~ /[0-9]$/ {
-    mount_device($5)
+{
+  delete msg
+  msg_parse(msg, $0)
+}
+
+msg["node"]   == Node && \
+msg["module"] == "khatus_sensor_devices" && \
+msg["type"]   == "data" && \
+msg["key"]    == "add" && \
+msg["val"]    ~  /[0-9]$/ {
+    mount_device(msg["val"])
 }
 
 function mount_device(path,    cmd, line, lines, line_count, status, i,

@@ -8,31 +8,36 @@ BEGIN {
     bat_alert_spec[5]  = "hi|Energy_CRITICALLY_Low|CHARGE NOW!!! GO GO GO!!!"
 }
 
-$1 == Node && \
-$2 == "khatus_sensor_energy" && \
-$3 == "data" && \
-$4 == "line_power" {
+{
+  delete msg
+  msg_parse(msg, $0)
+}
+
+msg["node"]   == Node && \
+msg["module"] == "khatus_sensor_energy" && \
+msg["type"]   == "data" && \
+msg["key"]    == "line_power" {
     line_power_prev = line_power_curr
-    line_power_curr = $5
+    line_power_curr = msg["val"]
     if (line_power_curr == "no" && line_power_prev != "no") {
         msg_out_alert_low("PowerUnplugged", "")
     }
 }
 
-$1 == Node && \
-$2 == "khatus_sensor_energy" && \
-$3 == "data" && \
-$4 == "battery_state" {
+msg["node"]   == Node && \
+msg["module"] == "khatus_sensor_energy" && \
+msg["type"]   == "data" && \
+msg["key"]    == "battery_state" {
     battery_state_prev = battery_state_curr
-    battery_state_curr = $5
+    battery_state_curr = msg["val"]
 }
 
-$1 == Node && \
-$2 == "khatus_sensor_energy" && \
-$3 == "data" && \
-$4 == "battery_percentage" {
+msg["node"]   == Node && \
+msg["module"] == "khatus_sensor_energy" && \
+msg["type"]   == "data" && \
+msg["key"]    == "battery_percentage" {
     # TODO: Re-think the spec - can't rely on order of keys
-    battery_percentage = num_ensure_numeric($5)
+    battery_percentage = num_ensure_numeric(msg["val"])
     if (battery_state_curr == "discharging") {
         for (threshold in bat_alert_spec) {
             threshold = num_ensure_numeric(threshold)

@@ -6,11 +6,12 @@ BEGIN {
     Display = Display ? Display : ":0"
 }
 
+{
+  delete msg
+  msg_parse(msg, $0)
+}
 
-
-$3 == "alert" {
-    delete msg
-    msg_in_parse(msg, $0)
+msg["type"] == "alert" {
     body = msg["body"]
     sep = body ? "\n" : ""
     body = body sep "--" msg["node"] ":" msg["module"]

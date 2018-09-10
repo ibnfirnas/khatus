@@ -10,15 +10,18 @@
 # -----------------------------------------------------------------------------
 # Input
 # -----------------------------------------------------------------------------
-$3 == "data" {
-    delete msg
-    msg_in_parse(msg, $0)
+{
+  delete msg
+  msg_parse(msg, $0)
+}
+
+msg["type"] == "data" {
     cache_update(msg["node"], msg["module"], msg["key"], msg["val"])
 }
 
-$1 == Node && \
-$2 == "khatus_sensor_datetime" && \
-$3 == "data" {
+msg["node"]   == Node && \
+msg["module"] == "khatus_sensor_datetime" && \
+msg["type"]   == "data" {
     # Code for bar_make_status is expected to be passed as an
     # additional source file, using  -f  flag.
     msg_out_status_bar(bar_make_status())

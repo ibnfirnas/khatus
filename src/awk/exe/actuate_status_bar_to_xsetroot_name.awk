@@ -1,8 +1,11 @@
-$1 == Node && \
-$2 == "khatus_bar" && \
-$3 == "status_bar" {
-    delete msg
-    msg_in_parse(msg, $0)
+{
+  delete msg
+  msg_parse(msg, $0)
+}
+
+msg["node"]   == Node && \
+msg["module"] == "khatus_bar" && \
+msg["type"]   == "status_bar" {
     system("xsetroot -name \"" msg["status_bar"] "\"")
     next
 }
