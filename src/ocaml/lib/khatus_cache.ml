@@ -36,9 +36,8 @@ let dump_to_channel {values; mtimes} ~node ~modul ~oc =
           }
         )
     in
-    output_string
-      oc
-      (msg ^ "\n")
+    output_string oc msg;
+    output_string oc "\n"
   )
 
 let (/) = Filename.concat
