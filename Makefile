@@ -7,6 +7,7 @@ AWK_EXECUTABLES := \
 	bin/khatus_actuate_alert_to_notify_send \
 	bin/khatus_actuate_device_add_to_automount \
 	bin/khatus_actuate_status_bar_to_xsetroot_name \
+	bin/khatus_gen_bar_make_status \
 	bin/khatus_monitor_devices \
 	bin/khatus_monitor_energy \
 	bin/khatus_monitor_errors \
@@ -26,7 +27,6 @@ AWK_EXECUTABLES := \
 	bin/khatus_parse_upower
 BASH_EXECUTABLE_NAMES := \
 	khatus \
-	khatus_gen_bar_make_status \
 	khatus_sensor_bluetooth_power \
 	khatus_sensor_datetime \
 	khatus_sensor_devices \
@@ -117,6 +117,10 @@ bin/khatus_actuate_status_bar_to_xsetroot_name: \
 	src/awk/exe/actuate_status_bar_to_xsetroot_name.awk \
 	src/awk/lib/str.awk \
 	src/awk/lib/msg.awk
+	$(BUILD_AWK_EXE)
+
+bin/khatus_gen_bar_make_status: \
+	src/awk/exe/gen_bar_make_status.awk
 	$(BUILD_AWK_EXE)
 
 bin/khatus_monitor_devices: \
