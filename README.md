@@ -196,7 +196,7 @@ FIXME
 
 TODO
 ----
-
+- track energy usage rate
 - formalize message format and protocol
 - tests (design is starting to take shape, so it is time)
 - show how many Debian package updates are available
