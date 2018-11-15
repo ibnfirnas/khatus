@@ -190,10 +190,6 @@ controller, which are in turn actualized as desktop notifications by the
 
 ![screenshot-self-error-propagation](screenshot-self-error-propagation.jpg)
 
-FIXME
------
-- handle multiple batteries
-
 TODO
 ----
 - track energy usage rate
