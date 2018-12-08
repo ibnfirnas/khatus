@@ -37,7 +37,7 @@ In my `~/.xinitrc` I have something like the following:
         -v GC_Interval=1800 \
         -f <("$BIN"/khatus_gen_bar_make_status \
                 -v Status_Fmt=' E=%s%% M=%d%% P=[%s %sr %sd %st %si %sz] C=[%s %s°C %srpm] D=[%s%% %s▲ %s▼] W=[%s %s▲ %s▼] B=%s *=%s%% (%s) [%s] %s°F %s ' \
-                -v Status_Args='@energy_percent,@memory_percent,@processes_count_all,@processes_count_r,@processes_count_d,@processes_count_t,@processes_count_i,@processes_count_z,@cpu_loadavg,@cpu_temp,@cpu_fan_speed,@disk_space,@disk_io_w,@disk_io_r,@net_wifi:wlp3s0,@net_io_w:wlp3s0,@net_io_r:wlp3s0,@bluetooth_power,@backlight_percent,@volume_pa_sink:0,@mpd,@weather_temp_f,@datetime' \
+                -v Status_Args='@energy_percent,@memory_percent,@processes_count_all,@processes_count_r,@processes_count_d,@processes_count_t,@processes_count_i,@processes_count_z,@cpu_loadavg,@cpu_temp,@cpu_fan_speed,@disk_space,@disk_io_w,@disk_io_r,@net_wifi:wlp3s0,@net_io_w:wlp3s0,@net_io_r:wlp3s0,@bluetooth_power,@backlight_percent,@volume_pa_device:0,@mpd,@weather_temp_f,@datetime' \
             ) \
     | "$BIN"/khatus_actuate_status_bar_to_xsetroot_name \
     ) \

@@ -4,6 +4,14 @@
     next
 }
 
+/^\t[A-Z].+:/ {
+    section = $1
+}
+
+section == "Properties:" {
+    read_property()
+}
+
 /\tState:/ {
     state[sink] = $2
     next
@@ -32,9 +40,21 @@
 
 END {
     for (sink in state) {
-        print("state"     Kfs sink, state[sink])
-        print("mute"      Kfs sink, mute[sink])
-        print("vol_left"  Kfs sink, vol_left[sink])
-        print("vol_right" Kfs sink, vol_right[sink])
+        device = properties[sink, "alsa.device"]
+        print("state"     Kfs device, state[sink])
+        print("mute"      Kfs device, mute[sink])
+        print("vol_left"  Kfs device, vol_left[sink])
+        print("vol_right" Kfs device, vol_right[sink])
     }
+}
+
+function read_property() {
+    key = $1
+    # Yes, the sequence (x-1+1) is redundant, but it keeps the variable names
+    # true to their meaning:
+    val_begin = index($0, "\"") + 1       # +1 to exclude first quote
+    val_end   = length($0) - 1            # -1 to exclude last quote
+    val_len   = (val_end - val_begin) + 1 # +1 to include final character
+    val       = substr($0, val_begin, val_len)
+    properties[sink, key] = val
 }

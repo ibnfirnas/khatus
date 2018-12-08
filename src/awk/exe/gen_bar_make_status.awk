@@ -34,8 +34,8 @@ BEGIN {
 
     aliases["@backlight_percent"]   = "bar_make_status_backlight_percent()"
 
-    aliases["@volume_pa_sink"]      = "bar_make_status_volume_pulseaudio_sink(%d)"
-     params["@volume_pa_sink"]      = 1
+    aliases["@volume"]              = "bar_make_status_volume_alsa_device(%d)"
+     params["@volume"]              = 1
 
     aliases["@mpd"]                 = "bar_make_status_mpd()"
 
