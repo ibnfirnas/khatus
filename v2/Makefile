@@ -45,9 +45,7 @@ BASH_EXECUTABLE_NAMES := \
 	khatus_sensor_volume \
 	khatus_sensor_weather
 BASH_EXECUTABLES := $(foreach exe,$(BASH_EXECUTABLE_NAMES),bin/$(exe))
-OCAML_EXECUTABLES := \
-	bin/khatus_cache_dumper
-EXECUTABLES := $(AWK_EXECUTABLES) $(BASH_EXECUTABLES) $(OCAML_EXECUTABLES)
+EXECUTABLES := $(AWK_EXECUTABLES) $(BASH_EXECUTABLES)
 
 define BUILD_AWK_EXE
 	echo '#! $(PATH_TO_AWK) -f'                                > $@ && \
@@ -80,7 +78,6 @@ install:
 
 clean:
 	rm -rf bin
-	ocamlbuild -clean
 
 bin:
 	mkdir -p bin
@@ -212,11 +209,3 @@ bin/khatus_parse_upower: \
 	src/awk/exe/parse_upower.awk \
 	src/awk/lib/msg.awk
 	$(BUILD_AWK_EXE)
-
-#-----------------------------------------------------------------------------
-# OCaml
-#-----------------------------------------------------------------------------
-bin/khatus_cache_dumper: src/ocaml/exe/khatus_cache_dumper.ml
-	ocamlbuild -cflags '-w A' -pkg unix -I src/ocaml/exe -I src/ocaml/lib khatus_cache_dumper.byte
-	mv _build/src/ocaml/exe/khatus_cache_dumper.byte bin/khatus_cache_dumper
-	rm -f khatus_cache_dumper.byte

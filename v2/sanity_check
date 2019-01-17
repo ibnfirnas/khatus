@@ -14,7 +14,6 @@
                 -v Status_Args='@energy_percent,@memory_percent,@processes_count_all,@processes_count_r,@processes_count_d,@processes_count_t,@processes_count_i,@processes_count_z,@cpu_loadavg,@cpu_temp,@cpu_fan_speed,@disk_space,@disk_io_w,@disk_io_r,@net_wifi:wlp4s0,@net_io_w:wlp4s0,@net_io_r:wlp4s0,@bluetooth_power,@backlight_percent,@volume:0,@mpd,@weather_temp_f,@datetime' \
             ) \
     ) \
-    >(stdbuf -o L ./bin/khatus_cache_dumper $(hostname) 5 "$PWD/data") \
     >(stdbuf -o L ./bin/khatus_monitor_energy) \
     >(stdbuf -o L ./bin/khatus_monitor_errors) \
     >(stdbuf -o L ./bin/khatus_monitor_devices) \
