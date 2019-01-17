@@ -1,0 +1,35 @@
+#! /bin/bash
+
+set -e
+
+STATION_ID="$1"  # ICAO designator. e.g. KJFK, KBOS
+
+FILE_METAR_DECODED="$HOME/var/run/metar-${STATION_ID}-decoded"
+FILE_TEMP_FAHRENHEIT="${FILE_METAR_DECODED}-temp-fahrenheit"
+FILE_TEMP_CELSIUS="${FILE_METAR_DECODED}-temp-celsius"
+
+(metar -d "$STATION_ID" 2>&1) > $FILE_METAR_DECODED  # TODO: Better error handling
+
+awk \
+    -v file_fahrenheit="$FILE_TEMP_FAHRENHEIT" \
+    -v file_celsius="$FILE_TEMP_CELSIUS" \
+    '
+    /METAR pattern not found in NOAA data/ {
+        failures++
+    }
+
+    /^Temperature/ {
+        celsius = $3;
+        fahrenheit = (celsius * (9 / 5)) + 32;
+    }
+
+    END {
+        if (failures > 0) {
+            print "--" > file_fahrenheit
+            print "--" > file_celsius
+        } else {
+            print fahrenheit > file_fahrenheit
+            print celsius    > file_celsius
+        }
+    }' \
+    $FILE_METAR_DECODED

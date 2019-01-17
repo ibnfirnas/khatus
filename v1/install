@@ -1,0 +1,15 @@
+#! /bin/sh
+
+PREFIX="$HOME/bin"
+
+if [ $1 ]
+then
+    PREFIX=$1
+fi
+
+cd bin
+
+for filename in *
+do
+    ln -s "`pwd`/$filename" "$PREFIX/$filename"
+done
