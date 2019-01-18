@@ -1,0 +1,44 @@
+TODO
+----
+- track energy usage rate
+- formalize message format and protocol
+- tests (design is starting to take shape, so it is time)
+- show how many Debian package updates are available
+- show how many Debian package security-updates are available
+- monitor disk usage rate of change and alert if suspiciously fast
+- bring back CPU usage monitor
+- actual METAR parser, to replace the flaky `metar` program
+- status bar templating language
+- retry/cache for sensors fetching flaky remote resources (such as weather)
+- throttling of broken sensors (constantly returns errors)
+- alert specification language
+    - trigger threshold
+    - above/bellow/equal to threshold value
+    - priority
+    - snooze time (if already alerted, when to re-alert?)
+    - text: subject/body
+- monitor processes
+    - totals (grand and per state)
+    - zombies
+    - threads
+    - CPU hogs
+    - memory hogs
+    - memory leaks (if some process consistently grows)
+    - is select process up?
+    - log resource usage of select processes
+- monitor arbitrary HTTP endpoint availability
+    - is status within expected range?
+    - response time
+        - is responce time within acceptable range?
+- report detailed status upon request (to a terminal)
+    - use color to indicate age of data
+- monitor logins
+    - totals (per time period)
+        - failures
+        - successes
+    - most recent
+        - success
+        - failure
+- monitor battery time remaining
+    - monitor accuracy (is percentage change rate on track to meet estimate?)
+    - adjust estimate based on observed inaccuracies in past estimates (Kalman?)
