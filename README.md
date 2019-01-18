@@ -7,6 +7,10 @@ Experimental system-monitor and status (bar) reporter I use with
 
 ![screenshot](screenshot.jpg)
 
+The approaches experimented-with so far, numbered in chronological order of
+origin (i.e. later versions do not _necessarily_ obsolete earlier ones, they're
+just different):
+
 ### v1
 A single, synchronous script, saving state in text files (Bash and AWK).
 
