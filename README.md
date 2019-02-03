@@ -7,16 +7,13 @@ Experimental system-monitor and status (bar) reporter I use with
 
 ![screenshot](screenshot.jpg)
 
-The approaches experimented-with so far, numbered in chronological order of
-origin (i.e. later versions do not _necessarily_ obsolete earlier ones, they're
-just different):
+Experiments
+-----------
+The approaches experimented-with so far (later versions do not _necessarily_
+obsolete earlier ones, they're just different):
 
-### v1
-A single, synchronous script, saving state in text files (Bash and AWK).
-
-### v2
-Parallel processes: collectors, cacher and reporters; passing messages over pipes
-(Bash and AWK).
-
-### v3
-Clean-up, polish and further development of main ideas learned in v2.
+| Name   | Status | Language  | Tested-on               | Description |
+|--------|--------|-----------|-------------------------|-------------|
+| __x1__ | Works  | Bash, AWK | Ubuntu 16.04            | Single, synchronous script, saving state in text files |
+| __x2__ | Works  | Bash, AWK | Ubuntu 16.04, Debian 10 | Parallel processes: collectors, cache and reporters; passing messages over pipes |
+| __x3__ | In dev | OCaml     | Debian 10               | Re-write and refinement of __x2__ |
