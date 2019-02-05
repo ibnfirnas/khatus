@@ -441,7 +441,7 @@ weather=$(
 #)
 
 mpd_currentsong=$(
-    echo 'currentsong' \
+    echo 'currentsong\nclose' \
     | nc 127.0.0.1 6600 \
     | awk -v max_chars=10 '
         /^OK/ {
@@ -477,7 +477,7 @@ mpd_currentsong=$(
 )
 
 mpd_state=$(
-    echo 'status' \
+    echo 'status\nclose' \
     | nc 127.0.0.1 6600 \
     | awk \
         -v current_song="$mpd_currentsong" \
