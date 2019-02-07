@@ -18,7 +18,7 @@ AWK_EXECUTABLES := \
 	bin/khatus_parse_ip_addr \
 	bin/khatus_parse_iwconfig \
 	bin/khatus_parse_loadavg_file \
-	bin/khatus_parse_metar_d_output \
+	bin/khatus_parse_noaa_api \
 	bin/khatus_parse_mpd_status_currentsong \
 	bin/khatus_parse_pactl_list_sinks \
 	bin/khatus_parse_ps \
@@ -174,8 +174,12 @@ bin/khatus_parse_loadavg_file: \
 	src/awk/lib/msg.awk
 	$(BUILD_AWK_EXE)
 
-bin/khatus_parse_metar_d_output: \
-	src/awk/exe/parse_metar_d_output.awk \
+# Order of dependencies is important for khatus_parse_noaa_api!
+# parse_hxpipe MUST appear before parse_noaa_api, because the order in
+# which they match lines matters!
+bin/khatus_parse_noaa_api: \
+	src/awk/lib/parse_hxpipe.awk \
+	src/awk/exe/parse_noaa_api.awk \
 	src/awk/lib/msg.awk \
 	src/awk/lib/str.awk
 	$(BUILD_AWK_EXE)

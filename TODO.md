@@ -7,7 +7,6 @@ TODO
 - show how many Debian package security-updates are available
 - monitor disk usage rate of change and alert if suspiciously fast
 - bring back CPU usage monitor
-- actual METAR parser, to replace the flaky `metar` program
 - status bar templating language
 - retry/cache for sensors fetching flaky remote resources (such as weather)
 - throttling of broken sensors (constantly returns errors)
@@ -42,3 +41,8 @@ TODO
 - monitor battery time remaining
     - monitor accuracy (is percentage change rate on track to meet estimate?)
     - adjust estimate based on observed inaccuracies in past estimates (Kalman?)
+
+DONE
+----
+- [x] actual METAR parser, to replace the flaky `metar` program
+    - Replaced it with a parser of NOAA's XML API (piping `curl | hxpipe | awk`)
