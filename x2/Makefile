@@ -68,13 +68,22 @@ endef
 .PHONY: \
 	build \
 	install \
+	uninstall \
+	reinstall \
 	clean
 
 build: | bin
 build: $(EXECUTABLES)
 
 install:
-	$(foreach filename,$(wildcard bin/*),cp -p "$(filename)" "$(PREFIX)/$(filename)"; )
+	@$(foreach filename,$(wildcard bin/*),cp -p "$(filename)" "$(PREFIX)/$(filename)"; )
+
+uninstall:
+	@$(foreach filename,$(wildcard $(PREFIX)/bin/khatus*),rm "$(filename)"; )
+
+reinstall:
+	@$(MAKE) -s uninstall
+	@$(MAKE) -s install
 
 clean:
 	rm -rf bin
