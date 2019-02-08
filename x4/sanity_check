@@ -1,0 +1,42 @@
+#! /bin/sh
+
+set -e
+
+. ./bin/khatus_x4_lib_common_sensor.sh
+
+dir="${prefix}/${host}"
+
+kill_sensor() {
+    if test -f "$1"
+    then
+        kill $(cat "$1")
+    fi
+}
+
+read_sensor() {
+    if test -f "$1"
+    then
+        cat "$1"
+    else
+        printf '%s\n' '--'
+    fi
+}
+
+kill_sensor ${dir}/khatus_x4_sensor_datetime/pid
+kill_sensor ${dir}/khatus_x4_sensor_mpd/pid
+kill_sensor ${dir}/khatus_x4_sensor_energy/pid
+
+./bin/khatus_x4_sensor_datetime -d
+./bin/khatus_x4_sensor_mpd -d
+./bin/khatus_x4_sensor_energy -d
+
+while :
+do
+    battery_state="$(read_sensor ${dir}/khatus_x4_sensor_energy/out/battery_state)"
+    battery_percentage="$(read_sensor ${dir}/khatus_x4_sensor_energy/out/battery_percentage)"
+    datetime="$(read_sensor ${dir}/khatus_x4_sensor_datetime/out/datetime)"
+    mpd="$(read_sensor ${dir}/khatus_x4_sensor_mpd/out/state)"
+    printf \
+        "E[${battery_state} ${battery_percentage}] [${mpd}] ${datetime}\n"
+    sleep 1
+done

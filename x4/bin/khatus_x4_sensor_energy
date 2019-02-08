@@ -1,0 +1,15 @@
+#! /bin/sh
+
+set -e
+
+bin_dir="$(dirname $(realpath $0))"
+
+. "$bin_dir/khatus_x4_lib_common_sensor.sh"
+
+sensor() {
+    stdbuf -o L upower --dump           | stdbuf -o L "$bin_dir"/khatus_x4_parse_upower
+    stdbuf -o L upower --monitor-detail | stdbuf -o L "$bin_dir"/khatus_x4_parse_upower
+}
+
+run_as='streamer'
+run
