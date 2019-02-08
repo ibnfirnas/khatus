@@ -67,6 +67,7 @@ endef
 
 .PHONY: \
 	build \
+	rebuild \
 	install \
 	uninstall \
 	reinstall \
@@ -84,6 +85,10 @@ uninstall:
 reinstall:
 	@$(MAKE) -s uninstall
 	@$(MAKE) -s install
+
+rebuild:
+	@$(MAKE) -s clean
+	@$(MAKE) -s build
 
 clean:
 	rm -rf bin
