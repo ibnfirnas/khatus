@@ -6,6 +6,8 @@ dir_bin="$1"
 weather_station_id="$2"
 
 curl \
+    --silent \
+    --show-error \
     -X GET \
     -H "accept: application/vnd.noaa.obs+xml" \
     "https://api.weather.gov/stations/${weather_station_id}/observations/latest?require_qc=false" \
