@@ -39,12 +39,20 @@ END {
     }
 
     format_time(status["time"], time)
-    output["play_time_minimal_units"] = time["minimal_units"]
-    output["play_time_percentage"]    = time["percentage"]
-    output["state"]                   = status["state"]
-    output["song"]                    = song
-    for (key in output) {
-        print key, output[key]
+    state_symbol = symbol_of_state(status["state"])
+    print("status", sprintf("%s %s %s", state_symbol, time["minimal_units"], time["percentage"]))
+}
+
+function symbol_of_state(state) {
+    if (state = "play") {
+        return "▶"
+    } else if (state = "pause") {
+        return "❚❚"
+    } else if (state = "stop") {
+        return "⬛"
+    } else {
+        print("Error: unexpected value for state: ", state) > "/dev/stderr"
+        exit 1
     }
 }
 

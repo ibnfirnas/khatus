@@ -35,8 +35,7 @@ do
     battery_state="$(read_sensor ${dir}/khatus_x4_sensor_energy/out/battery_state)"
     battery_percentage="$(read_sensor ${dir}/khatus_x4_sensor_energy/out/battery_percentage)"
     datetime="$(read_sensor ${dir}/khatus_x4_sensor_datetime/out/datetime)"
-    mpd="$(read_sensor ${dir}/khatus_x4_sensor_mpd/out/state)"
-    printf \
-        "E[${battery_state} ${battery_percentage}] [${mpd}] ${datetime}\n"
+    mpd="$(read_sensor ${dir}/khatus_x4_sensor_mpd/out/status)"
+    echo "E[${battery_state} ${battery_percentage}] [${mpd}] ${datetime}"
     sleep 1
 done
