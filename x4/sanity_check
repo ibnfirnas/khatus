@@ -6,7 +6,7 @@ set -e
 
 dir="${prefix}/${host}"
 
-kill_all() {
+sensors_kill_all() {
     for pid_file in $(find $dir -type f -name pid)
     do
         kill -9 $(cat $pid_file) || true
@@ -15,7 +15,13 @@ kill_all() {
     pkill khatus_x4
 }
 
-read_sensor() {
+sensors_fork_all() {
+    ./bin/khatus_x4_sensor_datetime &
+    ./bin/khatus_x4_sensor_mpd      &
+    ./bin/khatus_x4_sensor_energy   &
+}
+
+sensor_read_one() {
     if test -f "$1"
     then
         cat "$1"
@@ -24,18 +30,22 @@ read_sensor() {
     fi
 }
 
-kill_all
+sensors_read_all() {
+    while :
+    do
+        battery_state="$(sensor_read_one ${dir}/khatus_x4_sensor_energy/out/battery_state)"
+        battery_percentage="$(sensor_read_one ${dir}/khatus_x4_sensor_energy/out/battery_percentage)"
+        datetime="$(sensor_read_one ${dir}/khatus_x4_sensor_datetime/out/datetime)"
+        mpd="$(sensor_read_one ${dir}/khatus_x4_sensor_mpd/out/status)"
+        echo "E[${battery_state} ${battery_percentage}] [${mpd}] ${datetime}"
+        sleep 1
+    done
+}
 
-./bin/khatus_x4_sensor_datetime &
-./bin/khatus_x4_sensor_mpd      &
-./bin/khatus_x4_sensor_energy   &
+main() {
+    sensors_kill_all
+    sensors_fork_all
+    sensors_read_all
+}
 
-while :
-do
-    battery_state="$(read_sensor ${dir}/khatus_x4_sensor_energy/out/battery_state)"
-    battery_percentage="$(read_sensor ${dir}/khatus_x4_sensor_energy/out/battery_percentage)"
-    datetime="$(read_sensor ${dir}/khatus_x4_sensor_datetime/out/datetime)"
-    mpd="$(read_sensor ${dir}/khatus_x4_sensor_mpd/out/status)"
-    echo "E[${battery_state} ${battery_percentage}] [${mpd}] ${datetime}"
-    sleep 1
-done
+main
