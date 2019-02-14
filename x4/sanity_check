@@ -6,11 +6,13 @@ set -e
 
 dir="${prefix}/${host}"
 
-kill_sensor() {
-    if test -f "$1"
-    then
-        kill $(cat "$1")
-    fi
+kill_all() {
+    for pid_file in $(find $dir -type f -name pid)
+    do
+        kill -9 $(cat $pid_file) || true
+        rm $pid_file
+    done
+    pkill khatus_x4
 }
 
 read_sensor() {
@@ -22,13 +24,11 @@ read_sensor() {
     fi
 }
 
-kill_sensor ${dir}/khatus_x4_sensor_datetime/pid
-kill_sensor ${dir}/khatus_x4_sensor_mpd/pid
-kill_sensor ${dir}/khatus_x4_sensor_energy/pid
+kill_all
 
-./bin/khatus_x4_sensor_datetime -d
-./bin/khatus_x4_sensor_mpd -d
-./bin/khatus_x4_sensor_energy -d
+./bin/khatus_x4_sensor_datetime &
+./bin/khatus_x4_sensor_mpd      &
+./bin/khatus_x4_sensor_energy   &
 
 while :
 do
