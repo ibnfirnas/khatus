@@ -1,0 +1,23 @@
+#! /bin/sh
+
+set -e
+
+. "$(dirname $(realpath $0))/khatus_x4_lib_common_sensor.sh"
+
+count_powered_controllers() {
+    bluetoothctl -- show | grep -c 'Powered: yes'
+}
+
+count_connected_devices() {
+    bluetoothctl -- paired-devices \
+    | awk '{print $2}' \
+    | xargs -I % bluetoothctl -- info % \
+    | grep -c 'Connected: yes'
+}
+
+sensor() {
+    printf "count_powered_controllers %d\n" $(count_powered_controllers)
+    printf "count_connected_devices %d\n" $(count_connected_devices)
+}
+
+run

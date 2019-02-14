@@ -12,11 +12,12 @@ sensors_kill_all() {
         kill -9 $(cat $pid_file) || true
         rm $pid_file
     done
-    pkill khatus_x4
+    pkill khatus_x4_sensor || true
 }
 
 sensors_fork_all() {
     ./bin/khatus_x4_sensor_datetime &
+    ./bin/khatus_x4_sensor_bluetooth&
     ./bin/khatus_x4_sensor_mpd      &
     ./bin/khatus_x4_sensor_energy   &
 }
@@ -35,9 +36,11 @@ sensors_read_all() {
     do
         battery_state="$(sensor_read_one ${dir}/khatus_x4_sensor_energy/out/battery_state)"
         battery_percentage="$(sensor_read_one ${dir}/khatus_x4_sensor_energy/out/battery_percentage)"
+        bluetooth_controllers="$(sensor_read_one ${dir}/khatus_x4_sensor_bluetooth/out/count_powered_controllers)"
+        bluetooth_devices="$(sensor_read_one ${dir}/khatus_x4_sensor_bluetooth/out/count_connected_devices)"
         datetime="$(sensor_read_one ${dir}/khatus_x4_sensor_datetime/out/datetime)"
         mpd="$(sensor_read_one ${dir}/khatus_x4_sensor_mpd/out/status)"
-        echo "E[${battery_state} ${battery_percentage}] [${mpd}] ${datetime}"
+        echo "E[${battery_state} ${battery_percentage}] [${mpd}] [$bluetooth_controllers $bluetooth_devices] ${datetime}"
         sleep 1
     done
 }
