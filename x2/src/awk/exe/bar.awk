@@ -194,18 +194,18 @@ function bar_make_status_backlight_percent(    src) {
 # Volume
 # -----------------------------------------------------------------------------
 
-function bar_make_status_volume_alsa_device(device,    mu, vl, vr, show) {
-    cache_get(mu, "khatus_sensor_volume", "mute"      Kfs device, 5)
-    cache_get(vl, "khatus_sensor_volume", "vol_left"  Kfs device, 5)
-    cache_get(vr, "khatus_sensor_volume", "vol_right" Kfs device, 5)
+function bar_make_status_volume_alsa_device(device,    m, l, r, show) {
+    cache_get(m, "khatus_sensor_volume", "mute"      Kfs device, 5)
+    cache_get(l, "khatus_sensor_volume", "vol_left"  Kfs device, 5)
+    cache_get(r, "khatus_sensor_volume", "vol_right" Kfs device, 5)
     show = "--"
-    if (!mu["is_expired"] && !vl["is_expired"] && !vr["is_expired"]) {
-             if (mu["value"] == "yes") {show = "X"}
-        else if (mu["value"] == "no")  {show = vl["value"] " " vr["value"]}
+    if (!m["is_expired"] && !l["is_expired"] && !r["is_expired"]) {
+             if (m["value"] == "yes") {show = "X"}
+        else if (m["value"] == "no")  {show = l["value"] " " r["value"]}
         else {
             msg_out_log_error(\
                 "bar_make_status_volume_alsa_device: " device ". ", \
-                "Unexpected value for 'mute' field: " mu["value"] \
+                "Unexpected value for 'mute' field: " m["value"] \
             )
         }
     }
