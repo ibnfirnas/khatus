@@ -241,11 +241,11 @@ function bar_make_status_mpd(    state, status) {
 
 function bar_make_status_mpd_state_known(symbol,    s, song, time, percentage) {
     s = "khatus_sensor_mpd"
-    song    = cache_get_fmt_def(s, "song"                   , 5, "%s", "?")
+    #song    = cache_get_fmt_def(s, "song"                   , 5, "%s", "?")
     time    = cache_get_fmt_def(s, "play_time_minimal_units", 5, "%s", "?")
     percent = cache_get_fmt_def(s, "play_time_percentage"   , 5, "%s", "?")
-    song    = substr(song, 1, Opt_Mpd_Song_Max_Chars)
-    return sprintf("%s %s %s %s", symbol, time, percent, song)
+    #song    = substr(song, 1, Opt_Mpd_Song_Max_Chars)
+    return sprintf("%s %s %s", symbol, time, percent)
 }
 
 # -----------------------------------------------------------------------------
