@@ -200,14 +200,15 @@ function bar_make_status_volume_alsa_device(device,    m, l, r, show) {
     cache_get(r, "khatus_sensor_volume", "vol_right" Kfs device, 5)
     show = "--"
     if (!m["is_expired"] && !l["is_expired"] && !r["is_expired"]) {
-             if (m["value"] == "yes") {show = "X"}
-        else if (m["value"] == "no")  {show = l["value"] " " r["value"]}
-        else {
+        if (m["value"] == "yes")
+            show = "X"
+        else if (m["value"] == "no")
+            show = l["value"] #" " r["value"]
+        else
             msg_out_log_error(\
                 "bar_make_status_volume_alsa_device: " device ". ", \
                 "Unexpected value for 'mute' field: " m["value"] \
             )
-        }
     }
     return show
 }
