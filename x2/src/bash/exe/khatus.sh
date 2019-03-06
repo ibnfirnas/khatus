@@ -108,6 +108,7 @@ main() {
         ["--interval_bluetooth"]=1
         ["--interval_net_wifi"]=1
         ["--interval_net_io"]=1
+        ["--interval_net_carrier"]=1
         ["--interval_disk_space"]=1
         ["--interval_disk_io"]=1
         ["--interval_loadavg"]=1
@@ -207,6 +208,7 @@ main() {
     fork_poller "${opts['--interval_temp']}"       "$perf" "$pipe" "$bin" "$cmd_sens_temperature"
     fork_poller "${opts['--interval_fan']}"        "$perf" "$pipe" "$bin" "$cmd_sens_fan"
     fork_poller "${opts['--interval_mem']}"        "$perf" "$pipe" "$bin" "$cmd_sens_memory"
+    fork_poller "${opts['--interval_net_carrier']}" "$perf" "$pipe" "$bin" khatus_sensor_net_carrier
 
     stdbuf -o L tail -f "$pipe"
 }

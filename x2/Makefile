@@ -38,6 +38,7 @@ BASH_EXECUTABLE_NAMES := \
 	khatus_sensor_memory \
 	khatus_sensor_mpd \
 	khatus_sensor_net_addr_io \
+	khatus_sensor_net_carrier \
 	khatus_sensor_net_wifi_status \
 	khatus_sensor_procs \
 	khatus_sensor_screen_brightness \

@@ -152,10 +152,11 @@ function bar_make_status_disk_io_r(    src) {
 # Network
 # -----------------------------------------------------------------------------
 
-function bar_make_status_net_iface_status(interface,    addr) {
-    cache_get(addr, "khatus_sensor_net_addr_io", "addr" Kfs interface, 5)
-    if (!addr["is_expired"] && addr["value"])
-        return "up"
+function bar_make_status_net_iface_status(interface,    is_plugged_in) {
+    # TODO: Integrate connection/address status into the symbol somehow.
+    cache_get(is_plugged_in, "khatus_sensor_net_carrier", interface, 5)
+    if (!is_plugged_in["is_expired"] && is_plugged_in["value"])
+        return "<>"
     else
         return "--"
 }
