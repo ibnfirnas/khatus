@@ -29,6 +29,8 @@ BEGIN {
      params["@net_io_r"]            = 1
     aliases["@net_wifi"]            = "bar_make_status_net_wifi(\"%s\")"
      params["@net_wifi"]            = 1
+    aliases["@net_wifi_link"]       = "bar_make_status_net_wifi_link(\"%s\")"
+     params["@net_wifi_link"]       = 1
     aliases["@net_iface_status"]    = "bar_make_status_net_iface_status(\"%s\")"
      params["@net_iface_status"]    = 1
 
