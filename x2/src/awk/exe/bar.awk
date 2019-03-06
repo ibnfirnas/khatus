@@ -155,7 +155,7 @@ function bar_make_status_disk_io_r(    src) {
 function bar_make_status_net_iface_status(interface,    is_plugged_in) {
     # TODO: Integrate connection/address status into the symbol somehow.
     cache_get(is_plugged_in, "khatus_sensor_net_carrier", interface, 5)
-    if (!is_plugged_in["is_expired"] && is_plugged_in["value"])
+    if (!is_plugged_in["is_expired"] && is_plugged_in["value"] == 1)
         return "<>"
     else
         return "--"
@@ -184,7 +184,7 @@ function bar_make_status_net_wifi(interface,    src) {
 
 function bar_make_status_net_wifi_link(interface,    link) {
     cache_get_fmt_def(link, "khatus_sensor_net_wifi_status", "link" Kfs interface, 10)
-    if (!link["is_expired"] && link["value"])
+    if (!link["is_expired"] && link["value"] > 0)
         return sprintf("%d%%", link["value"])
     else
         return "--"
