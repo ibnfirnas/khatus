@@ -1,6 +1,6 @@
 BEGIN {
-    FS1 = "|"  # Fiels separator, level 1 (record to fields)
-    FS2 = ":"  # Fiels separator, level 2 (field to subfields
+    FS1 = "|"  # Fields separator, level 1 (record to fields)
+    FS2 = ":"  # Fields separator, level 2 (field to subfields
 
     OFS = FS1
     Kfs = FS2
