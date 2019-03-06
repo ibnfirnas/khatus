@@ -29,6 +29,8 @@ BEGIN {
      params["@net_io_r"]            = 1
     aliases["@net_wifi"]            = "bar_make_status_net_wifi(\"%s\")"
      params["@net_wifi"]            = 1
+    aliases["@net_iface_status"]    = "bar_make_status_net_iface_status(\"%s\")"
+     params["@net_iface_status"]    = 1
 
     aliases["@bluetooth_power"]     = "bar_make_status_bluetooth_power()"
 
@@ -54,6 +56,7 @@ BEGIN {
             function_call = aliases[alias]
         } else if (n_expected_params == 1) {
             function_call = sprintf(aliases[alias], arg_parts[2])
+        # TODO: Support params > 1
         } else {
             printf(\
                 "Unsupported number of params: %d in %s\n",

@@ -152,6 +152,14 @@ function bar_make_status_disk_io_r(    src) {
 # Network
 # -----------------------------------------------------------------------------
 
+function bar_make_status_net_iface_status(interface,    addr) {
+    cache_get(addr, "khatus_sensor_net_addr_io", "addr" Kfs interface, 5)
+    if (!addr["is_expired"] && addr["value"])
+        return "up"
+    else
+        return "--"
+}
+
 function bar_make_status_net_addr(interface,    src) {
     src = "khatus_sensor_net_addr_io"
     return cache_get_fmt_def(src, "addr" Kfs interface, 5, "%s", "")
