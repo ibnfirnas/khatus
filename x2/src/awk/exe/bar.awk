@@ -162,7 +162,8 @@ function bar_make_status_net_iface_status(interface,    addr) {
 
 function bar_make_status_net_addr(interface,    src) {
     src = "khatus_sensor_net_addr_io"
-    return cache_get_fmt_def(src, "addr" Kfs interface, 5, "%s")
+    addr = cache_get_fmt_def(src, "addr" Kfs interface, 5, "%s")
+    return addr ? addr : "--"
 }
 
 function bar_make_status_net_io_w(interface,    src) {
