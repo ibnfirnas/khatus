@@ -182,9 +182,12 @@ function bar_make_status_net_wifi(interface,    src) {
     return cache_get_fmt_def(src, "status" Kfs interface, 10, "%s")
 }
 
-function bar_make_status_net_wifi_link(interface,    src) {
-    src = "khatus_sensor_net_wifi_status"
-    return cache_get_fmt_def(src, "link" Kfs interface, 10, "%d%%")
+function bar_make_status_net_wifi_link(interface,    link) {
+    cache_get_fmt_def(link, "khatus_sensor_net_wifi_status", "link" Kfs interface, 10)
+    if (!link["is_expired"] && link["value"])
+        return sprintf("%d%%", link["value"])
+    else
+        return "--"
 }
 
 # -----------------------------------------------------------------------------
