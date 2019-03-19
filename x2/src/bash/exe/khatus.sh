@@ -200,6 +200,7 @@ main() {
     fork_poller "${opts['--interval_mpd']}"        "$perf" "$pipe" "$bin" "$cmd_sens_mpd"
     fork_poller "${opts['--interval_volume']}"     "$perf" "$pipe" "$bin" "$cmd_sens_volume"
     fork_poller "${opts['--interval_bluetooth']}"  "$perf" "$pipe" "$bin" "$cmd_sens_bluetooth"
+    fork_poller "${opts['--interval_bluetooth']}"  "$perf" "$pipe" "$bin" 'khatus_sensor_bluetooth'
     fork_poller "${opts['--interval_net_wifi']}"   "$perf" "$pipe" "$bin" "$cmd_sens_wifi"
     fork_poller "${opts['--interval_net_io']}"     "$perf" "$pipe" "$bin" "$cmd_sens_net_addr_io"
     fork_poller "${opts['--interval_disk_space']}" "$perf" "$pipe" "$bin" "$cmd_sens_disk_space"

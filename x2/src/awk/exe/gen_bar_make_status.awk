@@ -34,6 +34,7 @@ BEGIN {
     aliases["@net_iface_status"]    = "bar_make_status_net_iface_status(\"%s\")"
      params["@net_iface_status"]    = 1
 
+    aliases["@bluetooth"]           = "bar_make_status_bluetooth()"
     aliases["@bluetooth_power"]     = "bar_make_status_bluetooth_power()"
 
     aliases["@backlight_percent"]   = "bar_make_status_backlight_percent()"

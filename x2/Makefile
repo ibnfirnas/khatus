@@ -27,6 +27,7 @@ AWK_EXECUTABLES := \
 	bin/khatus_parse_upower
 BASH_EXECUTABLE_NAMES := \
 	khatus \
+	khatus_sensor_bluetooth \
 	khatus_sensor_bluetooth_power \
 	khatus_sensor_datetime \
 	khatus_sensor_devices \

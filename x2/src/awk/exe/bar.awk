@@ -194,6 +194,14 @@ function bar_make_status_net_wifi_link(interface,    link) {
 # Bluetooth
 # -----------------------------------------------------------------------------
 
+function bar_make_status_bluetooth(    src, controllers, devices) {
+    src = "khatus_sensor_bluetooth"
+    controllers = cache_get_fmt_def(src, "count_powered_controllers", 10, "%d")
+    devices     = cache_get_fmt_def(src, "count_connected_devices"  , 10, "%d")
+    # Using %s format bellow because default value is a string
+    return sprintf("%s:%s", controllers, devices)
+}
+
 function bar_make_status_bluetooth_power(    src) {
     src = "khatus_sensor_bluetooth_power"
     return cache_get_fmt_def(src, "power_status", 10, "%s")
