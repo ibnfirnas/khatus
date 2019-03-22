@@ -12,7 +12,7 @@ sensors_kill_all() {
         kill -9 $(cat $pid_file) || true
         rm $pid_file
     done
-    pkill khatus_x4_sensor || true
+    pkill khatus_x4 || true
 }
 
 sensors_fork_all() {
