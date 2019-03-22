@@ -1,0 +1,13 @@
+#! /bin/sh
+
+set -e
+
+bin_dir="$(dirname $(realpath $0))"
+
+. "$bin_dir/khatus_x4_lib_common_sensor.sh"
+
+sensor() {
+    awk '{ print("load_avg_1min", $1); }' /proc/loadavg
+}
+
+run_as_poller

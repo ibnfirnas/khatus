@@ -21,6 +21,7 @@ sensors_fork_all() {
     ./bin/khatus_x4_sensor_mpd      &
     ./bin/khatus_x4_sensor_energy   &
     ./bin/khatus_x4_sensor_memory   &
+    ./bin/khatus_x4_sensor_loadavg  &
 }
 
 sensor_read_one() {
@@ -42,7 +43,8 @@ sensors_read_all() {
         datetime="$(sensor_read_one ${dir}/khatus_x4_sensor_datetime/out/datetime)"
         mpd="$(sensor_read_one ${dir}/khatus_x4_sensor_mpd/out/status)"
         mem="$(sensor_read_one ${dir}/khatus_x4_sensor_memory/out/percent_used)"
-        echo "E[${battery_state} ${battery_percentage}] M:${mem}% [${mpd}] [$bluetooth_controllers $bluetooth_devices] ${datetime}"
+        load="$(sensor_read_one ${dir}/khatus_x4_sensor_loadavg/out/load_avg_1min)"
+        echo "E[${battery_state} ${battery_percentage}] M:${mem}% L:${load} [${mpd}] [$bluetooth_controllers $bluetooth_devices] ${datetime}"
         sleep 1
     done
 }
