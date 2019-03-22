@@ -24,4 +24,4 @@ sensor() {
     | "$bin_dir"/khatus_x4_parse_mpd_status_currentsong
 }
 
-run
+run_as_poller

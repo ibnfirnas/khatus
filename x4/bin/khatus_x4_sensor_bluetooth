@@ -20,4 +20,4 @@ sensor() {
     printf "count_connected_devices %d\n" $(count_connected_devices)
 }
 
-run
+run_as_poller

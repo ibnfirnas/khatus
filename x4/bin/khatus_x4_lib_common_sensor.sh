@@ -2,6 +2,10 @@
 
 set -e
 
+# =============================================================================
+# Private
+# =============================================================================
+
 # Defaults
 prefix='/dev/shm/khatus'
 host="$(hostname)"
@@ -85,16 +89,16 @@ run_in_foreground() {
     trap true INT
     trap exit TERM
     trap pid_file_remove EXIT
-    $run_as
+    $1
 }
 
 run_in_background_2nd_fork() {
-    run_in_foreground &
+    run_in_foreground $1 &
     pid_file_create_of_child
 }
 
 run_in_background() {
-    run_in_background_2nd_fork &
+    run_in_background_2nd_fork $1 &
 }
 
 run() {
@@ -108,14 +112,29 @@ run() {
     pid_file_test
     case "$run_in"
     in 'background')
-        run_in_background
+        run_in_background $1
     ;; 'foreground')
         pid_file_create_of_parent
-        run_in_foreground
+        run_in_foreground $1
     ;; *)
         printf "Error - illegal value for \$run_in: $run_in\n" 1>&2
         exit 1
     esac
+}
+
+# =============================================================================
+# API
+# -----------------------------------------------------------------------------
+#   run_as_poller
+#   run_as_streamer
+# =============================================================================
+
+run_as_poller() {
+    run 'poller'
+}
+
+run_as_streamer() {
+    run 'streamer'
 }
 
 set_common_options $@

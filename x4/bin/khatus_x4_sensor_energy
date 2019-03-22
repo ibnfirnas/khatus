@@ -11,5 +11,4 @@ sensor() {
     stdbuf -o L upower --monitor-detail | stdbuf -o L "$bin_dir"/khatus_x4_parse_upower
 }
 
-run_as='streamer'
-run
+run_as_streamer

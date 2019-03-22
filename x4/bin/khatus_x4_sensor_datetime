@@ -8,4 +8,4 @@ sensor() {
     printf "datetime $(date +'%a %b %d %H:%M:%S')\n"
 }
 
-run
+run_as_poller
