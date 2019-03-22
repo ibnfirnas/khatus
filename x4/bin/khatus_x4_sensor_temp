@@ -1,0 +1,32 @@
+#! /bin/sh
+
+set -e
+
+bin_dir="$(dirname $(realpath $0))"
+
+. "$bin_dir/khatus_x4_lib_common_sensor.sh"
+
+while :
+do
+    case "$1"
+    in '')
+        break
+    ;; -z|--zone)
+        case "$2"
+        in '')
+            printf "Option $1 requires and argument\n" >&2
+            exit 1
+        ;; *)
+            thermal_zone="thermal_zone${2}"
+            shift 2
+        esac
+    ;; *)
+        shift 1
+    esac
+done
+
+sensor() {
+    echo "$thermal_zone $(( $(cat /sys/class/thermal/${thermal_zone}/temp) / 1000 ))"
+}
+
+run_as_poller
