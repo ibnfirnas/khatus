@@ -16,14 +16,14 @@ sensors_kill_all() {
 }
 
 sensors_fork_all() {
-    ./bin/khatus_x4_sensor_datetime  -i 1 &
-    ./bin/khatus_x4_sensor_bluetooth -i 1 &
-    ./bin/khatus_x4_sensor_mpd       -i 1 &
-    ./bin/khatus_x4_sensor_energy    -i 1 &
-    ./bin/khatus_x4_sensor_memory    -i 1 &
-    ./bin/khatus_x4_sensor_loadavg   -i 1 &
-    ./bin/khatus_x4_sensor_temp      -i 1 -- -z 0 &
-    ./bin/khatus_x4_sensor_disk      -i 1 -- -f / &
+    ./bin/khatus_x4_sensor_datetime  -d -i 1
+    ./bin/khatus_x4_sensor_bluetooth -d -i 1
+    ./bin/khatus_x4_sensor_mpd       -d -i 1
+    ./bin/khatus_x4_sensor_energy    -d -i 1
+    ./bin/khatus_x4_sensor_memory    -d -i 1
+    ./bin/khatus_x4_sensor_loadavg   -d -i 1
+    ./bin/khatus_x4_sensor_temp      -d -i 1 -- -z 0
+    ./bin/khatus_x4_sensor_disk      -d -i 1 -- -f /
 }
 
 sensor_read_one() {
