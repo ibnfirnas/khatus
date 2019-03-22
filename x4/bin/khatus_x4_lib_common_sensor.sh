@@ -32,6 +32,9 @@ set_common_options() {
                 interval="$2"
                 shift 2
             esac
+        ;; --)
+            shift 1
+            break
         ;; *)
             shift 1
         esac
