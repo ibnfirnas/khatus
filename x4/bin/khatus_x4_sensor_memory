@@ -1,0 +1,20 @@
+#! /bin/sh
+
+set -e
+
+bin_dir="$(dirname $(realpath $0))"
+
+. "$bin_dir/khatus_x4_lib_common_sensor.sh"
+
+sensor() {
+    free | awk '
+        $1 == "Mem:" {
+            total = $2
+            used  = $3
+            percent_used = int(((used / total) * 100) + 0.5)  # Average
+            print("percent_used", percent_used)
+        }
+    '
+}
+
+run_as_poller
