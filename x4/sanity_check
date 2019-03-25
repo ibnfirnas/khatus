@@ -56,7 +56,7 @@ sensors_read_all() {
         vol_right="$(sensor_read_one ${dir}/khatus_x4_sensor_volume/out/vol_right)"
         vol_state="$(sensor_read_one ${dir}/khatus_x4_sensor_volume/out/state)"
         vol_mute="$(sensor_read_one ${dir}/khatus_x4_sensor_volume/out/mute)"
-        echo "E[${battery_state} ${battery_percentage} | ${battery_state} ${battery_percentage_poll}] M:${mem}% L:${load} T:${temp}°C D:${disk}% [${mpd}] [$bluetooth_controllers $bluetooth_devices] V:${vol_state}:${vol_left}:${vol_right}:${vol_mute} ${datetime}"
+        echo "E[${battery_state} ${battery_percentage} | ${battery_state} ${battery_percentage_poll}] M:${mem}% L:${load} T:${temp}°C D:${disk}% [${mpd}] B:${bluetooth_controllers}:${bluetooth_devices} V:${vol_state}:${vol_left}:${vol_right}:${vol_mute} ${datetime}"
         sleep 1
     done
 }
