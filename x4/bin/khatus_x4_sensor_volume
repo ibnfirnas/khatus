@@ -1,0 +1,63 @@
+#! /bin/sh
+
+set -e
+
+bin_dir="$(dirname $(realpath $0))"
+
+. "$bin_dir/khatus_x4_lib_common_sensor.sh"
+
+sensor() {
+    def_sink=$(pactl info | awk '/^Default Sink:/ {print $3}')
+
+    pactl list sinks | awk -v def_sink="$def_sink" '
+        /^Sink \#[0-9]+$/ {
+            sub("^#", "", $2)
+            sink_number = $2
+            next
+        }
+
+        /\tState:/ {
+            state[sink_number] = $2
+            next
+        }
+
+        /\tName:/ {
+            name[sink_number] = $2
+            next
+        }
+
+        /\tMute:/ {
+            mute[sink_number] = $2
+            next
+        }
+
+        # Volume: front-left: 45732 /  70% / -9.38 dB,   front-right: 45732 /  70% / -9.38 dB
+        /\tVolume:/ {
+            delete vol_parts
+            delete left_parts
+            delete right_parts
+            sub("^\t+Volume: +", "")
+            split($0, vol_parts, ", +")
+            sub("^front-left: +", "", vol_parts[1])
+            sub("^front-right: +", "", vol_parts[2])
+            split(vol_parts[1], left_parts, " +/ +")
+            split(vol_parts[2], right_parts, " +/ +")
+            vol_left[sink_number] = left_parts[2]
+            vol_right[sink_number] = right_parts[2]
+            next
+        }
+
+        END {
+            for (sink_number in name) {
+                if (name[sink_number] == def_sink) {
+                    print("state"    , state[sink_number])
+                    print("mute"     , mute[sink_number])
+                    print("vol_left" , vol_left[sink_number])
+                    print("vol_right", vol_right[sink_number])
+                }
+            }
+        }
+    '
+}
+
+run_as_poller

@@ -24,6 +24,7 @@ sensors_fork_all() {
     ./bin/khatus_x4_sensor_loadavg   -d -i 1
     ./bin/khatus_x4_sensor_temp      -d -i 1 -- -z 0
     ./bin/khatus_x4_sensor_disk      -d -i 1 -- -f /
+    ./bin/khatus_x4_sensor_volume    -d -i 1
 }
 
 sensor_read_one() {
@@ -48,7 +49,11 @@ sensors_read_all() {
         load="$(sensor_read_one ${dir}/khatus_x4_sensor_loadavg/out/load_avg_1min)"
         temp="$(sensor_read_one ${dir}/khatus_x4_sensor_temp/out/thermal_zone0)"
         disk="$(sensor_read_one ${dir}/khatus_x4_sensor_disk/out/disk_usage_percentage)"
-        echo "E[${battery_state} ${battery_percentage}] M:${mem}% L:${load} T:${temp}°C D:${disk}% [${mpd}] [$bluetooth_controllers $bluetooth_devices] ${datetime}"
+        vol_left="$(sensor_read_one ${dir}/khatus_x4_sensor_volume/out/vol_left)"
+        vol_right="$(sensor_read_one ${dir}/khatus_x4_sensor_volume/out/vol_right)"
+        vol_state="$(sensor_read_one ${dir}/khatus_x4_sensor_volume/out/state)"
+        vol_mute="$(sensor_read_one ${dir}/khatus_x4_sensor_volume/out/mute)"
+        echo "E[${battery_state} ${battery_percentage}] M:${mem}% L:${load} T:${temp}°C D:${disk}% [${mpd}] [$bluetooth_controllers $bluetooth_devices] V:${vol_state}:${vol_left}:${vol_right}:${vol_mute} ${datetime}"
         sleep 1
     done
 }
