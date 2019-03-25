@@ -1,0 +1,16 @@
+#! /bin/sh
+
+set -e
+
+bin_dir="$(dirname $(realpath $0))"
+
+. "$bin_dir/khatus_x4_lib_common_sensor.sh"
+
+sensor() {
+    upower --show-info /org/freedesktop/UPower/devices/DisplayDevice | awk '
+        /percentage:/ {print "battery_percentage", int($2)}
+        /state:/      {print "battery_state"     ,  $2}
+    '
+}
+
+run_as_poller
