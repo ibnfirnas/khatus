@@ -249,9 +249,9 @@ function bar_make_status_mpd(    state, status) {
         if (state["value"] == "play") {
             status = bar_make_status_mpd_state_known("▶")
         } else if (state["value"] == "pause") {
-            status = bar_make_status_mpd_state_known("❚❚")
+            status = bar_make_status_mpd_state_known("⏸")
         } else if (state["value"] == "stop") {
-            status = bar_make_status_mpd_state_known("⬛")
+            status = bar_make_status_mpd_state_known("⏹")
         } else {
             msg_out_log_error(\
                 "bar_make_status_mpd", \
