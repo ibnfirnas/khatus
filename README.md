@@ -17,4 +17,5 @@ obsolete earlier ones, they're just different):
 | __x1__ | Archived  | Bash, AWK | Ubuntu 16.04 | Single, synchronous script, saving state in text files |
 | __x2__ | In-use    | Bash, AWK | Debian 10    | Parallel processes: collectors, cache and reporters; passing messages over pipes |
 | __x3__ | Scratched | OCaml     | Debian 10    | Re-write and refinement of __x2__ |
-| __x4__ | In-dev    | Dash, AWK | Debian 10    | Sensors are completely decoupled daemons, cache is a file tree |
+| __x4__ | Prototype | Dash, AWK | Debian 10    | Sensors are completely decoupled daemons, cache is a file tree |
+| __x5__ | In-dev    | C         | Debian 10    | Re-implementation of __x4__ in C |
