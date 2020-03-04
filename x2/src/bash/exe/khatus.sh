@@ -85,6 +85,19 @@ fork_poller() {
     done &
 }
 
+find_thermal_zone() {
+    local -r _type="$1"
+    awk \
+        -v _type="$_type" \
+        '
+        $0 ~ ("^" _type "$") {
+            split(FILENAME, f, "thermal_zone");
+            split(f[2], f2, "/");
+            print f2[1]}
+        ' \
+        /sys/class/thermal/thermal_zone*/type
+}
+
 main() {
     declare -A opts=(
         ["--node"]=$(hostname)
@@ -96,7 +109,7 @@ main() {
         ["--wifi_interface"]=''
         ["--disk_space_device"]='/'
         ["--disk_io_device"]='sda'
-        ["--thermal_zone"]=0
+        ["--thermal_zone"]="$(find_thermal_zone x86_pkg_temp)"
         ["--fan_path"]='/proc/acpi/ibm/fan'
         ["--pulseaudio_sink"]='0'
         ["--interval_datetime"]=1
