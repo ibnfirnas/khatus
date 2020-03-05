@@ -111,7 +111,7 @@ void
 parse_opts_opt_s(Config *cfg, int argc, char *argv[], int i)
 {
 	if (i < argc) {
-		cfg->separator = malloc((strlen(argv[i]) + 1) * sizeof(char));
+		cfg->separator = calloc((strlen(argv[i]) + 1), sizeof(char));
 		strcpy(cfg->separator, argv[i]);
 		opts_parse_any(cfg, argc, argv, ++i);
 	} else {
@@ -123,7 +123,7 @@ void
 parse_opts_opt_t(Config *cfg, int argc, char *argv[], int i)
 {
 	if (i < argc) {
-		cfg->timefmt = malloc((strlen(argv[i]) + 1) * sizeof(char));
+		cfg->timefmt = calloc((strlen(argv[i]) + 1), sizeof(char));
 		strcpy(cfg->timefmt, argv[i]);
 		opts_parse_any(cfg, argc, argv, ++i);
 	} else {
@@ -156,7 +156,7 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		usage("[spec] Invalid width: \"%s\", for file \"%s\"\n", w, n);
 	if (!is_pos_num(t))
 		usage("[spec] Invalid TTL: \"%s\", for file \"%s\"\n", t, n);
-	File *f = malloc(sizeof(struct File));
+	File *f = calloc(1, sizeof(struct File));
 	if (f) {
 		f->name      = n;
 		f->fd        = -1;
@@ -270,7 +270,7 @@ main(int argc, char *argv[])
 		nfiles++;
 	}
 	width += (seplen * (nfiles - 1));
-	buf = malloc(width + 1);
+	buf = calloc(1, width + 1);
 	if (buf == NULL)
 		fatal("[memory] Failed to allocate buffer of %d bytes", width);
 	memset(buf, ' ', width);
