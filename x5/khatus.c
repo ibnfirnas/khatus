@@ -19,6 +19,7 @@
 
 char *argv0;
 
+/* TODO: Convert file list to file array. */
 typedef struct File File;
 struct File {
 	char   *name;
@@ -251,6 +252,7 @@ read_one(File *f, char *buf)
 		*b++ = c;
 	if (current == -1)
 		error("Failed to read: \"%s\". Error: %s\n", f->name, strerror(errno));
+	/* TODO Record timestamp read */
 	close(f->fd);
 	f->fd = -1;
 }
@@ -340,6 +342,9 @@ main(int argc, char *argv[])
 	printf("%s\n", buf);
 	/* TODO: nanosleep and nano time diff */
 	for (;;) {
+		/* TODO: Check TTL and maybe blank-out */
+		/* TODO: How to trigger TTL check? On select? Alarm signal? */
+		/* TODO: Option to set X root window title or print */
 		read_all(cfg, buf);
 		printf("%s\n", buf);
 	}
