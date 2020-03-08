@@ -1,5 +1,5 @@
 EXECUTABLES := khatus
-CC          := c99-gcc -Wall
+CC          := $(CC) -Wall
 
 .PHONY: \
   build \

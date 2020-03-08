@@ -1,6 +1,8 @@
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <sys/stat.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -240,6 +242,7 @@ read_one(File *f, char *buf)
 
 	b = buf + f->pos;
 	memset(b, ' ', f->width);
+	/* TODO: Read upto \n or width */
 	while ((n = read(f->fd, b, f->width)) > 0) {
 		b += n;
 		debug("read %zd from %s\n", n, f->name);
@@ -266,11 +269,17 @@ read_all(Config *cfg, char *buf)
 	fd_set fds;
 	int maxfd;
 	int ready;
+	struct stat st;
 
 	FD_ZERO(&fds);
 
-	/* TODO: stat then check TTL */
+	/* TODO: Check TTL */
 	for (File *f = cfg->files; f; f = f->next) {
+		/* TODO: Create the FIFO if it doesn't already exist. */
+		if (lstat(f->name, &st) < 0)
+			fatal("Cannot stat \"%s\". Error: %s\n", f->name, strerror(errno));
+		if (!(st.st_mode & S_IFIFO))
+			fatal("\"%s\" is not a FIFO\n", f->name);
 		debug("opening: %s\n", f->name);
 		if (f->fd < 0)
 			f->fd = open(f->name, O_RDONLY | O_NONBLOCK);
