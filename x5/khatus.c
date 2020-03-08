@@ -1,18 +1,13 @@
-/*
-
-- [ ] Switch from regular files to named pipes
-	- [ ] poll with select
-
-*/
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/select.h>
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <fcntl.h>
-#include <unistd.h>
 
 #define debug(args...) {fprintf(stderr, "[debug] " args);}
 #define info( args...) {fprintf(stderr, "[info] "  args);}
@@ -37,19 +32,68 @@ typedef struct Config Config;
 struct Config {
 	int    interval;
 	char * separator;
-	char * timefmt;
 	File * files;
 	int    file_count;
 	int    total_width;
 } defaults = {
 	.interval    = 1,
 	.separator   = "|",
-	.timefmt     = "%Y-%m-%d %H:%M:%S",
 	.files       = NULL,
 	.file_count  = 0,
 	.total_width = 0,
 };
 
+void
+file_print_one(File *f)
+{
+	debug(
+		"File "
+		"{"
+			" name = %s,"
+			" fd = %d,"
+			" width = %d,"
+			" last_read = %d,"
+			" ttl = %d,"
+			" pos = %d,"
+			" next = %p,"
+		" }\n",
+		f->name,
+		f->fd,
+		f->width,
+		f->last_read,
+		f->ttl,
+		f->pos,
+		f->next
+	);
+}
+
+void
+file_print_all(File *head)
+{
+	for (File *f = head; f; f = f->next) {
+		file_print_one(f);
+	}
+}
+
+void
+config_print(Config *c)
+{
+	debug(
+		"Config "
+		"{"
+			" interval = %d,"
+			" separator = %s,"
+			" file_count = %d,"
+			" total_width = %d,"
+			" files = ..."
+		" }\n",
+		c->interval,
+		c->separator,
+		c->file_count,
+		c->total_width
+	);
+	file_print_all(c->files);
+}
 
 int
 is_pos_num(char *s)
@@ -120,24 +164,11 @@ parse_opts_opt_s(Config *cfg, int argc, char *argv[], int i)
 }
 
 void
-parse_opts_opt_t(Config *cfg, int argc, char *argv[], int i)
-{
-	if (i < argc) {
-		cfg->timefmt = calloc((strlen(argv[i]) + 1), sizeof(char));
-		strcpy(cfg->timefmt, argv[i]);
-		opts_parse_any(cfg, argc, argv, ++i);
-	} else {
-		usage("Option -t parameter is missing.\n");
-	}
-}
-
-void
 parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 {
 	switch (argv[i][1]) {
 		case 'i': parse_opts_opt_i(cfg, argc, argv, ++i); break;  /* TODO: Generic set_int */
 		case 's': parse_opts_opt_s(cfg, argc, argv, ++i); break;  /* TODO: Generic set_str */
-		case 't': parse_opts_opt_t(cfg, argc, argv, ++i); break;  /* TODO: Generic set_str */
 		default : usage("Option \"%s\" is invalid\n", argv[i]);
 	}
 }
@@ -202,22 +233,64 @@ opts_parse(Config *cfg, int argc, char *argv[], int i)
 }
 
 void
+read_one(File *f, char *buf)
+{
+	ssize_t n;
+	char *b;
+
+	b = buf + f->pos;
+	memset(b, ' ', f->width);
+	while ((n = read(f->fd, b, f->width)) > 0) {
+		b += n;
+		debug("read %zd from %s\n", n, f->name);
+	}
+
+	if (n > -1) {
+		if (*(b - 1) == '\n')
+			*(b - 1) = ' ';
+	} else {
+		error(
+			"Failed to read: \"%s\". Error: %s\n",
+			f->name,
+			strerror(errno)
+		);
+	}
+
+	close(f->fd);
+	f->fd = -1;
+}
+
+void
 read_all(Config *cfg, char *buf)
 {
+	fd_set fds;
+	int maxfd;
+	int ready;
+
+	FD_ZERO(&fds);
+
 	/* TODO: stat then check TTL */
 	for (File *f = cfg->files; f; f = f->next) {
+		debug("opening: %s\n", f->name);
 		if (f->fd < 0)
-			f->fd = open(f->name, O_RDONLY);
-		if (f->fd == -1) {
+			f->fd = open(f->name, O_RDONLY | O_NONBLOCK);
+		if (f->fd == -1)
 			/* TODO: Consider backing off retries for failed files. */
 			fatal("Failed to open \"%s\"\n", f->name);
-		} else {
-			lseek(f->fd, 0, 0);
-			ssize_t n = read(f->fd, buf + f->pos, f->width);
-			int lasti = n + f->pos - 1;
-			char lastc = buf[lasti];
-			if (lastc == '\n')
-				buf[lasti] = ' ';
+		if (f->fd > maxfd)
+			maxfd = f->fd;
+		FD_SET(f->fd, &fds);
+	}
+	debug("selecting...\n");
+	ready = select(maxfd + 1, &fds, NULL, NULL, NULL);
+	debug("ready: %d\n", ready);
+	assert(ready != 0);
+	if (ready < 0)
+		fatal("%s", strerror(errno));
+	for (File *f = cfg->files; f; f = f->next) {
+		if (FD_ISSET(f->fd, &fds)) {
+			debug("reading: %s\n", f->name);
+			read_one(f, buf);
 		}
 	}
 }
@@ -236,29 +309,9 @@ main(int argc, char *argv[])
 
 	opts_parse(cfg, argc, argv, 1);
 	debug("argv0 = %s\n", argv0);
-	debug("[config] interval    = %d\n", cfg->interval);
-	debug("[config] separator   = %s\n", cfg->separator);
-	debug("[config] file_count  = %d\n", cfg->file_count);
-	debug("[config] total_width = %d\n", cfg->total_width);
+	config_print(cfg);
 	if (cfg->files == NULL)
 		usage("No file specs were given!\n");
-	for (File *f = cfg->files; f; f = f->next) {
-		debug(
-			"[config] file = "
-			"{"
-				" name = %s,"
-				" pos = %d,"
-				" width = %d,"
-				" ttl = %d,"
-				" last_read = %d,"
-			" }\n",
-			f->name,
-			f->pos,
-			f->width,
-			f->ttl,
-			f->last_read
-		);
-	}
 
 	width  = cfg->total_width;
 	seplen = strlen(cfg->separator);
@@ -278,14 +331,15 @@ main(int argc, char *argv[])
 	/* 2nd pass to set the separators */
 	for (File *f = cfg->files; f; f = f->next) {
 		if (f->pos) {  /* Skip the first, left-most */
-			strcpy(buf + (f->pos - seplen), cfg->separator);
+			/* Copying only seplen ensures we omit the '\0' byte. */
+			strncpy(buf + (f->pos - seplen), cfg->separator, seplen);
 		}
 	}
 
+	printf("%s\n", buf);
 	/* TODO: nanosleep and nano time diff */
 	for (;;) {
 		read_all(cfg, buf);
 		printf("%s\n", buf);
-		sleep(cfg->interval);
 	}
 }
