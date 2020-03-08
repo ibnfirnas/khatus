@@ -237,28 +237,20 @@ opts_parse(Config *cfg, int argc, char *argv[], int i)
 void
 read_one(File *f, char *buf)
 {
-	ssize_t n;
+	ssize_t current;
+	ssize_t total;
 	char *b;
+	char c;
 
+	current = 0;
+	total = 0;
+	c = '\0';
 	b = buf + f->pos;
 	memset(b, ' ', f->width);
-	/* TODO: Read upto \n or width */
-	while ((n = read(f->fd, b, f->width)) > 0) {
-		b += n;
-		debug("read %zd from %s\n", n, f->name);
-	}
-
-	if (n > -1) {
-		if (*(b - 1) == '\n')
-			*(b - 1) = ' ';
-	} else {
-		error(
-			"Failed to read: \"%s\". Error: %s\n",
-			f->name,
-			strerror(errno)
-		);
-	}
-
+	while ((current = read(f->fd, &c, 1)) && c != '\n' && c != '\0' && total++ < f->width)
+		*b++ = c;
+	if (current == -1)
+		error("Failed to read: \"%s\". Error: %s\n", f->name, strerror(errno));
 	close(f->fd);
 	f->fd = -1;
 }
