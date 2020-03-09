@@ -268,7 +268,7 @@ void
 read_all(Config *cfg, char *buf)
 {
 	fd_set fds;
-	int maxfd;
+	int maxfd = -1;
 	int ready;
 	struct stat st;
 
@@ -313,7 +313,7 @@ main(int argc, char *argv[])
 	int prefix = 0;
 	char *buf;
 	Config *cfg = &defaults;
-	Display *display;
+	Display *display = NULL;
 
 	argv0 = argv[0];
 
