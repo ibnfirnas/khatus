@@ -228,7 +228,7 @@ opts_parse_any(Config *cfg, int argc, char *argv[], int i)
 }
 
 void
-opts_parse(Config *cfg, int argc, char *argv[], int i)
+opts_parse(Config *cfg, int argc, char *argv[])
 {
 	opts_parse_any(cfg, argc, argv, 1);
 
@@ -317,7 +317,7 @@ main(int argc, char *argv[])
 
 	argv0 = argv[0];
 
-	opts_parse(cfg, argc, argv, 1);
+	opts_parse(cfg, argc, argv);
 	debug("argv0 = %s\n", argv0);
 	config_print(cfg);
 	if (cfg->files == NULL)

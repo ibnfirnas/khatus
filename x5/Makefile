@@ -1,4 +1,4 @@
-CFLAGS := -Wall
+CFLAGS := -Wall -Wextra
 LDLIBS := -lX11
 
 EXECUTABLES := khatus
