@@ -1,8 +1,8 @@
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/select.h>
 #include <sys/stat.h>
+#include <X11/Xlib.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -38,12 +38,14 @@ struct Config {
 	File * files;
 	int    file_count;
 	int    total_width;
+	int    output_to_x_root_window;
 } defaults = {
 	.interval    = 1,
 	.separator   = "|",
 	.files       = NULL,
 	.file_count  = 0,
 	.total_width = 0,
+	.output_to_x_root_window = 0,
 };
 
 void
@@ -172,6 +174,11 @@ parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 	switch (argv[i][1]) {
 		case 'i': parse_opts_opt_i(cfg, argc, argv, ++i); break;  /* TODO: Generic set_int */
 		case 's': parse_opts_opt_s(cfg, argc, argv, ++i); break;  /* TODO: Generic set_str */
+		case 'x': {
+			cfg->output_to_x_root_window = 1;
+			opts_parse_any(cfg, argc, argv, ++i);
+			break;
+		}
 		default : usage("Option \"%s\" is invalid\n", argv[i]);
 	}
 }
@@ -266,7 +273,6 @@ read_all(Config *cfg, char *buf)
 	struct stat st;
 
 	FD_ZERO(&fds);
-
 	/* TODO: Check TTL */
 	for (File *f = cfg->files; f; f = f->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
@@ -307,6 +313,7 @@ main(int argc, char *argv[])
 	int prefix = 0;
 	char *buf;
 	Config *cfg = &defaults;
+	Display *display;
 
 	argv0 = argv[0];
 
@@ -339,13 +346,23 @@ main(int argc, char *argv[])
 		}
 	}
 
-	printf("%s\n", buf);
+	if (cfg->output_to_x_root_window && !(display = XOpenDisplay(NULL)))
+		fatal("XOpenDisplay failed with: %p\n", display);
 	/* TODO: nanosleep and nano time diff */
 	for (;;) {
 		/* TODO: Check TTL and maybe blank-out */
 		/* TODO: How to trigger TTL check? On select? Alarm signal? */
-		/* TODO: Option to set X root window title or print */
+		/* TODO: Set timeout on read_all based on diff of last time of
+		 *       read_all and desired time of next TTL check.
+		 * */
 		read_all(cfg, buf);
-		printf("%s\n", buf);
+		if (cfg->output_to_x_root_window) {
+			if (XStoreName(display, DefaultRootWindow(display), buf) < 0)
+				fatal("XStoreName failed.\n");
+			XFlush(display);
+		} else {
+			puts(buf);
+			fflush(stdout);
+		}
 	}
 }

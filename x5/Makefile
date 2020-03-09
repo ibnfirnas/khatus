@@ -1,5 +1,7 @@
+CFLAGS := -Wall
+LDLIBS := -lX11
+
 EXECUTABLES := khatus
-CC          := $(CC) -Wall
 
 .PHONY: \
   build \
