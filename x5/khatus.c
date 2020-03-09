@@ -1,15 +1,16 @@
-#include <fcntl.h>
-#include <unistd.h>
 #include <sys/select.h>
 #include <sys/stat.h>
-#include <X11/Xlib.h>
 
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
+#include <X11/Xlib.h>
 
 #define debug(args...) {fprintf(stderr, "[debug] " args);}
 #define info( args...) {fprintf(stderr, "[info] "  args);}
