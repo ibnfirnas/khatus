@@ -351,6 +351,7 @@ main(int argc, char *argv[])
 	if (cfg->output_to_x_root_window && !(display = XOpenDisplay(NULL)))
 		fatal("XOpenDisplay failed with: %p\n", display);
 	/* TODO: nanosleep and nano time diff */
+	/* TODO: Handle signals */
 	for (;;) {
 		/* TODO: Check TTL and maybe blank-out */
 		/* TODO: How to trigger TTL check? On select? Alarm signal? */
