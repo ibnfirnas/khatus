@@ -1,18 +1,13 @@
 CFLAGS := -Wall -Wextra
 LDLIBS := -lX11
 
-EXECUTABLES := khatus
+.PHONY: build clean rebuild
 
-.PHONY: \
-  build \
-  clean \
-  rebuild
-
-build: $(EXECUTABLES)
+build: khatus
 
 clean:
-	@find . -name '*.o' -type f -delete
-	@rm -f $(EXECUTABLES)
+	@rm -f khatus
 
-rebuild: clean
+rebuild:
+	@$(MAKE) -s clean
 	@$(MAKE) -s build
