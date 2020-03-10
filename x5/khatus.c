@@ -255,6 +255,7 @@ read_one(Fifo *f, char *buf)
 	total = 0;
 	c = '\0';
 	b = buf + f->pos;
+	/* TODO: Could optimize here and only blank-out the remaining slots. */
 	memset(b, ' ', f->width);
 	while ((current = read(f->fd, &c, 1)) && c != '\n' && c != '\0' && total++ < f->width)
 		*b++ = c;
