@@ -20,40 +20,40 @@
 
 char *argv0;
 
-/* TODO: Convert file list to file array. */
-typedef struct File File;
-struct File {
+/* TODO: Convert fifo list to fifo array. */
+typedef struct Fifo Fifo;
+struct Fifo {
 	char   *name;
 	int     fd;
 	int     width;
 	int     last_read;
 	int     ttl;
 	int     pos;  /* Position on the output buffer. */
-	File   *next;
+	Fifo   *next;
 };
 
 typedef struct Config Config;
 struct Config {
 	int    interval;
 	char * separator;
-	File * files;
-	int    file_count;
+	Fifo * fifos;
+	int    fifo_count;
 	int    total_width;
 	int    output_to_x_root_window;
 } defaults = {
 	.interval    = 1,
 	.separator   = "|",
-	.files       = NULL,
-	.file_count  = 0,
+	.fifos       = NULL,
+	.fifo_count  = 0,
 	.total_width = 0,
 	.output_to_x_root_window = 0,
 };
 
 void
-file_print_one(File *f)
+fifo_print_one(Fifo *f)
 {
 	debug(
-		"File "
+		"Fifo "
 		"{"
 			" name = %s,"
 			" fd = %d,"
@@ -74,10 +74,10 @@ file_print_one(File *f)
 }
 
 void
-file_print_all(File *head)
+fifo_print_all(Fifo *head)
 {
-	for (File *f = head; f; f = f->next) {
-		file_print_one(f);
+	for (Fifo *f = head; f; f = f->next) {
+		fifo_print_one(f);
 	}
 }
 
@@ -89,16 +89,16 @@ config_print(Config *c)
 		"{"
 			" interval = %d,"
 			" separator = %s,"
-			" file_count = %d,"
+			" fifo_count = %d,"
 			" total_width = %d,"
-			" files = ..."
+			" fifos = ..."
 		" }\n",
 		c->interval,
 		c->separator,
-		c->file_count,
+		c->fifo_count,
 		c->total_width
 	);
-	file_print_all(c->files);
+	fifo_print_all(c->fifos);
 }
 
 int
@@ -188,17 +188,17 @@ void
 parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 {
 	if ((i + 3) > argc)
-		usage("[spec] Parameter(s) missing for file \"%s\".\n", argv[i]);
+		usage("[spec] Parameter(s) missing for fifo \"%s\".\n", argv[i]);
 
 	char *n = argv[i++];
 	char *w = argv[i++];
 	char *t = argv[i++];
 
 	if (!is_pos_num(w))
-		usage("[spec] Invalid width: \"%s\", for file \"%s\"\n", w, n);
+		usage("[spec] Invalid width: \"%s\", for fifo \"%s\"\n", w, n);
 	if (!is_pos_num(t))
-		usage("[spec] Invalid TTL: \"%s\", for file \"%s\"\n", t, n);
-	File *f = calloc(1, sizeof(struct File));
+		usage("[spec] Invalid TTL: \"%s\", for fifo \"%s\"\n", t, n);
+	Fifo *f = calloc(1, sizeof(struct Fifo));
 	if (f) {
 		f->name      = n;
 		f->fd        = -1;
@@ -206,11 +206,11 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		f->ttl       = atoi(t);
 		f->last_read = 0;
 		f->pos       = cfg->total_width;
-		f->next      = cfg->files;
+		f->next      = cfg->fifos;
 
-		cfg->files        = f;
+		cfg->fifos        = f;
 		cfg->total_width += f->width;
-		cfg->file_count++;
+		cfg->fifo_count++;
 	} else {
 		fatal("[memory] Allocation failure.");
 	}
@@ -233,18 +233,18 @@ opts_parse(Config *cfg, int argc, char *argv[])
 {
 	opts_parse_any(cfg, argc, argv, 1);
 
-	File *last = cfg->files;
-	cfg->files = NULL;
-	for (File *f = last; f; ) {
-		File *next = f->next;
-		f->next = cfg->files;
-		cfg->files = f;
+	Fifo *last = cfg->fifos;
+	cfg->fifos = NULL;
+	for (Fifo *f = last; f; ) {
+		Fifo *next = f->next;
+		f->next = cfg->fifos;
+		cfg->fifos = f;
 		f = next;
 	}
 }
 
 void
-read_one(File *f, char *buf)
+read_one(Fifo *f, char *buf)
 {
 	ssize_t current;
 	ssize_t total;
@@ -275,7 +275,7 @@ read_all(Config *cfg, char *buf)
 
 	FD_ZERO(&fds);
 	/* TODO: Check TTL */
-	for (File *f = cfg->files; f; f = f->next) {
+	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
 		if (lstat(f->name, &st) < 0)
 			fatal("Cannot stat \"%s\". Error: %s\n", f->name, strerror(errno));
@@ -285,7 +285,7 @@ read_all(Config *cfg, char *buf)
 		if (f->fd < 0)
 			f->fd = open(f->name, O_RDONLY | O_NONBLOCK);
 		if (f->fd == -1)
-			/* TODO: Consider backing off retries for failed files. */
+			/* TODO: Consider backing off retries for failed fifos. */
 			fatal("Failed to open \"%s\"\n", f->name);
 		if (f->fd > maxfd)
 			maxfd = f->fd;
@@ -297,7 +297,7 @@ read_all(Config *cfg, char *buf)
 	assert(ready != 0);
 	if (ready < 0)
 		fatal("%s", strerror(errno));
-	for (File *f = cfg->files; f; f = f->next) {
+	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		if (FD_ISSET(f->fd, &fds)) {
 			debug("reading: %s\n", f->name);
 			read_one(f, buf);
@@ -309,7 +309,7 @@ int
 main(int argc, char *argv[])
 {
 	int width;
-	int nfiles = 0;
+	int nfifos = 0;
 	int seplen;
 	int prefix = 0;
 	char *buf;
@@ -321,26 +321,26 @@ main(int argc, char *argv[])
 	opts_parse(cfg, argc, argv);
 	debug("argv0 = %s\n", argv0);
 	config_print(cfg);
-	if (cfg->files == NULL)
-		usage("No file specs were given!\n");
+	if (cfg->fifos == NULL)
+		usage("No fifo specs were given!\n");
 
 	width  = cfg->total_width;
 	seplen = strlen(cfg->separator);
 
 	/* 1st pass to make space for separators */
-	for (File *f = cfg->files; f; f = f->next) {
+	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		f->pos += prefix;
 		prefix += seplen;
-		nfiles++;
+		nfifos++;
 	}
-	width += (seplen * (nfiles - 1));
+	width += (seplen * (nfifos - 1));
 	buf = calloc(1, width + 1);
 	if (buf == NULL)
 		fatal("[memory] Failed to allocate buffer of %d bytes", width);
 	memset(buf, ' ', width);
 	buf[width] = '\0';
 	/* 2nd pass to set the separators */
-	for (File *f = cfg->files; f; f = f->next) {
+	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		if (f->pos) {  /* Skip the first, left-most */
 			/* Copying only seplen ensures we omit the '\0' byte. */
 			strncpy(buf + (f->pos - seplen), cfg->separator, seplen);
