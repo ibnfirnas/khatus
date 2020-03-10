@@ -308,9 +308,9 @@ read_all(Config *cfg, char *buf)
 int
 main(int argc, char *argv[])
 {
-	int width;
+	int width  = 0;
 	int nfifos = 0;
-	int seplen;
+	int seplen = 0;
 	int prefix = 0;
 	char *buf;
 	Config cfg0 = defaults;
