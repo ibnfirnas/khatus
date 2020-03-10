@@ -313,7 +313,8 @@ main(int argc, char *argv[])
 	int seplen;
 	int prefix = 0;
 	char *buf;
-	Config *cfg = &defaults;
+	Config cfg0 = defaults;
+	Config *cfg = &cfg0;
 	Display *display = NULL;
 
 	argv0 = argv[0];
