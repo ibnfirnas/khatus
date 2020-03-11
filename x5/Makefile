@@ -6,7 +6,7 @@ LDLIBS := -lX11
 build: khatus
 
 clean:
-	@rm -f khatus
+	@ find . -type f -executable -delete
 
 rebuild:
 	@$(MAKE) -s clean
