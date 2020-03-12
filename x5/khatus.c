@@ -276,14 +276,14 @@ fifo_read_one(Fifo *f, char *buf)
 	total = 0;
 	c = '\0';
 	b = buf + f->pos;
-	/* TODO: Could optimize here and only blank-out the remaining slots. */
-	memset(b, ' ', f->width);
 	while ((current = read(f->fd, &c, 1)) && c != '\n' && c != '\0' && total++ < f->width)
 		*b++ = c;
 	if (current == -1) {
 		error("Failed to read: \"%s\". Error: %s\n", f->name, strerror(errno));
 		fifo_read_error(f, buf);
-	}
+	} else
+		while (total++ < f->width)
+			*b++ = ' ';
 	/* TODO Record timestamp read */
 	close(f->fd);
 	f->fd = -1;
