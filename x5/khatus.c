@@ -249,7 +249,7 @@ opts_parse(Config *cfg, int argc, char *argv[])
 }
 
 void
-read_error(Fifo *f, char *buf)
+fifo_read_error(Fifo *f, char *buf)
 {
 	char *b;
 	int i;
@@ -265,7 +265,7 @@ read_error(Fifo *f, char *buf)
 }
 
 void
-read_one(Fifo *f, char *buf)
+fifo_read_one(Fifo *f, char *buf)
 {
 	ssize_t current;
 	ssize_t total;
@@ -282,7 +282,7 @@ read_one(Fifo *f, char *buf)
 		*b++ = c;
 	if (current == -1) {
 		error("Failed to read: \"%s\". Error: %s\n", f->name, strerror(errno));
-		read_error(f, buf);
+		fifo_read_error(f, buf);
 	}
 	/* TODO Record timestamp read */
 	close(f->fd);
@@ -290,7 +290,7 @@ read_one(Fifo *f, char *buf)
 }
 
 void
-read_all(Config *cfg, char *buf)
+fifo_read_all(Config *cfg, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
@@ -303,12 +303,12 @@ read_all(Config *cfg, char *buf)
 		/* TODO: Create the FIFO if it doesn't already exist. */
 		if (lstat(f->name, &st) < 0) {
 			error("Cannot stat \"%s\". Error: %s\n", f->name, strerror(errno));
-			read_error(f, buf);
+			fifo_read_error(f, buf);
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
 			error("\"%s\" is not a FIFO\n", f->name);
-			read_error(f, buf);
+			fifo_read_error(f, buf);
 			continue;
 		}
 		debug("opening: %s\n", f->name);
@@ -317,7 +317,7 @@ read_all(Config *cfg, char *buf)
 		if (f->fd == -1) {
 			/* TODO: Consider backing off retries for failed fifos. */
 			error("Failed to open \"%s\"\n", f->name);
-			read_error(f, buf);
+			fifo_read_error(f, buf);
 			continue;
 		}
 		if (f->fd > maxfd)
@@ -333,7 +333,7 @@ read_all(Config *cfg, char *buf)
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		if (FD_ISSET(f->fd, &fds)) {
 			debug("reading: %s\n", f->name);
-			read_one(f, buf);
+			fifo_read_one(f, buf);
 		}
 	}
 }
@@ -406,10 +406,10 @@ main(int argc, char *argv[])
 	for (;;) {
 		/* TODO: Check TTL and maybe blank-out */
 		/* TODO: How to trigger TTL check? On select? Alarm signal? */
-		/* TODO: Set timeout on read_all based on diff of last time of
-		 *       read_all and desired time of next TTL check.
+		/* TODO: Set timeout on fifo_read_all based on diff of last time of
+		 *       fifo_read_all and desired time of next TTL check.
 		 * */
-		read_all(cfg, buf);
+		fifo_read_all(cfg, buf);
 		if (cfg->output_to_x_root_window) {
 			if (XStoreName(display, DefaultRootWindow(display), buf) < 0)
 				fatal("XStoreName failed.\n");
