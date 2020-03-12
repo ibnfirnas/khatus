@@ -18,6 +18,11 @@
 #define fatal(args...) {fprintf(stderr, "[fatal] " args); exit(EXIT_FAILURE);}
 #define usage(args...) {print_usage(); fatal("[usage] " args);}
 
+#define ERRMSG "ERROR"
+
+static const char errmsg[] = ERRMSG;
+static const int  errlen   = sizeof(ERRMSG) - 1;
+
 char *argv0;
 
 /* TODO: Convert fifo list to fifo array. */
@@ -244,6 +249,22 @@ opts_parse(Config *cfg, int argc, char *argv[])
 }
 
 void
+read_error(Fifo *f, char *buf)
+{
+	char *b;
+	int i;
+
+	b = buf + f->pos;
+	/* Copy as much of the error message as possible.
+	 * EXCLUDING the reminating \0. */
+	for (i = 0; i < errlen && i < f->width; i++)
+		b[i] = errmsg[i];
+	/* Any remaining slots: */
+	for (; i < f->width; i++)
+		b[i] = '_';
+}
+
+void
 read_one(Fifo *f, char *buf)
 {
 	ssize_t current;
@@ -259,8 +280,10 @@ read_one(Fifo *f, char *buf)
 	memset(b, ' ', f->width);
 	while ((current = read(f->fd, &c, 1)) && c != '\n' && c != '\0' && total++ < f->width)
 		*b++ = c;
-	if (current == -1)
+	if (current == -1) {
 		error("Failed to read: \"%s\". Error: %s\n", f->name, strerror(errno));
+		read_error(f, buf);
+	}
 	/* TODO Record timestamp read */
 	close(f->fd);
 	f->fd = -1;
@@ -278,16 +301,25 @@ read_all(Config *cfg, char *buf)
 	/* TODO: Check TTL */
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
-		if (lstat(f->name, &st) < 0)
-			fatal("Cannot stat \"%s\". Error: %s\n", f->name, strerror(errno));
-		if (!(st.st_mode & S_IFIFO))
-			fatal("\"%s\" is not a FIFO\n", f->name);
+		if (lstat(f->name, &st) < 0) {
+			error("Cannot stat \"%s\". Error: %s\n", f->name, strerror(errno));
+			read_error(f, buf);
+			continue;
+		}
+		if (!(st.st_mode & S_IFIFO)) {
+			error("\"%s\" is not a FIFO\n", f->name);
+			read_error(f, buf);
+			continue;
+		}
 		debug("opening: %s\n", f->name);
 		if (f->fd < 0)
 			f->fd = open(f->name, O_RDONLY | O_NONBLOCK);
-		if (f->fd == -1)
+		if (f->fd == -1) {
 			/* TODO: Consider backing off retries for failed fifos. */
-			fatal("Failed to open \"%s\"\n", f->name);
+			error("Failed to open \"%s\"\n", f->name);
+			read_error(f, buf);
+			continue;
+		}
 		if (f->fd > maxfd)
 			maxfd = f->fd;
 		FD_SET(f->fd, &fds);
@@ -313,10 +345,12 @@ main(int argc, char *argv[])
 	int nfifos = 0;
 	int seplen = 0;
 	int prefix = 0;
+	int errors = 0;
 	char *buf;
 	Config cfg0 = defaults;
 	Config *cfg = &cfg0;
 	Display *display = NULL;
+	struct stat st;
 
 	argv0 = argv[0];
 
@@ -326,10 +360,26 @@ main(int argc, char *argv[])
 	if (cfg->fifos == NULL)
 		usage("No fifo specs were given!\n");
 
+	/* 1st pass to check file existence and type */
+	for (Fifo *f = cfg->fifos; f; f = f->next) {
+		if (lstat(f->name, &st) < 0) {
+			error("Cannot stat \"%s\". Error: %s\n", f->name, strerror(errno));
+			errors++;
+			continue;
+		}
+		if (!(st.st_mode & S_IFIFO)) {
+			error("\"%s\" is not a FIFO\n", f->name);
+			errors++;
+			continue;
+		}
+	}
+	if (errors)
+		fatal("Encountered errors with the given file paths. See log.\n");
+
 	width  = cfg->total_width;
 	seplen = strlen(cfg->separator);
 
-	/* 1st pass to make space for separators */
+	/* 2nd pass to make space for separators */
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		f->pos += prefix;
 		prefix += seplen;
@@ -341,7 +391,7 @@ main(int argc, char *argv[])
 		fatal("[memory] Failed to allocate buffer of %d bytes", width);
 	memset(buf, ' ', width);
 	buf[width] = '\0';
-	/* 2nd pass to set the separators */
+	/* 3rd pass to set the separators */
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		if (f->pos) {  /* Skip the first, left-most */
 			/* Copying only seplen ensures we omit the '\0' byte. */
