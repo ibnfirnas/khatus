@@ -178,14 +178,20 @@ void
 parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 {
 	switch (argv[i][1]) {
-		case 'i': parse_opts_opt_i(cfg, argc, argv, ++i); break;  /* TODO: Generic set_int */
-		case 's': parse_opts_opt_s(cfg, argc, argv, ++i); break;  /* TODO: Generic set_str */
-		case 'x': {
+		case 'i':
+			/* TODO: Generic set_int */
+			parse_opts_opt_i(cfg, argc, argv, ++i);
+			break;
+		case 's':
+			/* TODO: Generic set_str */
+			parse_opts_opt_s(cfg, argc, argv, ++i);
+			break;
+		case 'x':
 			cfg->output_to_x_root_window = 1;
 			opts_parse_any(cfg, argc, argv, ++i);
 			break;
-		}
-		default : usage("Option \"%s\" is invalid\n", argv[i]);
+		default :
+			usage("Option \"%s\" is invalid\n", argv[i]);
 	}
 }
 
@@ -227,8 +233,11 @@ opts_parse_any(Config *cfg, int argc, char *argv[], int i)
 {
 	if (i < argc) {
 		switch (argv[i][0]) {
-			case '-': parse_opts_opt(cfg, argc, argv, i); break;
-			default : parse_opts_spec(cfg, argc, argv, i);
+			case '-':
+				parse_opts_opt(cfg, argc, argv, i);
+				break;
+			default :
+				parse_opts_spec(cfg, argc, argv, i);
 		}
 	}
 }
