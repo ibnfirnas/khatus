@@ -133,6 +133,7 @@ print_usage()
 		"  DATA_TTL   = int  (* (positive) number of seconds *)\n"
 		"  OPTION     = -i INTERVAL\n"
 		"             | -s SEPARATOR\n"
+		"             | -x (* Output to X root window *)\n"
 		"  SEPARATOR  = string\n"
 		"  INTERVAL   = int  (* (positive) number of seconds *)\n"
 		"\n",
