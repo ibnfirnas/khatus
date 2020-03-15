@@ -15,9 +15,9 @@
 
 #include "bsdtimespec.h"
 
-#define debug(args...) {fprintf(stderr, "[debug] " args);}
-#define info( args...) {fprintf(stderr, "[info] "  args);}
-#define error(args...) {fprintf(stderr, "[error] " args);}
+#define debug(args...) {fprintf(stderr, "[debug] " args); fflush(stderr);}
+#define info( args...) {fprintf(stderr, "[info] "  args); fflush(stderr);}
+#define error(args...) {fprintf(stderr, "[error] " args); fflush(stderr);}
 #define fatal(args...) {fprintf(stderr, "[fatal] " args); exit(EXIT_FAILURE);}
 #define usage(args...) {print_usage(); fatal("[usage] " args);}
 
