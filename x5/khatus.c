@@ -15,9 +15,9 @@
 
 #include "bsdtimespec.h"
 
-#define debug(args...) {fprintf(stderr, "[debug] " args); fflush(stderr);}
-#define info( args...) {fprintf(stderr, "[info] "  args); fflush(stderr);}
-#define error(args...) {fprintf(stderr, "[error] " args); fflush(stderr);}
+#define debug(args...) if (cfg->log_level >= Debug) {fprintf(stderr, "[debug] " args); fflush(stderr);}
+#define info( args...) if (cfg->log_level >= Info ) {fprintf(stderr, "[info] "  args); fflush(stderr);}
+#define error(args...) if (cfg->log_level >= Error) {fprintf(stderr, "[error] " args); fflush(stderr);}
 #define fatal(args...) {fprintf(stderr, "[fatal] " args); exit(EXIT_FAILURE);}
 #define usage(args...) {print_usage(); fatal("[usage] " args);}
 
@@ -27,6 +27,13 @@ static const char errmsg[] = ERRMSG;
 static const int  errlen   = sizeof(ERRMSG) - 1;
 
 char *argv0;
+
+typedef enum LogLevel {
+	Nothing,
+	Error,
+	Info,
+	Debug
+} LogLevel;
 
 /* TODO: Convert fifo list to fifo array. */
 typedef struct Fifo Fifo;
@@ -48,6 +55,7 @@ struct Config {
 	int    fifo_count;
 	int    total_width;
 	int    output_to_x_root_window;
+	LogLevel log_level;
 } defaults = {
 	.interval    = 1,
 	.separator   = "|",
@@ -55,12 +63,13 @@ struct Config {
 	.fifo_count  = 0,
 	.total_width = 0,
 	.output_to_x_root_window = 0,
+	.log_level   = Info,
 };
 
 void
-fifo_print_one(Fifo *f)
+fifo_print_one(Fifo *f, Config *cfg)
 {
-	debug(
+	info(
 		"Fifo "
 		"{"
 			" name = %s,"
@@ -82,31 +91,33 @@ fifo_print_one(Fifo *f)
 }
 
 void
-fifo_print_all(Fifo *head)
+fifo_print_all(Fifo *head, Config *cfg)
 {
 	for (Fifo *f = head; f; f = f->next) {
-		fifo_print_one(f);
+		fifo_print_one(f, cfg);
 	}
 }
 
 void
-config_print(Config *c)
+config_print(Config *cfg)
 {
-	debug(
+	info(
 		"Config "
 		"{"
 			" interval = %d,"
 			" separator = %s,"
 			" fifo_count = %d,"
 			" total_width = %d,"
+			" log_level = %d,"
 			" fifos = ..."
 		" }\n",
-		c->interval,
-		c->separator,
-		c->fifo_count,
-		c->total_width
+		cfg->interval,
+		cfg->separator,
+		cfg->fifo_count,
+		cfg->total_width,
+		cfg->log_level
 	);
-	fifo_print_all(c->fifos);
+	fifo_print_all(cfg->fifos, cfg);
 }
 
 int
@@ -134,10 +145,14 @@ print_usage()
 		"  OPTION     = -i INTERVAL\n"
 		"             | -s SEPARATOR\n"
 		"             | -x (* Output to X root window *)\n"
+		"             | -l LOG_LEVEL\n"
 		"  SEPARATOR  = string\n"
 		"  INTERVAL   = int  (* (positive) number of seconds *)\n"
+		"  LOG_LEVEL  = int  (* %d through %d *)\n"
 		"\n",
-		argv0
+		argv0,
+		Nothing,
+		Debug
 	);
 	fprintf(
 		stderr,
@@ -179,6 +194,30 @@ parse_opts_opt_s(Config *cfg, int argc, char *argv[], int i)
 }
 
 void
+parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
+{
+	int log_level;
+
+	if (i < argc) {
+		char *param = argv[i++];
+
+		if (is_pos_num(param)) {
+			log_level = atoi(param);
+			if (log_level <= Debug) {
+				cfg->log_level = log_level;
+				opts_parse_any(cfg, argc, argv, i);
+			} else {
+				usage("Option -l value (%d) exceeds maximum (%d)\n", log_level, Debug);
+			}
+		} else {
+			usage("Option -l parameter is invalid: \"%s\"\n", param);
+		}
+	} else {
+		usage("Option -l parameter is missing.\n");
+	}
+}
+
+void
 parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 {
 	switch (argv[i][1]) {
@@ -193,6 +232,10 @@ parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 		case 'x':
 			cfg->output_to_x_root_window = 1;
 			opts_parse_any(cfg, argc, argv, ++i);
+			break;
+		case 'l':
+			/* TODO: Generic set_int */
+			parse_opts_opt_l(cfg, argc, argv, ++i);
 			break;
 		default :
 			usage("Option \"%s\" is invalid\n", argv[i]);
@@ -278,7 +321,7 @@ fifo_read_error(Fifo *f, char *buf)
 }
 
 void
-fifo_read_one(Fifo *f, char *buf)
+fifo_read_one(Fifo *f, char *buf, Config *cfg)
 {
 	ssize_t current;
 	ssize_t total;
@@ -345,13 +388,13 @@ fifo_read_all(Config *cfg, char *buf)
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		if (FD_ISSET(f->fd, &fds)) {
 			debug("reading: %s\n", f->name);
-			fifo_read_one(f, buf);
+			fifo_read_one(f, buf, cfg);
 		}
 	}
 }
 
 void
-snooze(struct timespec *t)
+snooze(struct timespec *t, Config *cfg)
 {
 	struct timespec remainder;
 	int result;
@@ -474,7 +517,7 @@ main(int argc, char *argv[])
 			 */
 			timespecsub(&ti, &td, &tc);
 			debug("snooze YES\n");
-			snooze(&tc);
+			snooze(&tc, cfg);
 		} else
 			debug("snooze NO\n");
 	}
