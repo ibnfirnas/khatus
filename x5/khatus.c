@@ -69,24 +69,23 @@ struct Config {
 void
 fifo_print_one(Fifo *f, Config *cfg)
 {
-	info(
-		"Fifo "
-		"{"
-			" name = %s,"
-			" fd = %d,"
-			" width = %d,"
-			" last_read = %d,"
-			" ttl = %d,"
-			" pos = %d,"
-			" next = %p,"
-		" }\n",
-		f->name,
-		f->fd,
-		f->width,
-		f->last_read,
-		f->ttl,
-		f->pos,
-		f->next
+	info("Fifo "
+	    "{"
+	    " name = %s,"
+	    " fd = %d,"
+	    " width = %d,"
+	    " last_read = %d,"
+	    " ttl = %d,"
+	    " pos = %d,"
+	    " next = %p,"
+	    " }\n",
+	    f->name,
+	    f->fd,
+	    f->width,
+	    f->last_read,
+	    f->ttl,
+	    f->pos,
+	    f->next
 	);
 }
 
@@ -102,20 +101,20 @@ void
 config_print(Config *cfg)
 {
 	info(
-		"Config "
-		"{"
-			" interval = %d,"
-			" separator = %s,"
-			" fifo_count = %d,"
-			" total_width = %d,"
-			" log_level = %d,"
-			" fifos = ..."
-		" }\n",
-		cfg->interval,
-		cfg->separator,
-		cfg->fifo_count,
-		cfg->total_width,
-		cfg->log_level
+	    "Config "
+	    "{"
+	    " interval = %d,"
+	    " separator = %s,"
+	    " fifo_count = %d,"
+	    " total_width = %d,"
+	    " log_level = %d,"
+	    " fifos = ..."
+	    " }\n",
+	    cfg->interval,
+	    cfg->separator,
+	    cfg->fifo_count,
+	    cfg->total_width,
+	    cfg->log_level
 	);
 	fifo_print_all(cfg->fifos, cfg);
 }
@@ -134,31 +133,31 @@ print_usage()
 {
 	assert(argv0);
 	fprintf(
-		stderr,
-		"\n"
-		"Usage: %s [OPTION ...] SPEC [SPEC ...]\n"
-		"\n"
-		"  SPEC       = FILE_PATH DATA_WIDTH DATA_TTL\n"
-		"  FILE_PATH  = string\n"
-		"  DATA_WIDTH = int  (* (positive) number of characters *)\n"
-		"  DATA_TTL   = int  (* (positive) number of seconds *)\n"
-		"  OPTION     = -i INTERVAL\n"
-		"             | -s SEPARATOR\n"
-		"             | -x (* Output to X root window *)\n"
-		"             | -l LOG_LEVEL\n"
-		"  SEPARATOR  = string\n"
-		"  INTERVAL   = int  (* (positive) number of seconds *)\n"
-		"  LOG_LEVEL  = int  (* %d through %d *)\n"
-		"\n",
-		argv0,
-		Nothing,
-		Debug
+	    stderr,
+	    "\n"
+	    "Usage: %s [OPTION ...] SPEC [SPEC ...]\n"
+	    "\n"
+	    "  SPEC       = FILE_PATH DATA_WIDTH DATA_TTL\n"
+	    "  FILE_PATH  = string\n"
+	    "  DATA_WIDTH = int  (* (positive) number of characters *)\n"
+	    "  DATA_TTL   = int  (* (positive) number of seconds *)\n"
+	    "  OPTION     = -i INTERVAL\n"
+	    "             | -s SEPARATOR\n"
+	    "             | -x (* Output to X root window *)\n"
+	    "             | -l LOG_LEVEL\n"
+	    "  SEPARATOR  = string\n"
+	    "  INTERVAL   = int  (* (positive) number of seconds *)\n"
+	    "  LOG_LEVEL  = int  (* %d through %d *)\n"
+	    "\n",
+	    argv0,
+	    Nothing,
+	    Debug
 	);
 	fprintf(
-		stderr,
-		"Example: %s -i 1 /dev/shm/khatus/khatus_sensor_x 4 10\n"
-		"\n",
-		argv0
+	    stderr,
+	    "Example: %s -i 1 /dev/shm/khatus/khatus_sensor_x 4 10\n"
+	    "\n",
+	    argv0
 	);
 }
 
@@ -393,9 +392,9 @@ snooze(struct timespec *t, Config *cfg)
 	if (result < 0) {
 		if (errno == EINTR) {
 			info(
-				"nanosleep interrupted. Remainder: "
-				"{ tv_sec = %ld, tv_nsec = %ld }",
-				remainder.tv_sec, remainder.tv_nsec);
+			    "nanosleep interrupted. Remainder: "
+			    "{ tv_sec = %ld, tv_nsec = %ld }",
+			    remainder.tv_sec, remainder.tv_nsec);
 			/* No big deal if we occasionally sleep less,
 			 * so not attempting to correct after an interruption.
 			 */
