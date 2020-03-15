@@ -325,9 +325,10 @@ fifo_read_one(Fifo *f, char *buf, Config *cfg)
 	if (current == -1) {
 		error("Failed to read: \"%s\". Error: %s\n", f->name, strerror(errno));
 		fifo_read_error(f, buf);
-	} else
+	} else {
 		while (total++ < f->width)
 			*b++ = ' ';
+	}
 	/* TODO Record timestamp read */
 	close(f->fd);
 	f->fd = -1;
@@ -506,8 +507,9 @@ main(int argc, char *argv[])
 			timespecsub(&ti, &td, &tc);
 			debug("snooze YES\n");
 			snooze(&tc, cfg);
-		} else
+		} else {
 			debug("snooze NO\n");
+		}
 	}
 
 	return EXIT_SUCCESS;
