@@ -167,54 +167,43 @@ void opts_parse_any(Config *, int, char *[], int);  /* For mutually-recursive ca
 void
 parse_opts_opt_i(Config *cfg, int argc, char *argv[], int i)
 {
-	if (i < argc) {
-		char *param = argv[i++];
+	char *param;
 
-		if (is_pos_num(param)) {
-			cfg->interval = atoi(param);
-			opts_parse_any(cfg, argc, argv, i);
-		} else {
-			usage("Option -i parameter is invalid: \"%s\"\n", param);
-		}
-	} else {
+	if (i >= argc)
 		usage("Option -i parameter is missing.\n");
-	}
+	param = argv[i++];
+	if (!is_pos_num(param))
+		usage("Option -i parameter is invalid: \"%s\"\n", param);
+	cfg->interval = atoi(param);
+	opts_parse_any(cfg, argc, argv, i);
 }
 
 void
 parse_opts_opt_s(Config *cfg, int argc, char *argv[], int i)
 {
-	if (i < argc) {
-		cfg->separator = calloc((strlen(argv[i]) + 1), sizeof(char));
-		strcpy(cfg->separator, argv[i]);
-		opts_parse_any(cfg, argc, argv, ++i);
-	} else {
+	if (i >= argc)
 		usage("Option -s parameter is missing.\n");
-	}
+	cfg->separator = calloc((strlen(argv[i]) + 1), sizeof(char));
+	strcpy(cfg->separator, argv[i]);
+	opts_parse_any(cfg, argc, argv, ++i);
 }
 
 void
 parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
 {
+	char *param;
 	int log_level;
 
-	if (i < argc) {
-		char *param = argv[i++];
-
-		if (is_pos_num(param)) {
-			log_level = atoi(param);
-			if (log_level <= Debug) {
-				cfg->log_level = log_level;
-				opts_parse_any(cfg, argc, argv, i);
-			} else {
-				usage("Option -l value (%d) exceeds maximum (%d)\n", log_level, Debug);
-			}
-		} else {
-			usage("Option -l parameter is invalid: \"%s\"\n", param);
-		}
-	} else {
+	if (i >= argc)
 		usage("Option -l parameter is missing.\n");
-	}
+	param = argv[i++];
+	if (!is_pos_num(param))
+		usage("Option -l parameter is invalid: \"%s\"\n", param);
+	log_level = atoi(param);
+	if (log_level > Debug)
+		usage("Option -l value (%d) exceeds maximum (%d)\n", log_level, Debug);
+	cfg->log_level = log_level;
+	opts_parse_any(cfg, argc, argv, i);
 }
 
 void
