@@ -8,9 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <X11/Xlib.h>
+
+#include "bsdtimespec.h"
 
 #define debug(args...) {fprintf(stderr, "[debug] " args);}
 #define info( args...) {fprintf(stderr, "[info] "  args);}
@@ -307,7 +310,6 @@ fifo_read_all(Config *cfg, char *buf)
 	struct stat st;
 
 	FD_ZERO(&fds);
-	/* TODO: Check TTL */
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
 		if (lstat(f->name, &st) < 0) {
@@ -347,6 +349,29 @@ fifo_read_all(Config *cfg, char *buf)
 	}
 }
 
+void
+snooze(struct timespec *t)
+{
+	struct timespec remainder;
+	int result;
+
+	result = nanosleep(t, &remainder);
+
+	if (result < 0) {
+		if (errno == EINTR) {
+			info(
+				"nanosleep interrupted. Remainder: "
+				"{ tv_sec = %ld, tv_nsec = %ld }",
+				remainder.tv_sec, remainder.tv_nsec);
+			/* No big deal if we occasionally sleep less,
+			 * so not attempting to correct after an interruption.
+			 */
+		} else {
+			fatal("nanosleep: %s\n", strerror(errno));
+		}
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -360,12 +385,23 @@ main(int argc, char *argv[])
 	Config *cfg = &cfg0;
 	Display *display = NULL;
 	struct stat st;
+	struct timespec
+		t0,  /* time stamp. before reading fifos */
+		t1,  /* time stamp. after  reading fifos */
+		ti,  /* time interval desired    (t1 - t0) */
+		td,  /* time interval measured   (t1 - t0) */
+		tc;  /* time interval correction (ti - td) when td < ti */
 
 	argv0 = argv[0];
 
 	opts_parse(cfg, argc, argv);
 	debug("argv0 = %s\n", argv0);
 	config_print(cfg);
+
+	/* TODO: Support interval < 1. i.e. implement timespec_of_float */
+	ti.tv_sec  = cfg->interval;
+	ti.tv_nsec = 0;
+
 	if (cfg->fifos == NULL)
 		usage("No fifo specs were given!\n");
 
@@ -410,14 +446,15 @@ main(int argc, char *argv[])
 
 	if (cfg->output_to_x_root_window && !(display = XOpenDisplay(NULL)))
 		fatal("XOpenDisplay failed with: %p\n", display);
-	/* TODO: nanosleep and nano time diff */
 	/* TODO: Handle signals */
 	for (;;) {
-		/* TODO: Check TTL and maybe blank-out */
+		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
+		/* TODO: Cache expiration. i.e. use the TTL */
 		/* TODO: How to trigger TTL check? On select? Alarm signal? */
 		/* TODO: Set timeout on fifo_read_all based on diff of last time of
 		 *       fifo_read_all and desired time of next TTL check.
-		 * */
+		 */
+		/* TODO: How long to wait on IO? Max TTL? */
 		fifo_read_all(cfg, buf);
 		if (cfg->output_to_x_root_window) {
 			if (XStoreName(display, DefaultRootWindow(display), buf) < 0)
@@ -427,6 +464,18 @@ main(int argc, char *argv[])
 			puts(buf);
 			fflush(stdout);
 		}
+		clock_gettime(CLOCK_MONOTONIC, &t1); // FIXME: check errors
+		timespecsub(&t1, &t0, &td);
+		debug("td {tv_sec = %ld, tv_nsec = %ld}\n", td.tv_sec, td.tv_nsec);
+		if (timespeccmp(&td, &ti, <)) {
+			/* Pushback on data producers by refusing to read the
+			 * pipe more frequently than the interval.
+			 */
+			timespecsub(&ti, &td, &tc);
+			debug("snooze YES\n");
+			snooze(&tc);
+		} else
+			debug("snooze NO\n");
 	}
 
 	return EXIT_SUCCESS;
