@@ -39,14 +39,14 @@ struct Fifo {
 
 typedef struct Config Config;
 struct Config {
-	int    interval;
+	double interval;
 	char * separator;
 	Fifo * fifos;
 	int    fifo_count;
 	int    total_width;
 	int    output_to_x_root_window;
 } defaults = {
-	.interval    = 1,
+	.interval    = 1.0,
 	.separator   = "|",
 	.fifos       = NULL,
 	.fifo_count  = 0,
@@ -91,7 +91,7 @@ config_print(Config *cfg)
 	info(
 	    "Config "
 	    "{"
-	    " interval = %d,"
+	    " interval = %f,"
 	    " separator = %s,"
 	    " fifo_count = %d,"
 	    " total_width = %d,"
@@ -111,6 +111,22 @@ is_pos_num(char *s)
 	while (*s != '\0')
 		if (!isdigit(*(s++)))
 			return 0;
+	return 1;
+}
+
+int
+is_decimal(char *s)
+{
+	char c;
+	int seen = 0;
+
+	while ((c = *(s++)) != '\0')
+		if (!isdigit(c)) {
+			if (c == '.' && !seen++)
+				continue;
+			else
+				return 0;
+		}
 	return 1;
 }
 
@@ -157,9 +173,9 @@ parse_opts_opt_i(Config *cfg, int argc, char *argv[], int i)
 	if (i >= argc)
 		usage("Option -i parameter is missing.\n");
 	param = argv[i++];
-	if (!is_pos_num(param))
+	if (!is_decimal(param))
 		usage("Option -i parameter is invalid: \"%s\"\n", param);
-	cfg->interval = atoi(param);
+	cfg->interval = atof(param);
 	opts_parse_any(cfg, argc, argv, i);
 }
 
@@ -394,9 +410,7 @@ main(int argc, char *argv[])
 	debug("argv0 = %s\n", argv0);
 	config_print(cfg);
 
-	/* TODO: Support interval < 1. i.e. implement timespec_of_float */
-	ti.tv_sec  = cfg->interval;
-	ti.tv_nsec = 0;
+	ti = timespec_of_float(cfg->interval);
 
 	if (cfg->fifos == NULL)
 		usage("No fifo specs were given!\n");
