@@ -15,12 +15,12 @@
 
 #include "bsdtimespec.h"
 
-#define debug(args...) if (cfg->log_level >= Debug) {fprintf(stderr, "[debug] " args); fflush(stderr);}
-#define info( args...) if (cfg->log_level >= Info ) {fprintf(stderr, "[info] "  args); fflush(stderr);}
-#define warn( args...) if (cfg->log_level >= Warn ) {fprintf(stderr, "[warn] "  args); fflush(stderr);}
-#define error(args...) if (cfg->log_level >= Error) {fprintf(stderr, "[error] " args); fflush(stderr);}
-#define fatal(args...) {fprintf(stderr, "[fatal] " args); exit(EXIT_FAILURE);}
-#define usage(args...) {print_usage(); fatal("[usage] " args);}
+#define debug(...) if (cfg->log_level >= Debug) {fprintf(stderr, "[debug] " __VA_ARGS__); fflush(stderr);}
+#define info(...)  if (cfg->log_level >= Info ) {fprintf(stderr, "[info] "  __VA_ARGS__); fflush(stderr);}
+#define warn(...)  if (cfg->log_level >= Warn ) {fprintf(stderr, "[warn] "  __VA_ARGS__); fflush(stderr);}
+#define error(...) if (cfg->log_level >= Error) {fprintf(stderr, "[error] " __VA_ARGS__); fflush(stderr);}
+#define fatal(...) {fprintf(stderr, "[fatal] " __VA_ARGS__); exit(EXIT_FAILURE);}
+#define usage(...) {print_usage(); fatal("[usage] " __VA_ARGS__);}
 
 #define ERRMSG "ERROR"
 
