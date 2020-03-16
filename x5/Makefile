@@ -1,5 +1,6 @@
-CFLAGS := -Wall -Wextra
-LDLIBS := -lX11
+CPPFLAGS := -D_POSIX_C_SOURCE=200809L
+CFLAGS   := -std=c99 -Wall -Wextra
+LDLIBS   := -lX11
 
 .PHONY: build clean rebuild
 
