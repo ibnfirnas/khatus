@@ -17,6 +17,7 @@
 
 #define debug(args...) if (cfg->log_level >= Debug) {fprintf(stderr, "[debug] " args); fflush(stderr);}
 #define info( args...) if (cfg->log_level >= Info ) {fprintf(stderr, "[info] "  args); fflush(stderr);}
+#define warn( args...) if (cfg->log_level >= Warn ) {fprintf(stderr, "[warn] "  args); fflush(stderr);}
 #define error(args...) if (cfg->log_level >= Error) {fprintf(stderr, "[error] " args); fflush(stderr);}
 #define fatal(args...) {fprintf(stderr, "[fatal] " args); exit(EXIT_FAILURE);}
 #define usage(args...) {print_usage(); fatal("[usage] " args);}
@@ -31,6 +32,7 @@ char *argv0;
 typedef enum LogLevel {
 	Nothing,
 	Error,
+	Warn,
 	Info,
 	Debug
 } LogLevel;
@@ -392,7 +394,7 @@ snooze(struct timespec *t, Config *cfg)
 
 	if (result < 0) {
 		if (errno == EINTR) {
-			info(
+			warn(
 			    "nanosleep interrupted. Remainder: "
 			    "{ tv_sec = %ld, tv_nsec = %ld }",
 			    remainder.tv_sec, remainder.tv_nsec);
