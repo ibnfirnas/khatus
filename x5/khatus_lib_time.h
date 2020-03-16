@@ -1,0 +1,1 @@
+void snooze(struct timespec *);

@@ -14,28 +14,16 @@
 #include <X11/Xlib.h>
 
 #include "bsdtimespec.h"
+#include "khatus_lib_log.h"
+#include "khatus_lib_time.h"
 
-#define debug(...) if (cfg->log_level >= Debug) {fprintf(stderr, "[debug] " __VA_ARGS__); fflush(stderr);}
-#define info(...)  if (cfg->log_level >= Info ) {fprintf(stderr, "[info] "  __VA_ARGS__); fflush(stderr);}
-#define warn(...)  if (cfg->log_level >= Warn ) {fprintf(stderr, "[warn] "  __VA_ARGS__); fflush(stderr);}
-#define error(...) if (cfg->log_level >= Error) {fprintf(stderr, "[error] " __VA_ARGS__); fflush(stderr);}
-#define fatal(...) {fprintf(stderr, "[fatal] " __VA_ARGS__); exit(EXIT_FAILURE);}
-#define usage(...) {print_usage(); fatal("[usage] " __VA_ARGS__);}
-
+#define usage(...) {print_usage(); fprintf(stderr, "Error:\n    " __VA_ARGS__); exit(EXIT_FAILURE);}
 #define ERRMSG "ERROR"
 
 static const char errmsg[] = ERRMSG;
 static const int  errlen   = sizeof(ERRMSG) - 1;
 
 char *argv0;
-
-typedef enum LogLevel {
-	Nothing,
-	Error,
-	Warn,
-	Info,
-	Debug
-} LogLevel;
 
 /* TODO: Convert fifo list to fifo array. */
 typedef struct Fifo Fifo;
@@ -57,7 +45,6 @@ struct Config {
 	int    fifo_count;
 	int    total_width;
 	int    output_to_x_root_window;
-	LogLevel log_level;
 } defaults = {
 	.interval    = 1,
 	.separator   = "|",
@@ -65,11 +52,10 @@ struct Config {
 	.fifo_count  = 0,
 	.total_width = 0,
 	.output_to_x_root_window = 0,
-	.log_level   = Info,
 };
 
 void
-fifo_print_one(Fifo *f, Config *cfg)
+fifo_print_one(Fifo *f)
 {
 	info("Fifo "
 	    "{"
@@ -92,10 +78,10 @@ fifo_print_one(Fifo *f, Config *cfg)
 }
 
 void
-fifo_print_all(Fifo *head, Config *cfg)
+fifo_print_all(Fifo *head)
 {
 	for (Fifo *f = head; f; f = f->next) {
-		fifo_print_one(f, cfg);
+		fifo_print_one(f);
 	}
 }
 
@@ -109,16 +95,14 @@ config_print(Config *cfg)
 	    " separator = %s,"
 	    " fifo_count = %d,"
 	    " total_width = %d,"
-	    " log_level = %d,"
 	    " fifos = ..."
 	    " }\n",
 	    cfg->interval,
 	    cfg->separator,
 	    cfg->fifo_count,
-	    cfg->total_width,
-	    cfg->log_level
+	    cfg->total_width
 	);
-	fifo_print_all(cfg->fifos, cfg);
+	fifo_print_all(cfg->fifos);
 }
 
 int
@@ -203,7 +187,7 @@ parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
 	log_level = atoi(param);
 	if (log_level > Debug)
 		usage("Option -l value (%d) exceeds maximum (%d)\n", log_level, Debug);
-	cfg->log_level = log_level;
+	_khatus_lib_log_level = log_level;
 	opts_parse_any(cfg, argc, argv, i);
 }
 
@@ -311,7 +295,7 @@ fifo_read_error(Fifo *f, char *buf)
 }
 
 void
-fifo_read_one(Fifo *f, char *buf, Config *cfg)
+fifo_read_one(Fifo *f, char *buf)
 {
 	ssize_t current;
 	ssize_t total;
@@ -379,30 +363,7 @@ fifo_read_all(Config *cfg, char *buf)
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		if (FD_ISSET(f->fd, &fds)) {
 			debug("reading: %s\n", f->name);
-			fifo_read_one(f, buf, cfg);
-		}
-	}
-}
-
-void
-snooze(struct timespec *t, Config *cfg)
-{
-	struct timespec remainder;
-	int result;
-
-	result = nanosleep(t, &remainder);
-
-	if (result < 0) {
-		if (errno == EINTR) {
-			warn(
-			    "nanosleep interrupted. Remainder: "
-			    "{ tv_sec = %ld, tv_nsec = %ld }",
-			    remainder.tv_sec, remainder.tv_nsec);
-			/* No big deal if we occasionally sleep less,
-			 * so not attempting to correct after an interruption.
-			 */
-		} else {
-			fatal("nanosleep: %s\n", strerror(errno));
+			fifo_read_one(f, buf);
 		}
 	}
 }
@@ -508,7 +469,7 @@ main(int argc, char *argv[])
 			 */
 			timespecsub(&ti, &td, &tc);
 			debug("snooze YES\n");
-			snooze(&tc, cfg);
+			snooze(&tc);
 		} else {
 			debug("snooze NO\n");
 		}

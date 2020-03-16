@@ -4,10 +4,18 @@ LDLIBS   := -lX11
 
 .PHONY: build clean rebuild
 
-build: khatus
+build: \
+    khatus
+
+khatus: \
+	khatus_lib_log.o \
+	khatus_lib_time.o
+
+khatus_lib_time.o: khatus_lib_log.o
 
 clean:
-	@ find . -type f -executable -delete
+	@find . -type f -executable -delete
+	@find . -type f -name '*.o' -delete
 
 rebuild:
 	@$(MAKE) -s clean
