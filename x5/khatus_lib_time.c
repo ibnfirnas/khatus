@@ -7,6 +7,20 @@
 #include "khatus_lib_log.h"
 #include "khatus_lib_time.h"
 
+struct timespec
+timespec_of_float(double n)
+{
+	double integral;
+	double fractional;
+	struct timespec t;
+
+	fractional = modf(n, &integral);
+	t.tv_sec = (int) integral;
+	t.tv_nsec = (int) (1E9 * fractional);
+
+	return t;
+}
+
 void
 snooze(struct timespec *t)
 {
