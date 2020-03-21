@@ -33,7 +33,9 @@ struct Fifo {
 	int     width;
 	int     last_read;
 	int     ttl;
-	int     pos;  /* Position on the output buffer. */
+	int     pos_init;  /* Initial position on the output buffer. */
+	int     pos_curr;  /* Current position on the output buffer. */
+	int     pos_final; /* Final   position on the output buffer. */
 	Fifo   *next;
 };
 
@@ -54,6 +56,13 @@ struct Config {
 	.output_to_x_root_window = 0,
 };
 
+enum read_status {
+	FAIL_FINAL     = -2,
+	FAIL_TMP       = -1,
+	END_OF_FILE    =  0,
+	END_OF_MESSAGE =  1
+};
+
 void
 fifo_print_one(Fifo *f)
 {
@@ -64,7 +73,9 @@ fifo_print_one(Fifo *f)
 	    " width = %d,"
 	    " last_read = %d,"
 	    " ttl = %d,"
-	    " pos = %d,"
+	    " pos_init = %d,"
+	    " pos_curr = %d,"
+	    " pos_final = %d,"
 	    " next = %p,"
 	    " }\n",
 	    f->name,
@@ -72,7 +83,9 @@ fifo_print_one(Fifo *f)
 	    f->width,
 	    f->last_read,
 	    f->ttl,
-	    f->pos,
+	    f->pos_init,
+	    f->pos_curr,
+	    f->pos_final,
 	    f->next
 	);
 }
@@ -253,7 +266,9 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		f->width     = atoi(w);
 		f->ttl       = atoi(t);
 		f->last_read = 0;
-		f->pos       = cfg->total_width;
+		f->pos_init  = cfg->total_width;
+		f->pos_curr  = f->pos_init;
+		f->pos_final = f->pos_init + f->width - 1;
 		f->next      = cfg->fifos;
 
 		cfg->fifos        = f;
@@ -300,7 +315,7 @@ fifo_read_error(Fifo *f, char *buf)
 	char *b;
 	int i;
 
-	b = buf + f->pos;
+	b = buf + f->pos_init;
 	/* Copy as much of the error message as possible.
 	 * EXCLUDING the reminating \0. */
 	for (i = 0; i < errlen && i < f->width; i++)
@@ -310,30 +325,48 @@ fifo_read_error(Fifo *f, char *buf)
 		b[i] = '_';
 }
 
-void
+enum read_status
 fifo_read_one(Fifo *f, char *buf)
 {
-	ssize_t current;
-	ssize_t total;
-	char *b;
-	char c;
+	/* Initialize all to an impossible value: */
+	ssize_t n = -5;  /* Number of bytes read. */
+	char    c = -1;  /* Character read. */
+	int     r = -1;  /* Remaining unused slots in buffer range. */
 
-	current = 0;
-	total = 0;
-	c = '\0';
-	b = buf + f->pos;
-	while ((current = read(f->fd, &c, 1)) && c != '\n' && c != '\0' && total++ < f->width)
-		*b++ = c;
-	if (current == -1) {
-		error("Failed to read: \"%s\". Error: %s\n", f->name, strerror(errno));
-		fifo_read_error(f, buf);
-	} else {
-		while (total++ < f->width)
-			*b++ = ' ';
+	for (;;) {
+		n = read(f->fd, &c, 1);
+		assert(n >= -1 && n <= 1);
+		switch (n) {
+		case -1:
+			error("Failed to read: \"%s\". errno: %d, msg: %s\n",
+			    f->name, errno, strerror(errno));
+			if (errno == 11)
+				return FAIL_TMP;
+			else
+				return FAIL_FINAL;
+		case  0:
+			debug("%s: End of FILE\n", f->name);
+			f->pos_curr = f->pos_init;
+			return END_OF_FILE;
+		case  1:
+			/* TODO: Consider making msg term char a CLI option */
+			if (c == '\n' || c == '\0') {
+				r = f->pos_final - f->pos_curr;
+				if (r > 0)
+					memset(buf + f->pos_curr, ' ', r);
+				f->pos_curr = f->pos_init;
+				return END_OF_MESSAGE;
+			} else {
+				if (f->pos_curr <= f->pos_final)
+					buf[f->pos_curr++] = c;
+				/* Drop beyond available range. */
+			}
+			break;
+		default:
+			assert(0);
+		}
 	}
 	/* TODO Record timestamp read */
-	close(f->fd);
-	f->fd = -1;
 }
 
 void
@@ -357,15 +390,19 @@ fifo_read_all(Config *cfg, char *buf)
 			fifo_read_error(f, buf);
 			continue;
 		}
-		debug("opening: %s\n", f->name);
-		if (f->fd < 0)
+		if (f->fd < 0) {
+			debug("%s: closed. opening. fd: %d\n", f->name, f->fd);
 			f->fd = open(f->name, O_RDONLY | O_NONBLOCK);
+		} else {
+			debug("%s: already openned. fd: %d\n", f->name, f->fd);
+		}
 		if (f->fd == -1) {
 			/* TODO: Consider backing off retries for failed fifos. */
 			error("Failed to open \"%s\"\n", f->name);
 			fifo_read_error(f, buf);
 			continue;
 		}
+		debug("%s: open. fd: %d\n", f->name, f->fd);
 		if (f->fd > maxfd)
 			maxfd = f->fd;
 		FD_SET(f->fd, &fds);
@@ -379,7 +416,18 @@ fifo_read_all(Config *cfg, char *buf)
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		if (FD_ISSET(f->fd, &fds)) {
 			debug("reading: %s\n", f->name);
-			fifo_read_one(f, buf);
+			switch (fifo_read_one(f, buf)) {
+			case END_OF_FILE:
+			case FAIL_FINAL:
+				close(f->fd);
+				f->fd = -1;
+				break;
+			case END_OF_MESSAGE:
+			case FAIL_TMP:
+				break;
+			default:
+				assert(0);
+			}
 		}
 	}
 }
@@ -436,7 +484,9 @@ main(int argc, char *argv[])
 
 	/* 2nd pass to make space for separators */
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
-		f->pos += prefix;
+		f->pos_init  += prefix;
+		f->pos_final += prefix;
+		f->pos_curr = f->pos_init;
 		prefix += seplen;
 		nfifos++;
 	}
@@ -448,9 +498,9 @@ main(int argc, char *argv[])
 	buf[width] = '\0';
 	/* 3rd pass to set the separators */
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
-		if (f->pos) {  /* Skip the first, left-most */
+		if (f->pos_init) {  /* Skip the first, left-most */
 			/* Copying only seplen ensures we omit the '\0' byte. */
-			strncpy(buf + (f->pos - seplen), cfg->separator, seplen);
+			strncpy(buf + (f->pos_init - seplen), cfg->separator, seplen);
 		}
 	}
 
