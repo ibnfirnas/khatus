@@ -17,7 +17,11 @@
 #define MAX_LEN 20
 #define END_OF_MESSAGE '\n'
 
-char *argv0;
+char *argv0 = NULL;
+
+double opt_interval = 1.0;
+char *opt_fmt = "%a %b %d %H:%M:%S";
+char *fifo_name = NULL;
 
 void
 print_usage()
@@ -32,29 +36,11 @@ print_usage()
 	    argv0);
 }
 
-int
-main(int argc, char **argv)
+void
+opt_parse(int argc, char **argv)
 {
-	argv0 = argv[0];
-
-	double opt_interval = 1.0;
-	char *opt_fmt = "%a %b %d %H:%M:%S";
-
-	time_t t;
-	struct timespec ti;
-	char buf[MAX_LEN];
 	char c;
 
-	char *fifo_name;
-	int   fifo_fd = -1;
-
-	int n = 0;  /* written */
-	int r = 0;  /* remaining */
-	int i = 0;  /* buffer position */
-
-	signal(SIGPIPE, SIG_IGN);  /* Handling manually */
-
-	memset(buf, '\0', MAX_LEN);
 	while ((c = getopt(argc, argv, "f:i:h")) != -1)
 		switch (c) {
 		case 'f':
@@ -66,7 +52,7 @@ main(int argc, char **argv)
 			break;
 		case 'h':
 			print_usage();
-			return 0;
+			exit(EXIT_SUCCESS);
 		case '?':
 			if (optopt == 'f' || optopt == 'i')
 				fprintf(stderr,
@@ -80,7 +66,7 @@ main(int argc, char **argv)
 				fprintf(stderr,
 					"Unknown option character `\\x%x'.\n",
 					optopt);
-			return 1;
+			exit(EXIT_FAILURE);
 		default:
 			assert(0);
 		}
@@ -88,33 +74,55 @@ main(int argc, char **argv)
 	debug("fifo_name: %s\n", fifo_name);
 	if (!fifo_name)
 		usage("No filename was provided\n");
+}
+
+int
+main(int argc, char **argv)
+{
+	argv0 = argv[0];
+
+	time_t t;
+	struct timespec ti;
+	char buf[MAX_LEN];
+
+	int fd = -1;
+
+	int n = 0;  /* written */
+	int r = 0;  /* remaining */
+	int i = 0;  /* buffer position */
+
+	opt_parse(argc, argv);
+
+	signal(SIGPIPE, SIG_IGN);  /* Handling manually */
+
+	memset(buf, '\0', MAX_LEN);
 	ti = timespec_of_float(opt_interval);
 	for (;;) {
 		debug("openning \"%s\"\n", fifo_name);
-		fifo_fd = open(fifo_name, O_WRONLY);
-		if (fifo_fd < 0)
+		fd = open(fifo_name, O_WRONLY);
+		if (fd < 0)
 			fatal("Failed to open FIFO file: \"%s\". Error: %s\n",
 			    fifo_name,
 			    strerror(errno));
-		debug("openned. fd: %d\n", fifo_fd);
+		debug("openned. fd: %d\n", fd);
 		t = time(NULL);
 		strftime(buf, MAX_LEN, opt_fmt, localtime(&t));
 		r = strlen(buf);
 		buf[r] = END_OF_MESSAGE;
-		for (i = 0; (n = write(fifo_fd, buf + i++, 1)) && r; r--)
+		for (i = 0; (n = write(fd, buf + i++, 1)) && r; r--)
 			;
 		if (n < 0)
 			fatal("Failed to write to %s. Err num: %d, Err msg: %s\n",
 			    fifo_name,
 			    errno,
 			    strerror(errno));
-		if (close(fifo_fd) < 0)
+		if (close(fd) < 0)
 			fatal("Failed to close %s. Err num: %d, Err msg: %s\n",
 			    fifo_name,
 			    errno,
 			    strerror(errno));
-		fifo_fd = -1;
-		debug("closed. fd: %d\n", fifo_fd);
+		fd = -1;
+		debug("closed. fd: %d\n", fd);
 		snooze(&ti);
 	}
 	return EXIT_SUCCESS;
