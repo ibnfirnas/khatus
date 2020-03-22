@@ -328,15 +328,11 @@ fifo_read_error(Fifo *f, char *buf)
 enum read_status
 fifo_read_one(Fifo *f, char *buf)
 {
-	/* Initialize all to an impossible value: */
-	ssize_t n = -5;  /* Number of bytes read. */
-	char    c = -1;  /* Character read. */
-	int     r = -1;  /* Remaining unused slots in buffer range. */
+	char c;  /* Character read. */
+	int  r;  /* Remaining unused slots in buffer range. */
 
 	for (;;) {
-		n = read(f->fd, &c, 1);
-		assert(n >= -1 && n <= 1);
-		switch (n) {
+		switch (read(f->fd, &c, 1)) {
 		case -1:
 			error("Failed to read: \"%s\". errno: %d, msg: %s\n",
 			    f->name, errno, strerror(errno));
