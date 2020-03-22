@@ -57,10 +57,10 @@ struct Config {
 };
 
 enum read_status {
-	FAIL_FINAL     = -2,
-	FAIL_TMP       = -1,
-	END_OF_FILE    =  0,
-	END_OF_MESSAGE =  1
+	END_OF_FILE,
+	END_OF_MESSAGE,
+	RETRY,
+	FAILURE
 };
 
 void
@@ -340,10 +340,12 @@ fifo_read_one(Fifo *f, char *buf)
 		case -1:
 			error("Failed to read: \"%s\". errno: %d, msg: %s\n",
 			    f->name, errno, strerror(errno));
-			if (errno == 11)
-				return FAIL_TMP;
-			else
-				return FAIL_FINAL;
+			switch (errno) {
+			case EAGAIN:
+				return RETRY;
+			default:
+				return FAILURE;
+			}
 		case  0:
 			debug("%s: End of FILE\n", f->name);
 			f->pos_curr = f->pos_init;
@@ -418,12 +420,12 @@ fifo_read_all(Config *cfg, char *buf)
 			debug("reading: %s\n", f->name);
 			switch (fifo_read_one(f, buf)) {
 			case END_OF_FILE:
-			case FAIL_FINAL:
+			case FAILURE:
 				close(f->fd);
 				f->fd = -1;
 				break;
 			case END_OF_MESSAGE:
-			case FAIL_TMP:
+			case RETRY:
 				break;
 			default:
 				assert(0);
