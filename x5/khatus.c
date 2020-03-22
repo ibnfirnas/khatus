@@ -341,6 +341,7 @@ fifo_read_one(Fifo *f, char *buf)
 			error("Failed to read: \"%s\". errno: %d, msg: %s\n",
 			    f->name, errno, strerror(errno));
 			switch (errno) {
+			case EINTR:
 			case EAGAIN:
 				return RETRY;
 			default:
