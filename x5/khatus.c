@@ -368,13 +368,12 @@ fifo_read_one(Fifo *f, char *buf)
 	/* TODO Record timestamp read */
 }
 
-int
+void
 fifo_read_all(Config *cfg, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
-	int reading = 0;  /* Number of FDs with unfinished reads */
-	int ready;
+	int ready = 0;
 	struct stat st;
 
 	FD_ZERO(&fds);
@@ -412,41 +411,43 @@ fifo_read_all(Config *cfg, char *buf)
 	debug("ready: %d\n", ready);
 	assert(ready != 0);
 	if (ready < 0)
+		/* TODO: Do we really want to fail here? */
 		fatal("%s", strerror(errno));
-	for (Fifo *f = cfg->fifos; f; f = f->next) {
-		if (FD_ISSET(f->fd, &fds)) {
-			reading++;
-			debug("reading: %s\n", f->name);
-			switch (fifo_read_one(f, buf)) {
-			/*
-			 * ### MESSAGE LOSS ###
-			 * is introduced by closing at EOM in addition to EOF,
-			 * since there may be unread messages remaining in the
-			 * pipe. However,
-			 *
-			 * ### INTER-MESSAGE PUSHBACK ###
-			 * is also gained, since pipes block at the "open" call.
-			 *
-			 * This is an acceptable trade-off because we are a
-			 * stateless reporter of a _most-recent_ status, not a
-			 * stateful accumulator.
-			 */
-			case END_OF_MESSAGE:
-			case END_OF_FILE:
-			case FAILURE:
-				close(f->fd);
-				f->fd = -1;
-				reading--;
-				break;
-			case RETRY:
-				break;
-			default:
-				assert(0);
+	while (ready) {
+		for (Fifo *f = cfg->fifos; f; f = f->next) {
+			if (FD_ISSET(f->fd, &fds)) {
+				debug("reading: %s\n", f->name);
+				switch (fifo_read_one(f, buf)) {
+				/*
+				 * ### MESSAGE LOSS ###
+				 * is introduced by closing at EOM in addition
+				 * to EOF, since there may be unread messages
+				 * remaining in the pipe. However,
+				 *
+				 * ### INTER-MESSAGE PUSHBACK ###
+				 * is also gained, since pipes block at the
+				 * "open" call.
+				 *
+				 * This is an acceptable trade-off because we
+				 * are a stateless reporter of a _most-recent_
+				 * status, not a stateful accumulator.
+				 */
+				case END_OF_MESSAGE:
+				case END_OF_FILE:
+				case FAILURE:
+					close(f->fd);
+					f->fd = -1;
+					ready--;
+					break;
+				case RETRY:
+					break;
+				default:
+					assert(0);
+				}
 			}
 		}
 	}
-	assert(reading >= 0);
-	return reading;
+	assert(ready == 0);
 }
 
 int
@@ -457,7 +458,6 @@ main(int argc, char *argv[])
 	int seplen = 0;
 	int prefix = 0;
 	int errors = 0;
-	int reading = 0;
 	char *buf;
 	Config cfg0 = defaults;
 	Config *cfg = &cfg0;
@@ -533,8 +533,7 @@ main(int argc, char *argv[])
 		 *       fifo_read_all and desired time of next TTL check.
 		 */
 		/* TODO: How long to wait on IO? Max TTL? */
-		reading = fifo_read_all(cfg, buf);
-		debug("reading: %d\n", reading);
+		fifo_read_all(cfg, buf);
 		if (cfg->output_to_x_root_window) {
 			if (XStoreName(display, DefaultRootWindow(display), buf) < 0)
 				fatal("XStoreName failed.\n");
@@ -546,15 +545,10 @@ main(int argc, char *argv[])
 		clock_gettime(CLOCK_MONOTONIC, &t1); // FIXME: check errors
 		timespecsub(&t1, &t0, &td);
 		debug("td {tv_sec = %ld, tv_nsec = %ld}\n", td.tv_sec, td.tv_nsec);
-		/*
-		 * Skip sleep when we aren't done reading,
-		 * to avoid filling-up the pipe during sleep.
-		 */
-		if (!reading && timespeccmp(&td, &ti, <)) {
+		if (timespeccmp(&td, &ti, <)) {
 			/* Pushback on data producers by refusing to read the
 			 * pipe more frequently than the interval.
 			 */
-			/* FIXME: Client is never blocked after initial open. */
 			timespecsub(&ti, &td, &tc);
 			debug("snooze YES\n");
 			snooze(&tc);
