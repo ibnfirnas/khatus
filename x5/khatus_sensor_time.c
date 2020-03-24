@@ -112,10 +112,18 @@ main(int argc, char **argv)
 		for (i = 0; (n = write(fd, buf + i++, 1)) && r; r--)
 			;
 		if (n < 0)
-			fatal("Failed to write to %s. Err num: %d, Err msg: %s\n",
-			    fifo_name,
-			    errno,
-			    strerror(errno));
+			switch (errno) {
+			case EPIPE:
+				error("Broken pipe. Msg buf: %s\n", buf);
+				break;
+			default:
+				fatal(
+				    "Failed to write to %s. "
+				    "Err num: %d, Err msg: %s\n",
+				    fifo_name,
+				    errno,
+				    strerror(errno));
+			}
 		if (close(fd) < 0)
 			fatal("Failed to close %s. Err num: %d, Err msg: %s\n",
 			    fifo_name,
