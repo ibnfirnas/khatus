@@ -429,8 +429,19 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 	debug("selecting...\n");
 	ready = pselect(maxfd + 1, &fds, NULL, NULL, ti, NULL);
 	debug("ready: %d\n", ready);
-	assert(ready >= 0);
 	clock_gettime(CLOCK_MONOTONIC, &t);
+	if (ready == -1) {
+		switch (errno) {
+		case EINTR:
+			error("pselect temp failure: %d, errno: %d, msg: %s\n",
+			    ready, errno, strerror(errno));
+			/* TODO: Reconsider what to do here. */
+			return;
+		default:
+			error("pselect failed: %d, errno: %d, msg: %s\n",
+			    ready, errno, strerror(errno));
+		}
+	}
 	/* At-least-once ensures that expiries are still checked on timeouts. */
 	do {
 		for (Fifo *f = cfg->fifos; f; f = f->next) {
