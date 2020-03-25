@@ -6,9 +6,14 @@ LDLIBS   := -lX11
 
 build: \
     khatus \
+    khatus_sensor_battery \
     khatus_sensor_time
 
 khatus: \
+	khatus_lib_log.o \
+	khatus_lib_time.o
+
+khatus_sensor_battery: \
 	khatus_lib_log.o \
 	khatus_lib_time.o
 
