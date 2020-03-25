@@ -17,7 +17,11 @@
 #include "khatus_lib_log.h"
 #include "khatus_lib_time.h"
 
-#define usage(...) {print_usage(); fprintf(stderr, "Error:\n    " __VA_ARGS__); exit(EXIT_FAILURE);}
+#define usage(...) { \
+	print_usage(); \
+	fprintf(stderr, "Error:\n    " __VA_ARGS__); \
+	exit(EXIT_FAILURE); \
+}
 #define ERRMSG "ERROR"
 
 static const char errmsg[] = ERRMSG;
@@ -178,7 +182,8 @@ print_usage()
 	);
 }
 
-void opts_parse_any(Config *, int, char *[], int);  /* For mutually-recursive calls. */
+/* For mutually-recursive calls. */
+void opts_parse_any(Config *, int, char *[], int);
 
 void
 parse_opts_opt_i(Config *cfg, int argc, char *argv[], int i)
@@ -217,7 +222,11 @@ parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
 		usage("Option -l parameter is invalid: \"%s\"\n", param);
 	log_level = atoi(param);
 	if (log_level > Debug)
-		usage("Option -l value (%d) exceeds maximum (%d)\n", log_level, Debug);
+		usage(
+		    "Option -l value (%d) exceeds maximum (%d)\n",
+		    log_level,
+		    Debug
+		);
 	_khatus_lib_log_level = log_level;
 	opts_parse_any(cfg, argc, argv, i);
 }
@@ -251,7 +260,10 @@ void
 parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 {
 	if ((i + 3) > argc)
-		usage("[spec] Parameter(s) missing for fifo \"%s\".\n", argv[i]);
+		usage(
+		    "[spec] Parameter(s) missing for fifo \"%s\".\n",
+		    argv[i]
+		);
 
 	char *n = argv[i++];
 	char *w = argv[i++];
@@ -400,7 +412,11 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
 		if (lstat(f->name, &st) < 0) {
-			error("Cannot stat \"%s\". Error: %s\n", f->name, strerror(errno));
+			error(
+			    "Cannot stat \"%s\". Error: %s\n",
+			    f->name,
+			    strerror(errno)
+			);
 			fifo_read_error(f, buf);
 			continue;
 		}
@@ -416,7 +432,7 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 			debug("%s: already openned. fd: %d\n", f->name, f->fd);
 		}
 		if (f->fd == -1) {
-			/* TODO: Consider backing off retries for failed fifos. */
+			/* TODO Consider backing off retries for failed fifos */
 			error("Failed to open \"%s\"\n", f->name);
 			fifo_read_error(f, buf);
 			continue;
@@ -493,7 +509,7 @@ main(int argc, char *argv[])
 	char *buf;
 	Config cfg0 = defaults;
 	Config *cfg = &cfg0;
-	Display *display = NULL;
+	Display *d = NULL;
 	struct stat st;
 	struct timespec
 		t0,  /* time stamp. before reading fifos */
@@ -516,7 +532,11 @@ main(int argc, char *argv[])
 	/* 1st pass to check file existence and type */
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		if (lstat(f->name, &st) < 0) {
-			error("Cannot stat \"%s\". Error: %s\n", f->name, strerror(errno));
+			error(
+			    "Cannot stat \"%s\". Error: %s\n",
+			    f->name,
+			    strerror(errno)
+			);
 			errors++;
 			continue;
 		}
@@ -527,7 +547,7 @@ main(int argc, char *argv[])
 		}
 	}
 	if (errors)
-		fatal("Encountered errors with the given file paths. See log.\n");
+		fatal("Encountered errors with given file paths. See log.\n");
 
 	width  = cfg->total_width;
 	seplen = strlen(cfg->separator);
@@ -550,27 +570,35 @@ main(int argc, char *argv[])
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		if (f->pos_init) {  /* Skip the first, left-most */
 			/* Copying only seplen ensures we omit the '\0' byte. */
-			strncpy(buf + (f->pos_init - seplen), cfg->separator, seplen);
+			strncpy(
+			    buf + (f->pos_init - seplen),
+			    cfg->separator,
+			    seplen
+			);
 		}
 	}
 
-	if (cfg->output_to_x_root_window && !(display = XOpenDisplay(NULL)))
-		fatal("XOpenDisplay failed with: %p\n", display);
+	if (cfg->output_to_x_root_window && !(d = XOpenDisplay(NULL)))
+		fatal("XOpenDisplay failed with: %p\n", d);
 	/* TODO: Handle signals */
 	for (;;) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
 		fifo_read_all(cfg, &ti, buf);
 		if (cfg->output_to_x_root_window) {
-			if (XStoreName(display, DefaultRootWindow(display), buf) < 0)
+			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
 				fatal("XStoreName failed.\n");
-			XFlush(display);
+			XFlush(d);
 		} else {
 			puts(buf);
 			fflush(stdout);
 		}
 		clock_gettime(CLOCK_MONOTONIC, &t1); // FIXME: check errors
 		timespecsub(&t1, &t0, &td);
-		debug("td {tv_sec = %ld, tv_nsec = %ld}\n", td.tv_sec, td.tv_nsec);
+		debug(
+		    "td {tv_sec = %ld, tv_nsec = %ld}\n",
+		    td.tv_sec,
+		    td.tv_nsec
+		);
 		if (timespeccmp(&td, &ti, <)) {
 			/* Pushback on data producers by refusing to read the
 			 * pipe more frequently than the interval.
