@@ -397,7 +397,7 @@ fifo_read_one(Fifo *f, struct timespec t, char *buf)
 }
 
 void
-fifo_read_all(Config *cfg, char *buf)
+fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
@@ -436,12 +436,9 @@ fifo_read_all(Config *cfg, char *buf)
 		FD_SET(f->fd, &fds);
 	}
 	debug("selecting...\n");
-	ready = select(maxfd + 1, &fds, NULL, NULL, NULL);
+	ready = pselect(maxfd + 1, &fds, NULL, NULL, ti, NULL);
 	debug("ready: %d\n", ready);
-	assert(ready != 0);
-	if (ready < 0)
-		/* TODO: Do we really want to fail here? */
-		fatal("%s", strerror(errno));
+	assert(ready >= 0);
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	while (ready) {
 		for (Fifo *f = cfg->fifos; f; f = f->next) {
@@ -557,11 +554,7 @@ main(int argc, char *argv[])
 	/* TODO: Handle signals */
 	for (;;) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
-		/* TODO: Set timeout on fifo_read_all based on diff of last time of
-		 *       fifo_read_all and desired time of next TTL check?
-		 */
-		/* TODO: How long to wait on IO? Max TTL? */
-		fifo_read_all(cfg, buf);
+		fifo_read_all(cfg, &ti, buf);
 		if (cfg->output_to_x_root_window) {
 			if (XStoreName(display, DefaultRootWindow(display), buf) < 0)
 				fatal("XStoreName failed.\n");
