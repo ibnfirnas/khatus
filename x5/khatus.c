@@ -397,12 +397,13 @@ fifo_read_one(Fifo *f, struct timespec t, char *buf)
 }
 
 void
-fifo_read_all(Config *cfg, struct timespec t, char *buf)
+fifo_read_all(Config *cfg, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
 	int ready = 0;
 	struct stat st;
+	struct timespec t;
 
 	FD_ZERO(&fds);
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
@@ -441,6 +442,7 @@ fifo_read_all(Config *cfg, struct timespec t, char *buf)
 	if (ready < 0)
 		/* TODO: Do we really want to fail here? */
 		fatal("%s", strerror(errno));
+	clock_gettime(CLOCK_MONOTONIC, &t);
 	while (ready) {
 		for (Fifo *f = cfg->fifos; f; f = f->next) {
 			if (FD_ISSET(f->fd, &fds)) {
@@ -559,7 +561,7 @@ main(int argc, char *argv[])
 		 *       fifo_read_all and desired time of next TTL check?
 		 */
 		/* TODO: How long to wait on IO? Max TTL? */
-		fifo_read_all(cfg, t0, buf);
+		fifo_read_all(cfg, buf);
 		if (cfg->output_to_x_root_window) {
 			if (XStoreName(display, DefaultRootWindow(display), buf) < 0)
 				fatal("XStoreName failed.\n");
