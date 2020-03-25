@@ -345,7 +345,7 @@ fifo_read_error(Fifo *f, char *buf)
 
 	b = buf + f->pos_init;
 	/* Copy as much of the error message as possible.
-	 * EXCLUDING the reminating \0. */
+	 * EXCLUDING the terminating \0. */
 	for (i = 0; i < errlen && i < f->width; i++)
 		b[i] = errmsg[i];
 	/* Any remaining slots: */
