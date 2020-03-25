@@ -391,6 +391,11 @@ fifo_read_one(Fifo *f, struct timespec t, char *buf)
 				if (f->pos_curr <= f->pos_final)
 					buf[f->pos_curr++] = c;
 				/* Drop beyond available range. */
+				/*
+				 * TODO Define max after which we stop reading.
+				 *      To ensure that a rogue large message
+				 *      doesn't trap us here.
+				 */
 			}
 			break;
 		default:
