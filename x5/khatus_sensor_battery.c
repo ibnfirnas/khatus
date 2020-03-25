@@ -19,8 +19,6 @@
 
 char *argv0;
 
-char path[PATH_MAX];
-
 double  opt_interval = 1.0;
 char   *opt_battery  = "BAT0";
 char   *opt_fifo     = NULL;
@@ -79,7 +77,7 @@ opt_parse(int argc, char **argv)
 }
 
 int
-get_capacity(char *buf)
+get_capacity(char *buf, char *path)
 {
 	FILE *fp;
 	int cap;
@@ -104,6 +102,7 @@ main(int argc, char **argv)
 	argv0 = argv[0];
 
 	char  buf[10];
+	char path[PATH_MAX];
 	char *path_fmt = "/sys/class/power_supply/%s/capacity";
 	struct timespec ti = timespec_of_float(opt_interval);
 
@@ -111,5 +110,11 @@ main(int argc, char **argv)
 
 	memset(path, '\0', PATH_MAX);
 	snprintf(path, PATH_MAX, path_fmt, opt_battery);
-	loop(&ti, opt_fifo, buf, &get_capacity);
+	loop(
+	    &ti,
+	    opt_fifo,
+	    buf,
+	    (SENSOR_FUN_T)    get_capacity,
+	    (SENSOR_PARAMS_T) path
+	);
 }

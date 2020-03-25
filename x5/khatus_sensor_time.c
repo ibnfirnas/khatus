@@ -78,12 +78,12 @@ opt_parse(int argc, char **argv)
 }
 
 int
-read_time(char *buf)
+get_time(char *buf, char *fmt)
 {
 	time_t t;
 
 	t = time(NULL);
-	strftime(buf, MAX_LEN, opt_fmt, localtime(&t));
+	strftime(buf, MAX_LEN, fmt, localtime(&t));
 	return strlen(buf);
 }
 
@@ -101,6 +101,12 @@ main(int argc, char **argv)
 
 	memset(buf, '\0', MAX_LEN);
 	ti = timespec_of_float(opt_interval);
-	loop(&ti, fifo_name, buf, read_time);
+	loop(
+	    &ti,
+	    fifo_name,
+	    buf,
+	    (SENSOR_FUN_T)    get_time,
+	    (SENSOR_PARAMS_T) opt_fmt
+	);
 	return EXIT_SUCCESS;
 }

@@ -10,7 +10,12 @@
 #include "khatus_lib_time.h"
 
 void
-loop(struct timespec *ti, char *fifo, char *buf, int fun(char *))
+loop(
+    struct timespec *ti,
+    char *fifo,
+    char *buf,
+    int fun(char *, void *),
+    void *params)
 {
 	int fd = -1;
 	int w  = -1;  /* written */
@@ -25,7 +30,7 @@ loop(struct timespec *ti, char *fifo, char *buf, int fun(char *))
 			    fifo,
 			    strerror(errno));
 		debug("openned. fd: %d\n", fd);
-		r = fun(buf);
+		r = fun(buf, params);
 		buf[r] = END_OF_MESSAGE;
 		for (i = 0; (w = write(fd, buf + i++, 1)) && r; r--)
 			;
