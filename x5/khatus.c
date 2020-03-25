@@ -438,7 +438,7 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 			/* TODO: Reconsider what to do here. */
 			return;
 		default:
-			error("pselect failed: %d, errno: %d, msg: %s\n",
+			fatal("pselect failed: %d, errno: %d, msg: %s\n",
 			    ready, errno, strerror(errno));
 		}
 	}
