@@ -316,7 +316,7 @@ opts_parse(Config *cfg, int argc, char *argv[])
 }
 
 void
-fifo_expire_one(Fifo *f, struct timespec t, char *buf)
+fifo_expire(Fifo *f, struct timespec t, char *buf)
 {
 	struct timespec td;
 
@@ -326,15 +326,6 @@ fifo_expire_one(Fifo *f, struct timespec t, char *buf)
 		memset(buf + f->pos_init, '_', f->pos_final - f->pos_init);
 		warn("Data source expired: \"%s\"\n", f->name);
 	}
-}
-
-void
-fifo_expire_all(Config *cfg, struct timespec t, char *buf)
-{
-	Fifo *f;
-
-	for (f = cfg->fifos; f; f = f->next)
-		fifo_expire_one(f, t, buf);
 }
 
 void
@@ -440,7 +431,8 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 	debug("ready: %d\n", ready);
 	assert(ready >= 0);
 	clock_gettime(CLOCK_MONOTONIC, &t);
-	while (ready) {
+	/* At-least-once ensures that expiries are still checked on timeouts. */
+	do {
 		for (Fifo *f = cfg->fifos; f; f = f->next) {
 			if (FD_ISSET(f->fd, &fds)) {
 				debug("reading: %s\n", f->name);
@@ -471,9 +463,11 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 				default:
 					assert(0);
 				}
+			} else {
+				fifo_expire(f, t, buf);
 			}
 		}
-	}
+	} while (ready);
 	assert(ready == 0);
 }
 
@@ -563,14 +557,6 @@ main(int argc, char *argv[])
 			puts(buf);
 			fflush(stdout);
 		}
-
-		/*
-		 * This is a good place for expiry check, since we're about to
-		 * sleep anyway and the time taken by the check will be
-		 * subtracted from the sleep period.
-		 */
-		fifo_expire_all(cfg, t0, buf);
-
 		clock_gettime(CLOCK_MONOTONIC, &t1); // FIXME: check errors
 		timespecsub(&t1, &t0, &td);
 		debug("td {tv_sec = %ld, tv_nsec = %ld}\n", td.tv_sec, td.tv_nsec);
