@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "khatus_lib_log.h"
+#include "khatus_lib_sensor.h"
 #include "khatus_lib_time.h"
 
 #define usage(...) {print_usage(); fprintf(stderr, "Error:\n    " __VA_ARGS__); exit(EXIT_FAILURE);}
@@ -77,61 +78,29 @@ opt_parse(int argc, char **argv)
 }
 
 int
+read_time(char *buf)
+{
+	time_t t;
+
+	t = time(NULL);
+	strftime(buf, MAX_LEN, opt_fmt, localtime(&t));
+	return strlen(buf);
+}
+
+int
 main(int argc, char **argv)
 {
 	argv0 = argv[0];
 
-	time_t t;
 	struct timespec ti;
 	char buf[MAX_LEN];
 
-	int fd = -1;
-
-	int n = 0;  /* written */
-	int r = 0;  /* remaining */
-	int i = 0;  /* buffer position */
-
 	opt_parse(argc, argv);
 
-	signal(SIGPIPE, SIG_IGN);  /* Handling manually */
+	signal(SIGPIPE, SIG_IGN);  /* Handled in loop */
 
 	memset(buf, '\0', MAX_LEN);
 	ti = timespec_of_float(opt_interval);
-	for (;;) {
-		debug("openning \"%s\"\n", fifo_name);
-		fd = open(fifo_name, O_WRONLY);
-		if (fd < 0)
-			fatal("Failed to open FIFO file: \"%s\". Error: %s\n",
-			    fifo_name,
-			    strerror(errno));
-		debug("openned. fd: %d\n", fd);
-		t = time(NULL);
-		strftime(buf, MAX_LEN, opt_fmt, localtime(&t));
-		r = strlen(buf);
-		buf[r] = END_OF_MESSAGE;
-		for (i = 0; (n = write(fd, buf + i++, 1)) && r; r--)
-			;
-		if (n < 0)
-			switch (errno) {
-			case EPIPE:
-				error("Broken pipe. Msg buf: %s\n", buf);
-				break;
-			default:
-				fatal(
-				    "Failed to write to %s. "
-				    "Err num: %d, Err msg: %s\n",
-				    fifo_name,
-				    errno,
-				    strerror(errno));
-			}
-		if (close(fd) < 0)
-			fatal("Failed to close %s. Err num: %d, Err msg: %s\n",
-			    fifo_name,
-			    errno,
-			    strerror(errno));
-		fd = -1;
-		debug("closed. fd: %d\n", fd);
-		snooze(&ti);
-	}
+	loop(&ti, fifo_name, buf, read_time);
 	return EXIT_SUCCESS;
 }

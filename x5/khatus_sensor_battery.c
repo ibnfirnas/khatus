@@ -10,12 +10,12 @@
 #include <unistd.h>
 
 #include "khatus_lib_log.h"
+#include "khatus_lib_sensor.h"
 #include "khatus_lib_time.h"
 
 #define usage(...) {print_usage(); fprintf(stderr, "Error:\n    " __VA_ARGS__); exit(EXIT_FAILURE);}
 
 #define MAX_LEN 20
-#define END_OF_MESSAGE '\n'
 
 char *argv0;
 
@@ -78,44 +78,8 @@ opt_parse(int argc, char **argv)
 		usage("No filename was provided\n");
 }
 
-void
-loop(struct timespec *ti, char *fifo, char *buf, int fun(char *))
-{
-	int fd = -1;
-	int w  = -1;  /* written */
-	int r  = -1;  /* remaining */
-	int i  = -1;  /* buffer position */
-
-	for (;;) {
-		debug("openning \"%s\"\n", fifo);
-		fd = open(fifo, O_WRONLY);
-		if (fd < 0)
-			fatal("Failed to open FIFO file: \"%s\". Error: %s\n",
-			    fifo,
-			    strerror(errno));
-		debug("openned. fd: %d\n", fd);
-		r = fun(buf);
-		buf[r] = END_OF_MESSAGE;
-		for (i = 0; (w = write(fd, buf + i++, 1)) && r; r--)
-			;
-		if (w < 0)
-			fatal("Failed to write to %s. Err num: %d, Err msg: %s\n",
-			    fifo,
-			    errno,
-			    strerror(errno));
-		if (close(fd) < 0)
-			fatal("Failed to close %s. Err num: %d, Err msg: %s\n",
-			    fifo,
-			    errno,
-			    strerror(errno));
-		fd = -1;
-		debug("closed. fd: %d\n", fd);
-		snooze(ti);
-	}
-}
-
 int
-read_capacity(char *buf)
+get_capacity(char *buf)
 {
 	FILE *fp;
 	int cap;
@@ -147,5 +111,5 @@ main(int argc, char **argv)
 
 	memset(path, '\0', PATH_MAX);
 	snprintf(path, PATH_MAX, path_fmt, opt_battery);
-	loop(&ti, opt_fifo, buf, &read_capacity);
+	loop(&ti, opt_fifo, buf, &get_capacity);
 }

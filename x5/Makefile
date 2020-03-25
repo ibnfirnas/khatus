@@ -15,10 +15,12 @@ khatus: \
 
 khatus_sensor_battery: \
 	khatus_lib_log.o \
+	khatus_lib_sensor.o \
 	khatus_lib_time.o
 
 khatus_sensor_time: \
 	khatus_lib_log.o \
+	khatus_lib_sensor.o \
 	khatus_lib_time.o
 
 khatus_lib_time.o: khatus_lib_log.o
