@@ -31,8 +31,8 @@ struct Fifo {
 	char   *name;
 	int     fd;
 	int     width;
-	int     last_read;
-	int     ttl;
+	struct timespec last_read;
+	struct timespec ttl;
 	int     pos_init;  /* Initial position on the output buffer. */
 	int     pos_curr;  /* Current position on the output buffer. */
 	int     pos_final; /* Final   position on the output buffer. */
@@ -71,8 +71,8 @@ fifo_print_one(Fifo *f)
 	    " name = %s,"
 	    " fd = %d,"
 	    " width = %d,"
-	    " last_read = %d,"
-	    " ttl = %d,"
+	    " last_read = {tv_sec = %ld, tv_nsec = %ld}"
+	    " ttl = {tv_sec = %ld, tv_nsec = %ld},"
 	    " pos_init = %d,"
 	    " pos_curr = %d,"
 	    " pos_final = %d,"
@@ -81,8 +81,10 @@ fifo_print_one(Fifo *f)
 	    f->name,
 	    f->fd,
 	    f->width,
-	    f->last_read,
-	    f->ttl,
+	    f->last_read.tv_sec,
+	    f->last_read.tv_nsec,
+	    f->ttl.tv_sec,
+	    f->ttl.tv_nsec,
 	    f->pos_init,
 	    f->pos_curr,
 	    f->pos_final,
@@ -155,13 +157,13 @@ print_usage()
 	    "  SPEC       = FILE_PATH DATA_WIDTH DATA_TTL\n"
 	    "  FILE_PATH  = string\n"
 	    "  DATA_WIDTH = int  (* (positive) number of characters *)\n"
-	    "  DATA_TTL   = int  (* (positive) number of seconds *)\n"
+	    "  DATA_TTL   = float  (* (positive) number of seconds *)\n"
 	    "  OPTION     = -i INTERVAL\n"
 	    "             | -s SEPARATOR\n"
 	    "             | -x (* Output to X root window *)\n"
 	    "             | -l LOG_LEVEL\n"
 	    "  SEPARATOR  = string\n"
-	    "  INTERVAL   = int  (* (positive) number of seconds *)\n"
+	    "  INTERVAL   = float  (* (positive) number of seconds *)\n"
 	    "  LOG_LEVEL  = int  (* %d through %d *)\n"
 	    "\n",
 	    argv0,
@@ -255,17 +257,21 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 	char *w = argv[i++];
 	char *t = argv[i++];
 
+	struct timespec last_read;
+
 	if (!is_pos_num(w))
 		usage("[spec] Invalid width: \"%s\", for fifo \"%s\"\n", w, n);
-	if (!is_pos_num(t))
+	if (!is_decimal(t))
 		usage("[spec] Invalid TTL: \"%s\", for fifo \"%s\"\n", t, n);
+	last_read.tv_sec  = 0;
+	last_read.tv_nsec = 0;
 	Fifo *f = calloc(1, sizeof(struct Fifo));
 	if (f) {
 		f->name      = n;
 		f->fd        = -1;
 		f->width     = atoi(w);
-		f->ttl       = atoi(t);
-		f->last_read = 0;
+		f->ttl       = timespec_of_float(atof(t));
+		f->last_read = last_read;
 		f->pos_init  = cfg->total_width;
 		f->pos_curr  = f->pos_init;
 		f->pos_final = f->pos_init + f->width - 1;
@@ -310,6 +316,28 @@ opts_parse(Config *cfg, int argc, char *argv[])
 }
 
 void
+fifo_expire_one(Fifo *f, struct timespec t, char *buf)
+{
+	struct timespec td;
+
+	timespecsub(&t, &(f->last_read), &td);
+	if (timespeccmp(&td, &(f->ttl), >=)) {
+		/* TODO: Maybe configurable expiry character. */
+		memset(buf + f->pos_init, '_', f->pos_final - f->pos_init);
+		warn("Data source expired: \"%s\"\n", f->name);
+	}
+}
+
+void
+fifo_expire_all(Config *cfg, struct timespec t, char *buf)
+{
+	Fifo *f;
+
+	for (f = cfg->fifos; f; f = f->next)
+		fifo_expire_one(f, t, buf);
+}
+
+void
 fifo_read_error(Fifo *f, char *buf)
 {
 	char *b;
@@ -326,7 +354,7 @@ fifo_read_error(Fifo *f, char *buf)
 }
 
 enum read_status
-fifo_read_one(Fifo *f, char *buf)
+fifo_read_one(Fifo *f, struct timespec t, char *buf)
 {
 	char c;  /* Character read. */
 	int  r;  /* Remaining unused slots in buffer range. */
@@ -354,6 +382,7 @@ fifo_read_one(Fifo *f, char *buf)
 				if (r > 0)
 					memset(buf + f->pos_curr, ' ', r);
 				f->pos_curr = f->pos_init;
+				f->last_read = t;
 				return END_OF_MESSAGE;
 			} else {
 				if (f->pos_curr <= f->pos_final)
@@ -365,11 +394,10 @@ fifo_read_one(Fifo *f, char *buf)
 			assert(0);
 		}
 	}
-	/* TODO Record timestamp read */
 }
 
 void
-fifo_read_all(Config *cfg, char *buf)
+fifo_read_all(Config *cfg, struct timespec t, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
@@ -417,7 +445,7 @@ fifo_read_all(Config *cfg, char *buf)
 		for (Fifo *f = cfg->fifos; f; f = f->next) {
 			if (FD_ISSET(f->fd, &fds)) {
 				debug("reading: %s\n", f->name);
-				switch (fifo_read_one(f, buf)) {
+				switch (fifo_read_one(f, t, buf)) {
 				/*
 				 * ### MESSAGE LOSS ###
 				 * is introduced by closing at EOM in addition
@@ -527,13 +555,11 @@ main(int argc, char *argv[])
 	/* TODO: Handle signals */
 	for (;;) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
-		/* TODO: Cache expiration. i.e. use the TTL */
-		/* TODO: How to trigger TTL check? On select? Alarm signal? */
 		/* TODO: Set timeout on fifo_read_all based on diff of last time of
-		 *       fifo_read_all and desired time of next TTL check.
+		 *       fifo_read_all and desired time of next TTL check?
 		 */
 		/* TODO: How long to wait on IO? Max TTL? */
-		fifo_read_all(cfg, buf);
+		fifo_read_all(cfg, t0, buf);
 		if (cfg->output_to_x_root_window) {
 			if (XStoreName(display, DefaultRootWindow(display), buf) < 0)
 				fatal("XStoreName failed.\n");
@@ -542,6 +568,14 @@ main(int argc, char *argv[])
 			puts(buf);
 			fflush(stdout);
 		}
+
+		/*
+		 * This is a good place for expiry check, since we're about to
+		 * sleep anyway and the time taken by the check will be
+		 * subtracted from the sleep period.
+		 */
+		fifo_expire_all(cfg, t0, buf);
+
 		clock_gettime(CLOCK_MONOTONIC, &t1); // FIXME: check errors
 		timespecsub(&t1, &t0, &td);
 		debug("td {tv_sec = %ld, tv_nsec = %ld}\n", td.tv_sec, td.tv_nsec);
