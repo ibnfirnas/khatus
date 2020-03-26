@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +9,6 @@
 #include <unistd.h>
 
 #include "khatus_lib_log.h"
-#include "khatus_lib_sensor.h"
 #include "khatus_lib_time.h"
 
 #define usage(...) {print_usage(); fprintf(stderr, "Error:\n    " __VA_ARGS__); exit(EXIT_FAILURE);}
@@ -22,15 +20,13 @@ char *argv0 = NULL;
 
 double opt_interval = 1.0;
 char *opt_fmt = "%a %b %d %H:%M:%S";
-char *fifo_name = NULL;
 
 void
 print_usage()
 {
 	printf(
-	    "%s: [OPT ...] FIFO\n"
+	    "%s: [OPT ...]\n"
 	    "\n"
-	    "FIFO = string    # path to fifo file\n"
 	    "OPT = -i int     # interval\n"
 	    "    | -f string  # format string\n"
 	    "    | -h         # help message (i.e. what you're reading now :) )\n",
@@ -71,20 +67,6 @@ opt_parse(int argc, char **argv)
 		default:
 			assert(0);
 		}
-	fifo_name = argv[optind];
-	debug("fifo_name: %s\n", fifo_name);
-	if (!fifo_name)
-		usage("No filename was provided\n");
-}
-
-int
-get_time(char *buf, char *fmt)
-{
-	time_t t;
-
-	t = time(NULL);
-	strftime(buf, MAX_LEN, fmt, localtime(&t));
-	return strlen(buf);
 }
 
 int
@@ -92,21 +74,24 @@ main(int argc, char **argv)
 {
 	argv0 = argv[0];
 
+	time_t t;
 	struct timespec ti;
 	char buf[MAX_LEN];
 
 	opt_parse(argc, argv);
-
-	signal(SIGPIPE, SIG_IGN);  /* Handled in loop */
-
-	memset(buf, '\0', MAX_LEN);
 	ti = timespec_of_float(opt_interval);
-	loop(
-	    &ti,
-	    fifo_name,
-	    buf,
-	    (SENSOR_FUN_T)    get_time,
-	    (SENSOR_PARAMS_T) opt_fmt
-	);
+	debug("opt_fmt: \"%s\"\n", opt_fmt);
+	debug("opt_interval: %f\n", opt_interval);
+	debug("ti: {tv_sec = %ld, tv_nsec = %ld}\n", ti.tv_sec, ti.tv_nsec);
+	memset(buf, '\0', MAX_LEN);
+	signal(SIGPIPE, SIG_IGN);
+
+	for (;;) {
+		t = time(NULL);
+		strftime(buf, MAX_LEN, opt_fmt, localtime(&t));
+		puts(buf);
+		fflush(stdout);
+		snooze(&ti);
+	}
 	return EXIT_SUCCESS;
 }
