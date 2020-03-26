@@ -51,13 +51,6 @@ struct Config {
 	int    fifo_count;
 	int    total_width;
 	int    output_to_x_root_window;
-} defaults = {
-	.interval    = 1.0,
-	.separator   = "|",
-	.fifos       = NULL,
-	.fifo_count  = 0,
-	.total_width = 0,
-	.output_to_x_root_window = 0,
 };
 
 enum read_status {
@@ -506,14 +499,21 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 int
 main(int argc, char *argv[])
 {
+	Config cfg = {
+		.interval    = 1.0,
+		.separator   = "|",
+		.fifos       = NULL,
+		.fifo_count  = 0,
+		.total_width = 0,
+		.output_to_x_root_window = 0,
+	};
+
 	int width  = 0;
 	int nfifos = 0;
 	int seplen = 0;
 	int prefix = 0;
 	int errors = 0;
 	char *buf;
-	Config cfg0 = defaults;
-	Config *cfg = &cfg0;
 	Display *d = NULL;
 	struct stat st;
 	struct timespec
@@ -525,17 +525,17 @@ main(int argc, char *argv[])
 
 	argv0 = argv[0];
 
-	opts_parse(cfg, argc, argv);
+	opts_parse(&cfg, argc, argv);
 	debug("argv0 = %s\n", argv0);
-	config_print(cfg);
+	config_print(&cfg);
 
-	ti = timespec_of_float(cfg->interval);
+	ti = timespec_of_float(cfg.interval);
 
-	if (cfg->fifos == NULL)
+	if (cfg.fifos == NULL)
 		usage("No fifo specs were given!\n");
 
 	/* 1st pass to check file existence and type */
-	for (Fifo *f = cfg->fifos; f; f = f->next) {
+	for (Fifo *f = cfg.fifos; f; f = f->next) {
 		if (lstat(f->name, &st) < 0) {
 			error(
 			    "Cannot stat \"%s\". Error: %s\n",
@@ -554,11 +554,11 @@ main(int argc, char *argv[])
 	if (errors)
 		fatal("Encountered errors with given file paths. See log.\n");
 
-	width  = cfg->total_width;
-	seplen = strlen(cfg->separator);
+	width  = cfg.total_width;
+	seplen = strlen(cfg.separator);
 
 	/* 2nd pass to make space for separators */
-	for (Fifo *f = cfg->fifos; f; f = f->next) {
+	for (Fifo *f = cfg.fifos; f; f = f->next) {
 		f->pos_init  += prefix;
 		f->pos_final += prefix;
 		f->pos_curr = f->pos_init;
@@ -572,24 +572,24 @@ main(int argc, char *argv[])
 	memset(buf, ' ', width);
 	buf[width] = '\0';
 	/* 3rd pass to set the separators */
-	for (Fifo *f = cfg->fifos; f; f = f->next) {
+	for (Fifo *f = cfg.fifos; f; f = f->next) {
 		if (f->pos_init) {  /* Skip the first, left-most */
 			/* Copying only seplen ensures we omit the '\0' byte. */
 			strncpy(
 			    buf + (f->pos_init - seplen),
-			    cfg->separator,
+			    cfg.separator,
 			    seplen
 			);
 		}
 	}
 
-	if (cfg->output_to_x_root_window && !(d = XOpenDisplay(NULL)))
+	if (cfg.output_to_x_root_window && !(d = XOpenDisplay(NULL)))
 		fatal("XOpenDisplay failed with: %p\n", d);
 	/* TODO: Handle signals */
 	for (;;) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
-		fifo_read_all(cfg, &ti, buf);
-		if (cfg->output_to_x_root_window) {
+		fifo_read_all(&cfg, &ti, buf);
+		if (cfg.output_to_x_root_window) {
 			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
 				fatal("XStoreName failed.\n");
 			XFlush(d);
