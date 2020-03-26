@@ -143,7 +143,7 @@ slot_set_error(Slot *s, char *buf)
 }
 
 enum read_status
-slot_read(Slot *s, struct timespec t, char *buf)
+slot_read(Slot *s, char *buf)
 {
 	char c;  /* Character read. */
 	int  r;  /* Remaining unused positions in buffer range. */
@@ -174,18 +174,18 @@ slot_read(Slot *s, struct timespec t, char *buf)
 				r = (s->out_pos_hi - s->out_pos_cur) + 1;
 				if (r > 0)
 					memset(buf + s->out_pos_cur, ' ', r);
-				s->out_pos_cur = s->out_pos_lo;
-				s->in_last_read = t;
 				return END_OF_MESSAGE;
 			} else {
 				if (s->out_pos_cur <= s->out_pos_hi)
 					buf[s->out_pos_cur++] = c;
-				/* Drop beyond available range. */
-				/*
-				 * TODO Define max after which we stop reading.
-				 *      To ensure that a rogue large message
-				 *      doesn't trap us here.
-				 */
+				else
+					/*
+					 * Force EOM beyond available range.
+					 * To ensure that a rogue large message
+					 * doesn't trap us here needlessly
+					 * long.
+					 */
+					return END_OF_MESSAGE;
 			}
 			break;
 		default:
@@ -277,7 +277,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 				continue;
 			if (FD_ISSET(s->in_fd, &fds)) {
 				khlib_debug("reading: %s\n", s->in_fifo);
-				switch (slot_read(s, t, buf)) {
+				switch (slot_read(s, buf)) {
 				/*
 				 * ### MESSAGE LOSS ###
 				 * is introduced by closing at EOM in addition
@@ -309,7 +309,9 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 				case END_OF_FILE:
 				case FAILURE:
 					close(s->in_fd);
-					s->in_fd = -1;
+					s->in_fd        = -1;
+					s->in_last_read = t;
+					s->out_pos_cur  = s->out_pos_lo;
 					ready--;
 					break;
 				case RETRY:
