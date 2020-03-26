@@ -121,25 +121,25 @@ slot_expire(Slot *s, struct timespec t, char *buf)
 	timespecsub(&t, &(s->in_last_read), &td);
 	if (timespeccmp(&td, &(s->out_ttl), >=)) {
 		/* TODO: Maybe configurable expiry character. */
-		memset(buf + s->out_pos_lo, '_', s->out_pos_hi - s->out_pos_lo);
+		memset(buf + s->out_pos_lo, '_', s->out_width);
 		khlib_warn("Slot expired: \"%s\"\n", s->in_fifo);
 	}
 }
 
 void
-slot_read_error(Slot *s, char *buf)
+slot_set_error(Slot *s, char *buf)
 {
 	char *b;
 	int i;
 
+	s->in_fd = -1;
 	b = buf + s->out_pos_lo;
 	/* Copy as much of the error message as possible.
 	 * EXCLUDING the terminating \0. */
 	for (i = 0; i < errlen && i < s->out_width; i++)
 		b[i] = errmsg[i];
 	/* Any remaining positions: */
-	for (; i < s->out_width; i++)
-		b[i] = '_';
+	memset(b + i, '_', s->out_width - i);
 }
 
 enum read_status
@@ -171,7 +171,7 @@ slot_read(Slot *s, struct timespec t, char *buf)
 		case  1:
 			/* TODO: Consider making msg term char a CLI option */
 			if (c == '\n' || c == '\0') {
-				r = s->out_pos_hi - s->out_pos_cur;
+				r = (s->out_pos_hi - s->out_pos_cur) + 1;
 				if (r > 0)
 					memset(buf + s->out_pos_cur, ' ', r);
 				s->out_pos_cur = s->out_pos_lo;
@@ -213,12 +213,12 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 			    s->in_fifo,
 			    strerror(errno)
 			);
-			slot_read_error(s, buf);
+			slot_set_error(s, buf);
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
 			khlib_error("\"%s\" is not a FIFO\n", s->in_fifo);
-			slot_read_error(s, buf);
+			slot_set_error(s, buf);
 			continue;
 		}
 		if (s->in_fd < 0) {
@@ -238,7 +238,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 		if (s->in_fd == -1) {
 			/* TODO Consider backing off retries for failed slots */
 			khlib_error("Failed to open \"%s\"\n", s->in_fifo);
-			slot_read_error(s, buf);
+			slot_set_error(s, buf);
 			continue;
 		}
 		khlib_debug("%s: open. in_fd: %d\n", s->in_fifo, s->in_fd);
@@ -273,6 +273,8 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 	/* At-least-once ensures that expiries are still checked on timeouts. */
 	do {
 		for (s = cfg->slots; s; s = s->next) {
+			if (s->in_fd < 0)
+				continue;
 			if (FD_ISSET(s->in_fd, &fds)) {
 				khlib_debug("reading: %s\n", s->in_fifo);
 				switch (slot_read(s, t, buf)) {
