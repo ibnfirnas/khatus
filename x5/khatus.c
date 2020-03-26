@@ -24,6 +24,7 @@
 }
 #define ERRMSG "ERROR"
 
+
 static const char errmsg[] = ERRMSG;
 static const int  errlen   = sizeof(ERRMSG) - 1;
 
@@ -60,8 +61,23 @@ enum read_status {
 	FAILURE
 };
 
+Slot *
+slots_rev(Slot *old)
+{
+	Slot *tmp = NULL;
+	Slot *new = NULL;
+
+	while (old) {
+		tmp       = old->next;
+		old->next = new;
+		new       = old;
+		old       = tmp;
+	}
+	return new;
+}
+
 void
-slot_print_one(Slot *s)
+slot_print(Slot *s)
 {
 	khlib_info("Slot "
 	    "{"
@@ -90,10 +106,10 @@ slot_print_one(Slot *s)
 }
 
 void
-slot_print_all(Slot *head)
+slots_print(Slot *head)
 {
 	for (Slot *s = head; s; s = s->next) {
-		slot_print_one(s);
+		slot_print(s);
 	}
 }
 
@@ -114,7 +130,7 @@ config_print(Config *cfg)
 	    cfg->slot_count,
 	    cfg->total_width
 	);
-	slot_print_all(cfg->slots);
+	slots_print(cfg->slots);
 }
 
 int
@@ -252,35 +268,41 @@ parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 void
 parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 {
+	char *n;
+	char *w;
+	char *t;
+	struct timespec in_last_read;
+	Slot *s;
+
 	if ((i + 3) > argc)
 		usage(
 		    "[spec] Parameter(s) missing for fifo \"%s\".\n",
 		    argv[i]
 		);
 
-	char *n = argv[i++];
-	char *w = argv[i++];
-	char *t = argv[i++];
-
-	struct timespec in_last_read;
+	n = argv[i++];
+	w = argv[i++];
+	t = argv[i++];
 
 	if (!is_pos_num(w))
 		usage("[spec] Invalid width: \"%s\", for fifo \"%s\"\n", w, n);
 	if (!is_decimal(t))
 		usage("[spec] Invalid TTL: \"%s\", for fifo \"%s\"\n", t, n);
+
 	in_last_read.tv_sec  = 0;
 	in_last_read.tv_nsec = 0;
-	Slot *s = calloc(1, sizeof(struct Slot));
+	s = calloc(1, sizeof(struct Slot));
+
 	if (s) {
 		s->in_fifo      = n;
 		s->in_fd        = -1;
-		s->out_width     = atoi(w);
-		s->out_ttl       = khlib_timespec_of_float(atof(t));
+		s->out_width    = atoi(w);
+		s->out_ttl      = khlib_timespec_of_float(atof(t));
 		s->in_last_read = in_last_read;
-		s->out_pos_lo  = cfg->total_width;
+		s->out_pos_lo   = cfg->total_width;
 		s->out_pos_cur  = s->out_pos_lo;
-		s->out_pos_hi = s->out_pos_lo + s->out_width - 1;
-		s->next      = cfg->slots;
+		s->out_pos_hi   = s->out_pos_lo + s->out_width - 1;
+		s->next		= cfg->slots;
 
 		cfg->slots        = s;
 		cfg->total_width += s->out_width;
@@ -309,15 +331,7 @@ void
 opts_parse(Config *cfg, int argc, char *argv[])
 {
 	opts_parse_any(cfg, argc, argv, 1);
-
-	Slot *last = cfg->slots;
-	cfg->slots = NULL;
-	for (Slot *s = last; s; ) {
-		Slot *next = s->next;
-		s->next = cfg->slots;
-		cfg->slots = s;
-		s = next;
-	}
+	cfg->slots = slots_rev(cfg->slots);
 }
 
 void
@@ -344,16 +358,16 @@ slot_read_error(Slot *s, char *buf)
 	 * EXCLUDING the terminating \0. */
 	for (i = 0; i < errlen && i < s->out_width; i++)
 		b[i] = errmsg[i];
-	/* Any remaining slots: */
+	/* Any remaining positions: */
 	for (; i < s->out_width; i++)
 		b[i] = '_';
 }
 
 enum read_status
-slot_read_one(Slot *s, struct timespec t, char *buf)
+slot_read(Slot *s, struct timespec t, char *buf)
 {
 	char c;  /* Character read. */
-	int  r;  /* Remaining unused slots in buffer range. */
+	int  r;  /* Remaining unused positions in buffer range. */
 
 	for (;;) {
 		switch (read(s->in_fd, &c, 1)) {
@@ -402,16 +416,17 @@ slot_read_one(Slot *s, struct timespec t, char *buf)
 }
 
 void
-slot_read_all(Config *cfg, struct timespec *ti, char *buf)
+slots_read(Config *cfg, struct timespec *ti, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
 	int ready = 0;
 	struct stat st;
 	struct timespec t;
+	Slot *s;
 
 	FD_ZERO(&fds);
-	for (Slot *s = cfg->slots; s; s = s->next) {
+	for (s = cfg->slots; s; s = s->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
 		if (lstat(s->in_fifo, &st) < 0) {
 			khlib_error(
@@ -478,10 +493,10 @@ slot_read_all(Config *cfg, struct timespec *ti, char *buf)
 	}
 	/* At-least-once ensures that expiries are still checked on timeouts. */
 	do {
-		for (Slot *s = cfg->slots; s; s = s->next) {
+		for (s = cfg->slots; s; s = s->next) {
 			if (FD_ISSET(s->in_fd, &fds)) {
 				khlib_debug("reading: %s\n", s->in_fifo);
-				switch (slot_read_one(s, t, buf)) {
+				switch (slot_read(s, t, buf)) {
 				/*
 				 * ### MESSAGE LOSS ###
 				 * is introduced by closing at EOM in addition
@@ -542,6 +557,7 @@ main(int argc, char *argv[])
 		ti,  /* time interval desired    (t1 - t0) */
 		td,  /* time interval measured   (t1 - t0) */
 		tc;  /* time interval correction (ti - td) when td < ti */
+	Slot *s;
 
 	argv0 = argv[0];
 
@@ -555,7 +571,7 @@ main(int argc, char *argv[])
 		usage("No slot specs were given!\n");
 
 	/* 1st pass to check file existence and type */
-	for (Slot *s = cfg.slots; s; s = s->next) {
+	for (s = cfg.slots; s; s = s->next) {
 		if (lstat(s->in_fifo, &st) < 0) {
 			khlib_error(
 			    "Cannot stat \"%s\". Error: %s\n",
@@ -580,7 +596,7 @@ main(int argc, char *argv[])
 	seplen = strlen(cfg.separator);
 
 	/* 2nd pass to make space for separators */
-	for (Slot *s = cfg.slots; s; s = s->next) {
+	for (s = cfg.slots; s; s = s->next) {
 		s->out_pos_lo  += prefix;
 		s->out_pos_hi += prefix;
 		s->out_pos_cur = s->out_pos_lo;
@@ -597,7 +613,7 @@ main(int argc, char *argv[])
 	memset(buf, ' ', width);
 	buf[width] = '\0';
 	/* 3rd pass to set the separators */
-	for (Slot *s = cfg.slots; s; s = s->next) {
+	for (s = cfg.slots; s; s = s->next) {
 		if (s->out_pos_lo) {  /* Skip the first, left-most */
 			/* Copying only seplen ensures we omit the '\0' byte. */
 			strncpy(
@@ -613,7 +629,7 @@ main(int argc, char *argv[])
 	/* TODO: Handle signals */
 	for (;;) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
-		slot_read_all(&cfg, &ti, buf);
+		slots_read(&cfg, &ti, buf);
 		if (cfg.output_to_x_root_window) {
 			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
 				khlib_fatal("XStoreName failed.\n");
@@ -630,16 +646,13 @@ main(int argc, char *argv[])
 		    td.tv_nsec
 		);
 		if (timespeccmp(&td, &ti, <)) {
-			/* Pushback on data producers by refusing to read the
+			/*
+			 * Pushback on data producers by refusing to read the
 			 * pipe more frequently than the interval.
 			 */
 			timespecsub(&ti, &td, &tc);
-			khlib_debug("khlib_sleep YES\n");
 			khlib_sleep(&tc);
-		} else {
-			khlib_debug("khlib_sleep NO\n");
 		}
 	}
-
 	return EXIT_SUCCESS;
 }
