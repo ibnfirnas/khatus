@@ -29,26 +29,26 @@ static const int  errlen   = sizeof(ERRMSG) - 1;
 
 char *argv0;
 
-/* TODO: Convert fifo list to fifo array. */
-typedef struct Fifo Fifo;
-struct Fifo {
-	char   *name;
-	int     fd;
-	int     width;
-	struct timespec last_read;
-	struct timespec ttl;
-	int     pos_init;  /* Initial position on the output buffer. */
-	int     pos_curr;  /* Current position on the output buffer. */
-	int     pos_final; /* Final   position on the output buffer. */
-	Fifo   *next;
+/* TODO: Convert slot list to slot array. */
+typedef struct Slot Slot;
+struct Slot {
+	char            *in_fifo;
+	int              in_fd;
+	struct timespec  in_last_read;
+	struct timespec  out_ttl;
+	int              out_width;
+	int              out_pos_lo;   /* Lowest  position on the output buffer. */
+	int              out_pos_cur;  /* Current position on the output buffer. */
+	int              out_pos_hi;   /* Highest position on the output buffer. */
+	Slot            *next;
 };
 
 typedef struct Config Config;
 struct Config {
 	double interval;
 	char * separator;
-	Fifo * fifos;
-	int    fifo_count;
+	Slot * slots;
+	int    slot_count;
 	int    total_width;
 	int    output_to_x_root_window;
 };
@@ -61,39 +61,39 @@ enum read_status {
 };
 
 void
-fifo_print_one(Fifo *f)
+slot_print_one(Slot *s)
 {
-	khlib_info("Fifo "
+	khlib_info("Slot "
 	    "{"
-	    " name = %s,"
-	    " fd = %d,"
-	    " width = %d,"
-	    " last_read = {tv_sec = %ld, tv_nsec = %ld}"
-	    " ttl = {tv_sec = %ld, tv_nsec = %ld},"
-	    " pos_init = %d,"
-	    " pos_curr = %d,"
-	    " pos_final = %d,"
+	    " in_fifo = %s,"
+	    " in_fd = %d,"
+	    " out_width = %d,"
+	    " in_last_read = {tv_sec = %ld, tv_nsec = %ld}"
+	    " out_ttl = {tv_sec = %ld, tv_nsec = %ld},"
+	    " out_pos_lo = %d,"
+	    " out_pos_cur = %d,"
+	    " out_pos_hi = %d,"
 	    " next = %p,"
 	    " }\n",
-	    f->name,
-	    f->fd,
-	    f->width,
-	    f->last_read.tv_sec,
-	    f->last_read.tv_nsec,
-	    f->ttl.tv_sec,
-	    f->ttl.tv_nsec,
-	    f->pos_init,
-	    f->pos_curr,
-	    f->pos_final,
-	    f->next
+	    s->in_fifo,
+	    s->in_fd,
+	    s->out_width,
+	    s->in_last_read.tv_sec,
+	    s->in_last_read.tv_nsec,
+	    s->out_ttl.tv_sec,
+	    s->out_ttl.tv_nsec,
+	    s->out_pos_lo,
+	    s->out_pos_cur,
+	    s->out_pos_hi,
+	    s->next
 	);
 }
 
 void
-fifo_print_all(Fifo *head)
+slot_print_all(Slot *head)
 {
-	for (Fifo *f = head; f; f = f->next) {
-		fifo_print_one(f);
+	for (Slot *s = head; s; s = s->next) {
+		slot_print_one(s);
 	}
 }
 
@@ -105,34 +105,34 @@ config_print(Config *cfg)
 	    "{"
 	    " interval = %f,"
 	    " separator = %s,"
-	    " fifo_count = %d,"
+	    " slot_count = %d,"
 	    " total_width = %d,"
-	    " fifos = ..."
+	    " slots = ..."
 	    " }\n",
 	    cfg->interval,
 	    cfg->separator,
-	    cfg->fifo_count,
+	    cfg->slot_count,
 	    cfg->total_width
 	);
-	fifo_print_all(cfg->fifos);
+	slot_print_all(cfg->slots);
 }
 
 int
-is_pos_num(char *s)
+is_pos_num(char *str)
 {
-	while (*s != '\0')
-		if (!isdigit(*(s++)))
+	while (*str != '\0')
+		if (!isdigit(*(str++)))
 			return 0;
 	return 1;
 }
 
 int
-is_decimal(char *s)
+is_decimal(char *str)
 {
 	char c;
 	int seen = 0;
 
-	while ((c = *(s++)) != '\0')
+	while ((c = *(str++)) != '\0')
 		if (!isdigit(c)) {
 			if (c == '.' && !seen++)
 				continue;
@@ -262,29 +262,29 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 	char *w = argv[i++];
 	char *t = argv[i++];
 
-	struct timespec last_read;
+	struct timespec in_last_read;
 
 	if (!is_pos_num(w))
 		usage("[spec] Invalid width: \"%s\", for fifo \"%s\"\n", w, n);
 	if (!is_decimal(t))
 		usage("[spec] Invalid TTL: \"%s\", for fifo \"%s\"\n", t, n);
-	last_read.tv_sec  = 0;
-	last_read.tv_nsec = 0;
-	Fifo *f = calloc(1, sizeof(struct Fifo));
-	if (f) {
-		f->name      = n;
-		f->fd        = -1;
-		f->width     = atoi(w);
-		f->ttl       = khlib_timespec_of_float(atof(t));
-		f->last_read = last_read;
-		f->pos_init  = cfg->total_width;
-		f->pos_curr  = f->pos_init;
-		f->pos_final = f->pos_init + f->width - 1;
-		f->next      = cfg->fifos;
+	in_last_read.tv_sec  = 0;
+	in_last_read.tv_nsec = 0;
+	Slot *s = calloc(1, sizeof(struct Slot));
+	if (s) {
+		s->in_fifo      = n;
+		s->in_fd        = -1;
+		s->out_width     = atoi(w);
+		s->out_ttl       = khlib_timespec_of_float(atof(t));
+		s->in_last_read = in_last_read;
+		s->out_pos_lo  = cfg->total_width;
+		s->out_pos_cur  = s->out_pos_lo;
+		s->out_pos_hi = s->out_pos_lo + s->out_width - 1;
+		s->next      = cfg->slots;
 
-		cfg->fifos        = f;
-		cfg->total_width += f->width;
-		cfg->fifo_count++;
+		cfg->slots        = s;
+		cfg->total_width += s->out_width;
+		cfg->slot_count++;
 	} else {
 		khlib_fatal("[memory] Allocation failure.");
 	}
@@ -310,57 +310,59 @@ opts_parse(Config *cfg, int argc, char *argv[])
 {
 	opts_parse_any(cfg, argc, argv, 1);
 
-	Fifo *last = cfg->fifos;
-	cfg->fifos = NULL;
-	for (Fifo *f = last; f; ) {
-		Fifo *next = f->next;
-		f->next = cfg->fifos;
-		cfg->fifos = f;
-		f = next;
+	Slot *last = cfg->slots;
+	cfg->slots = NULL;
+	for (Slot *s = last; s; ) {
+		Slot *next = s->next;
+		s->next = cfg->slots;
+		cfg->slots = s;
+		s = next;
 	}
 }
 
 void
-fifo_expire(Fifo *f, struct timespec t, char *buf)
+slot_expire(Slot *s, struct timespec t, char *buf)
 {
 	struct timespec td;
 
-	timespecsub(&t, &(f->last_read), &td);
-	if (timespeccmp(&td, &(f->ttl), >=)) {
+	timespecsub(&t, &(s->in_last_read), &td);
+	if (timespeccmp(&td, &(s->out_ttl), >=)) {
 		/* TODO: Maybe configurable expiry character. */
-		memset(buf + f->pos_init, '_', f->pos_final - f->pos_init);
-		khlib_warn("Data source expired: \"%s\"\n", f->name);
+		memset(buf + s->out_pos_lo, '_', s->out_pos_hi - s->out_pos_lo);
+		khlib_warn("Slot expired: \"%s\"\n", s->in_fifo);
 	}
 }
 
 void
-fifo_read_error(Fifo *f, char *buf)
+slot_read_error(Slot *s, char *buf)
 {
 	char *b;
 	int i;
 
-	b = buf + f->pos_init;
+	b = buf + s->out_pos_lo;
 	/* Copy as much of the error message as possible.
 	 * EXCLUDING the terminating \0. */
-	for (i = 0; i < errlen && i < f->width; i++)
+	for (i = 0; i < errlen && i < s->out_width; i++)
 		b[i] = errmsg[i];
 	/* Any remaining slots: */
-	for (; i < f->width; i++)
+	for (; i < s->out_width; i++)
 		b[i] = '_';
 }
 
 enum read_status
-fifo_read_one(Fifo *f, struct timespec t, char *buf)
+slot_read_one(Slot *s, struct timespec t, char *buf)
 {
 	char c;  /* Character read. */
 	int  r;  /* Remaining unused slots in buffer range. */
 
 	for (;;) {
-		switch (read(f->fd, &c, 1)) {
+		switch (read(s->in_fd, &c, 1)) {
 		case -1:
 			khlib_error(
 			    "Failed to read: \"%s\". errno: %d, msg: %s\n",
-			    f->name, errno, strerror(errno)
+			    s->in_fifo,
+			    errno,
+			    strerror(errno)
 			);
 			switch (errno) {
 			case EINTR:
@@ -370,21 +372,21 @@ fifo_read_one(Fifo *f, struct timespec t, char *buf)
 				return FAILURE;
 			}
 		case  0:
-			khlib_debug("%s: End of FILE\n", f->name);
-			f->pos_curr = f->pos_init;
+			khlib_debug("%s: End of FILE\n", s->in_fifo);
+			s->out_pos_cur = s->out_pos_lo;
 			return END_OF_FILE;
 		case  1:
 			/* TODO: Consider making msg term char a CLI option */
 			if (c == '\n' || c == '\0') {
-				r = f->pos_final - f->pos_curr;
+				r = s->out_pos_hi - s->out_pos_cur;
 				if (r > 0)
-					memset(buf + f->pos_curr, ' ', r);
-				f->pos_curr = f->pos_init;
-				f->last_read = t;
+					memset(buf + s->out_pos_cur, ' ', r);
+				s->out_pos_cur = s->out_pos_lo;
+				s->in_last_read = t;
 				return END_OF_MESSAGE;
 			} else {
-				if (f->pos_curr <= f->pos_final)
-					buf[f->pos_curr++] = c;
+				if (s->out_pos_cur <= s->out_pos_hi)
+					buf[s->out_pos_cur++] = c;
 				/* Drop beyond available range. */
 				/*
 				 * TODO Define max after which we stop reading.
@@ -400,7 +402,7 @@ fifo_read_one(Fifo *f, struct timespec t, char *buf)
 }
 
 void
-fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
+slot_read_all(Config *cfg, struct timespec *ti, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
@@ -409,46 +411,46 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 	struct timespec t;
 
 	FD_ZERO(&fds);
-	for (Fifo *f = cfg->fifos; f; f = f->next) {
+	for (Slot *s = cfg->slots; s; s = s->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
-		if (lstat(f->name, &st) < 0) {
+		if (lstat(s->in_fifo, &st) < 0) {
 			khlib_error(
 			    "Cannot stat \"%s\". Error: %s\n",
-			    f->name,
+			    s->in_fifo,
 			    strerror(errno)
 			);
-			fifo_read_error(f, buf);
+			slot_read_error(s, buf);
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
-			khlib_error("\"%s\" is not a FIFO\n", f->name);
-			fifo_read_error(f, buf);
+			khlib_error("\"%s\" is not a FIFO\n", s->in_fifo);
+			slot_read_error(s, buf);
 			continue;
 		}
-		if (f->fd < 0) {
+		if (s->in_fd < 0) {
 			khlib_debug(
-			    "%s: closed. opening. fd: %d\n",
-			    f->name,
-			    f->fd
+			    "%s: closed. opening. in_fd: %d\n",
+			    s->in_fifo,
+			    s->in_fd
 			);
-			f->fd = open(f->name, O_RDONLY | O_NONBLOCK);
+			s->in_fd = open(s->in_fifo, O_RDONLY | O_NONBLOCK);
 		} else {
 			khlib_debug(
-			    "%s: already openned. fd: %d\n",
-			    f->name,
-			    f->fd
+			    "%s: already openned. in_fd: %d\n",
+			    s->in_fifo,
+			    s->in_fd
 			);
 		}
-		if (f->fd == -1) {
-			/* TODO Consider backing off retries for failed fifos */
-			khlib_error("Failed to open \"%s\"\n", f->name);
-			fifo_read_error(f, buf);
+		if (s->in_fd == -1) {
+			/* TODO Consider backing off retries for failed slots */
+			khlib_error("Failed to open \"%s\"\n", s->in_fifo);
+			slot_read_error(s, buf);
 			continue;
 		}
-		khlib_debug("%s: open. fd: %d\n", f->name, f->fd);
-		if (f->fd > maxfd)
-			maxfd = f->fd;
-		FD_SET(f->fd, &fds);
+		khlib_debug("%s: open. in_fd: %d\n", s->in_fifo, s->in_fd);
+		if (s->in_fd > maxfd)
+			maxfd = s->in_fd;
+		FD_SET(s->in_fd, &fds);
 	}
 	khlib_debug("selecting...\n");
 	ready = pselect(maxfd + 1, &fds, NULL, NULL, ti, NULL);
@@ -476,10 +478,10 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 	}
 	/* At-least-once ensures that expiries are still checked on timeouts. */
 	do {
-		for (Fifo *f = cfg->fifos; f; f = f->next) {
-			if (FD_ISSET(f->fd, &fds)) {
-				khlib_debug("reading: %s\n", f->name);
-				switch (fifo_read_one(f, t, buf)) {
+		for (Slot *s = cfg->slots; s; s = s->next) {
+			if (FD_ISSET(s->in_fd, &fds)) {
+				khlib_debug("reading: %s\n", s->in_fifo);
+				switch (slot_read_one(s, t, buf)) {
 				/*
 				 * ### MESSAGE LOSS ###
 				 * is introduced by closing at EOM in addition
@@ -497,8 +499,8 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 				case END_OF_MESSAGE:
 				case END_OF_FILE:
 				case FAILURE:
-					close(f->fd);
-					f->fd = -1;
+					close(s->in_fd);
+					s->in_fd = -1;
 					ready--;
 					break;
 				case RETRY:
@@ -507,7 +509,7 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 					assert(0);
 				}
 			} else {
-				fifo_expire(f, t, buf);
+				slot_expire(s, t, buf);
 			}
 		}
 	} while (ready);
@@ -520,14 +522,14 @@ main(int argc, char *argv[])
 	Config cfg = {
 		.interval    = 1.0,
 		.separator   = "|",
-		.fifos       = NULL,
-		.fifo_count  = 0,
+		.slots       = NULL,
+		.slot_count  = 0,
 		.total_width = 0,
 		.output_to_x_root_window = 0,
 	};
 
 	int width  = 0;
-	int nfifos = 0;
+	int nslots = 0;
 	int seplen = 0;
 	int prefix = 0;
 	int errors = 0;
@@ -535,8 +537,8 @@ main(int argc, char *argv[])
 	Display *d = NULL;
 	struct stat st;
 	struct timespec
-		t0,  /* time stamp. before reading fifos */
-		t1,  /* time stamp. after  reading fifos */
+		t0,  /* time stamp. before reading slots */
+		t1,  /* time stamp. after  reading slots */
 		ti,  /* time interval desired    (t1 - t0) */
 		td,  /* time interval measured   (t1 - t0) */
 		tc;  /* time interval correction (ti - td) when td < ti */
@@ -549,22 +551,22 @@ main(int argc, char *argv[])
 
 	ti = khlib_timespec_of_float(cfg.interval);
 
-	if (cfg.fifos == NULL)
-		usage("No fifo specs were given!\n");
+	if (cfg.slots == NULL)
+		usage("No slot specs were given!\n");
 
 	/* 1st pass to check file existence and type */
-	for (Fifo *f = cfg.fifos; f; f = f->next) {
-		if (lstat(f->name, &st) < 0) {
+	for (Slot *s = cfg.slots; s; s = s->next) {
+		if (lstat(s->in_fifo, &st) < 0) {
 			khlib_error(
 			    "Cannot stat \"%s\". Error: %s\n",
-			    f->name,
+			    s->in_fifo,
 			    strerror(errno)
 			);
 			errors++;
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
-			khlib_error("\"%s\" is not a FIFO\n", f->name);
+			khlib_error("\"%s\" is not a FIFO\n", s->in_fifo);
 			errors++;
 			continue;
 		}
@@ -578,14 +580,14 @@ main(int argc, char *argv[])
 	seplen = strlen(cfg.separator);
 
 	/* 2nd pass to make space for separators */
-	for (Fifo *f = cfg.fifos; f; f = f->next) {
-		f->pos_init  += prefix;
-		f->pos_final += prefix;
-		f->pos_curr = f->pos_init;
+	for (Slot *s = cfg.slots; s; s = s->next) {
+		s->out_pos_lo  += prefix;
+		s->out_pos_hi += prefix;
+		s->out_pos_cur = s->out_pos_lo;
 		prefix += seplen;
-		nfifos++;
+		nslots++;
 	}
-	width += (seplen * (nfifos - 1));
+	width += (seplen * (nslots - 1));
 	buf = calloc(1, width + 1);
 	if (buf == NULL)
 		khlib_fatal(
@@ -595,11 +597,11 @@ main(int argc, char *argv[])
 	memset(buf, ' ', width);
 	buf[width] = '\0';
 	/* 3rd pass to set the separators */
-	for (Fifo *f = cfg.fifos; f; f = f->next) {
-		if (f->pos_init) {  /* Skip the first, left-most */
+	for (Slot *s = cfg.slots; s; s = s->next) {
+		if (s->out_pos_lo) {  /* Skip the first, left-most */
 			/* Copying only seplen ensures we omit the '\0' byte. */
 			strncpy(
-			    buf + (f->pos_init - seplen),
+			    buf + (s->out_pos_lo - seplen),
 			    cfg.separator,
 			    seplen
 			);
@@ -611,7 +613,7 @@ main(int argc, char *argv[])
 	/* TODO: Handle signals */
 	for (;;) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
-		fifo_read_all(&cfg, &ti, buf);
+		slot_read_all(&cfg, &ti, buf);
 		if (cfg.output_to_x_root_window) {
 			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
 				khlib_fatal("XStoreName failed.\n");
