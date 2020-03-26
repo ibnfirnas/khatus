@@ -291,6 +291,19 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 				 * This is an acceptable trade-off because we
 				 * are a stateless reporter of a _most-recent_
 				 * status, not a stateful accumulator.
+				 *
+				 * ### LOSSLESS ALTERNATIVES ###
+				 * - Read each pipe until EOF before reading
+				 *   another.
+				 *   PROBLEM: a fast writer can trap us in the
+				 *   read loop.
+				 *
+				 * - Read each pipe until EOM, but close only
+				 *   at EOF.
+				 *   PROBLEM: a fast writer can fill the pipe
+				 *   faster than we can read it and we end-up
+				 *   displaying stale data.
+				 *
 				 */
 				case END_OF_MESSAGE:
 				case END_OF_FILE:
