@@ -5,11 +5,11 @@
 #include <string.h>
 #include <time.h>
 
-#include "khatus_lib_log.h"
-#include "khatus_lib_time.h"
+#include "khlib_log.h"
+#include "khlib_time.h"
 
 struct timespec
-timespec_of_float(double n)
+khlib_timespec_of_float(double n)
 {
 	double integral;
 	double fractional;
@@ -23,16 +23,13 @@ timespec_of_float(double n)
 }
 
 void
-snooze(struct timespec *t)
+khlib_sleep(struct timespec *t)
 {
 	struct timespec remainder;
-	int result;
 
-	result = nanosleep(t, &remainder);
-
-	if (result < 0) {
+	if (nanosleep(t, &remainder) < 0) {
 		if (errno == EINTR) {
-			warn(
+			khlib_warn(
 			    "nanosleep interrupted. Remainder: "
 			    "{ tv_sec = %ld, tv_nsec = %ld }",
 			    remainder.tv_sec, remainder.tv_nsec);
@@ -40,7 +37,7 @@ snooze(struct timespec *t)
 			 * so not attempting to correct after an interruption.
 			 */
 		} else {
-			fatal("nanosleep: %s\n", strerror(errno));
+			khlib_fatal("nanosleep: %s\n", strerror(errno));
 		}
 	}
 }

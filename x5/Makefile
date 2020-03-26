@@ -10,18 +10,18 @@ build: \
     khatus_sensor_time
 
 khatus: \
-	khatus_lib_log.o \
-	khatus_lib_time.o
+	khlib_log.o \
+	khlib_time.o
 
 khatus_sensor_battery: \
-	khatus_lib_log.o \
-	khatus_lib_time.o
+	khlib_log.o \
+	khlib_time.o
 
 khatus_sensor_time: \
-	khatus_lib_log.o \
-	khatus_lib_time.o
+	khlib_log.o \
+	khlib_time.o
 
-khatus_lib_time.o: khatus_lib_log.o
+khlib_time.o: khlib_log.o
 
 clean:
 	@find . -type f -executable -delete

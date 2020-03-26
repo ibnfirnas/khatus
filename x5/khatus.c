@@ -14,8 +14,8 @@
 #include <X11/Xlib.h>
 
 #include "bsdtimespec.h"
-#include "khatus_lib_log.h"
-#include "khatus_lib_time.h"
+#include "khlib_log.h"
+#include "khlib_time.h"
 
 #define usage(...) { \
 	print_usage(); \
@@ -63,7 +63,7 @@ enum read_status {
 void
 fifo_print_one(Fifo *f)
 {
-	info("Fifo "
+	khlib_info("Fifo "
 	    "{"
 	    " name = %s,"
 	    " fd = %d,"
@@ -100,7 +100,7 @@ fifo_print_all(Fifo *head)
 void
 config_print(Config *cfg)
 {
-	info(
+	khlib_info(
 	    "Config "
 	    "{"
 	    " interval = %f,"
@@ -220,7 +220,7 @@ parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
 		    log_level,
 		    Debug
 		);
-	_khatus_lib_log_level = log_level;
+	_khlib_log_level = log_level;
 	opts_parse_any(cfg, argc, argv, i);
 }
 
@@ -275,7 +275,7 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		f->name      = n;
 		f->fd        = -1;
 		f->width     = atoi(w);
-		f->ttl       = timespec_of_float(atof(t));
+		f->ttl       = khlib_timespec_of_float(atof(t));
 		f->last_read = last_read;
 		f->pos_init  = cfg->total_width;
 		f->pos_curr  = f->pos_init;
@@ -286,7 +286,7 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		cfg->total_width += f->width;
 		cfg->fifo_count++;
 	} else {
-		fatal("[memory] Allocation failure.");
+		khlib_fatal("[memory] Allocation failure.");
 	}
 	opts_parse_any(cfg, argc, argv, i);
 }
@@ -329,7 +329,7 @@ fifo_expire(Fifo *f, struct timespec t, char *buf)
 	if (timespeccmp(&td, &(f->ttl), >=)) {
 		/* TODO: Maybe configurable expiry character. */
 		memset(buf + f->pos_init, '_', f->pos_final - f->pos_init);
-		warn("Data source expired: \"%s\"\n", f->name);
+		khlib_warn("Data source expired: \"%s\"\n", f->name);
 	}
 }
 
@@ -358,8 +358,10 @@ fifo_read_one(Fifo *f, struct timespec t, char *buf)
 	for (;;) {
 		switch (read(f->fd, &c, 1)) {
 		case -1:
-			error("Failed to read: \"%s\". errno: %d, msg: %s\n",
-			    f->name, errno, strerror(errno));
+			khlib_error(
+			    "Failed to read: \"%s\". errno: %d, msg: %s\n",
+			    f->name, errno, strerror(errno)
+			);
 			switch (errno) {
 			case EINTR:
 			case EAGAIN:
@@ -368,7 +370,7 @@ fifo_read_one(Fifo *f, struct timespec t, char *buf)
 				return FAILURE;
 			}
 		case  0:
-			debug("%s: End of FILE\n", f->name);
+			khlib_debug("%s: End of FILE\n", f->name);
 			f->pos_curr = f->pos_init;
 			return END_OF_FILE;
 		case  1:
@@ -410,7 +412,7 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 	for (Fifo *f = cfg->fifos; f; f = f->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
 		if (lstat(f->name, &st) < 0) {
-			error(
+			khlib_error(
 			    "Cannot stat \"%s\". Error: %s\n",
 			    f->name,
 			    strerror(errno)
@@ -419,48 +421,64 @@ fifo_read_all(Config *cfg, struct timespec *ti, char *buf)
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
-			error("\"%s\" is not a FIFO\n", f->name);
+			khlib_error("\"%s\" is not a FIFO\n", f->name);
 			fifo_read_error(f, buf);
 			continue;
 		}
 		if (f->fd < 0) {
-			debug("%s: closed. opening. fd: %d\n", f->name, f->fd);
+			khlib_debug(
+			    "%s: closed. opening. fd: %d\n",
+			    f->name,
+			    f->fd
+			);
 			f->fd = open(f->name, O_RDONLY | O_NONBLOCK);
 		} else {
-			debug("%s: already openned. fd: %d\n", f->name, f->fd);
+			khlib_debug(
+			    "%s: already openned. fd: %d\n",
+			    f->name,
+			    f->fd
+			);
 		}
 		if (f->fd == -1) {
 			/* TODO Consider backing off retries for failed fifos */
-			error("Failed to open \"%s\"\n", f->name);
+			khlib_error("Failed to open \"%s\"\n", f->name);
 			fifo_read_error(f, buf);
 			continue;
 		}
-		debug("%s: open. fd: %d\n", f->name, f->fd);
+		khlib_debug("%s: open. fd: %d\n", f->name, f->fd);
 		if (f->fd > maxfd)
 			maxfd = f->fd;
 		FD_SET(f->fd, &fds);
 	}
-	debug("selecting...\n");
+	khlib_debug("selecting...\n");
 	ready = pselect(maxfd + 1, &fds, NULL, NULL, ti, NULL);
-	debug("ready: %d\n", ready);
+	khlib_debug("ready: %d\n", ready);
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	if (ready == -1) {
 		switch (errno) {
 		case EINTR:
-			error("pselect temp failure: %d, errno: %d, msg: %s\n",
-			    ready, errno, strerror(errno));
+			khlib_error(
+			    "pselect temp failure: %d, errno: %d, msg: %s\n",
+			    ready,
+			    errno,
+			    strerror(errno)
+			);
 			/* TODO: Reconsider what to do here. */
 			return;
 		default:
-			fatal("pselect failed: %d, errno: %d, msg: %s\n",
-			    ready, errno, strerror(errno));
+			khlib_fatal(
+			    "pselect failed: %d, errno: %d, msg: %s\n",
+			    ready,
+			    errno,
+			    strerror(errno)
+			);
 		}
 	}
 	/* At-least-once ensures that expiries are still checked on timeouts. */
 	do {
 		for (Fifo *f = cfg->fifos; f; f = f->next) {
 			if (FD_ISSET(f->fd, &fds)) {
-				debug("reading: %s\n", f->name);
+				khlib_debug("reading: %s\n", f->name);
 				switch (fifo_read_one(f, t, buf)) {
 				/*
 				 * ### MESSAGE LOSS ###
@@ -526,10 +544,10 @@ main(int argc, char *argv[])
 	argv0 = argv[0];
 
 	opts_parse(&cfg, argc, argv);
-	debug("argv0 = %s\n", argv0);
+	khlib_debug("argv0 = %s\n", argv0);
 	config_print(&cfg);
 
-	ti = timespec_of_float(cfg.interval);
+	ti = khlib_timespec_of_float(cfg.interval);
 
 	if (cfg.fifos == NULL)
 		usage("No fifo specs were given!\n");
@@ -537,7 +555,7 @@ main(int argc, char *argv[])
 	/* 1st pass to check file existence and type */
 	for (Fifo *f = cfg.fifos; f; f = f->next) {
 		if (lstat(f->name, &st) < 0) {
-			error(
+			khlib_error(
 			    "Cannot stat \"%s\". Error: %s\n",
 			    f->name,
 			    strerror(errno)
@@ -546,13 +564,15 @@ main(int argc, char *argv[])
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
-			error("\"%s\" is not a FIFO\n", f->name);
+			khlib_error("\"%s\" is not a FIFO\n", f->name);
 			errors++;
 			continue;
 		}
 	}
 	if (errors)
-		fatal("Encountered errors with given file paths. See log.\n");
+		khlib_fatal(
+		    "Encountered errors with given file paths. See log.\n"
+		);
 
 	width  = cfg.total_width;
 	seplen = strlen(cfg.separator);
@@ -568,7 +588,10 @@ main(int argc, char *argv[])
 	width += (seplen * (nfifos - 1));
 	buf = calloc(1, width + 1);
 	if (buf == NULL)
-		fatal("[memory] Failed to allocate buffer of %d bytes", width);
+		khlib_fatal(
+		    "[memory] Failed to allocate buffer of %d bytes",
+		    width
+		);
 	memset(buf, ' ', width);
 	buf[width] = '\0';
 	/* 3rd pass to set the separators */
@@ -584,14 +607,14 @@ main(int argc, char *argv[])
 	}
 
 	if (cfg.output_to_x_root_window && !(d = XOpenDisplay(NULL)))
-		fatal("XOpenDisplay failed with: %p\n", d);
+		khlib_fatal("XOpenDisplay failed with: %p\n", d);
 	/* TODO: Handle signals */
 	for (;;) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
 		fifo_read_all(&cfg, &ti, buf);
 		if (cfg.output_to_x_root_window) {
 			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
-				fatal("XStoreName failed.\n");
+				khlib_fatal("XStoreName failed.\n");
 			XFlush(d);
 		} else {
 			puts(buf);
@@ -599,7 +622,7 @@ main(int argc, char *argv[])
 		}
 		clock_gettime(CLOCK_MONOTONIC, &t1); // FIXME: check errors
 		timespecsub(&t1, &t0, &td);
-		debug(
+		khlib_debug(
 		    "td {tv_sec = %ld, tv_nsec = %ld}\n",
 		    td.tv_sec,
 		    td.tv_nsec
@@ -609,10 +632,10 @@ main(int argc, char *argv[])
 			 * pipe more frequently than the interval.
 			 */
 			timespecsub(&ti, &td, &tc);
-			debug("snooze YES\n");
-			snooze(&tc);
+			khlib_debug("khlib_sleep YES\n");
+			khlib_sleep(&tc);
 		} else {
-			debug("snooze NO\n");
+			khlib_debug("khlib_sleep NO\n");
 		}
 	}
 

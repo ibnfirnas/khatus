@@ -8,8 +8,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "khatus_lib_log.h"
-#include "khatus_lib_time.h"
+#include "khlib_log.h"
+#include "khlib_time.h"
 
 #define usage(...) {print_usage(); fprintf(stderr, "Error:\n    " __VA_ARGS__); exit(EXIT_FAILURE);}
 
@@ -79,10 +79,10 @@ main(int argc, char **argv)
 	char buf[MAX_LEN];
 
 	opt_parse(argc, argv);
-	ti = timespec_of_float(opt_interval);
-	debug("opt_fmt: \"%s\"\n", opt_fmt);
-	debug("opt_interval: %f\n", opt_interval);
-	debug("ti: {tv_sec = %ld, tv_nsec = %ld}\n", ti.tv_sec, ti.tv_nsec);
+	ti = khlib_timespec_of_float(opt_interval);
+	khlib_debug("opt_fmt: \"%s\"\n", opt_fmt);
+	khlib_debug("opt_interval: %f\n", opt_interval);
+	khlib_debug("ti: {tv_sec = %ld, tv_nsec = %ld}\n",ti.tv_sec,ti.tv_nsec);
 	memset(buf, '\0', MAX_LEN);
 	signal(SIGPIPE, SIG_IGN);
 
@@ -91,7 +91,7 @@ main(int argc, char **argv)
 		strftime(buf, MAX_LEN, opt_fmt, localtime(&t));
 		puts(buf);
 		fflush(stdout);
-		snooze(&ti);
+		khlib_sleep(&ti);
 	}
 	return EXIT_SUCCESS;
 }

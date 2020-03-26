@@ -10,8 +10,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "khatus_lib_log.h"
-#include "khatus_lib_time.h"
+#include "khlib_log.h"
+#include "khlib_time.h"
 
 #define usage(...) {print_usage(); fprintf(stderr, "Error:\n    " __VA_ARGS__); exit(EXIT_FAILURE);}
 
@@ -77,12 +77,16 @@ get_capacity(char *buf, char *path)
 	int cap;
 
 	if (!(fp = fopen(path, "r")))
-		fatal("Failed to open %s. errno: %d, msg: %s\n",
-		    path, errno, strerror(errno));
+		khlib_fatal(
+		    "Failed to open %s. errno: %d, msg: %s\n",
+		    path,
+		    errno,
+		    strerror(errno)
+		);
 
 	switch (fscanf(fp, "%d", &cap)) {
-	case -1: fatal("EOF\n");
-	case  0: fatal("Read 0\n");
+	case -1: khlib_fatal("EOF\n");
+	case  0: khlib_fatal("Read 0\n");
 	case  1: break;
 	default: assert(0);
 	}
@@ -101,10 +105,10 @@ main(int argc, char **argv)
 	struct timespec ti;
 
 	opt_parse(argc, argv);
-	ti = timespec_of_float(opt_interval);
-	debug("opt_battery: \"%s\"\n", opt_battery);
-	debug("opt_interval: %f\n", opt_interval);
-	debug("ti: {tv_sec = %ld, tv_nsec = %ld}\n", ti.tv_sec, ti.tv_nsec);
+	ti = khlib_timespec_of_float(opt_interval);
+	khlib_debug("opt_battery: \"%s\"\n", opt_battery);
+	khlib_debug("opt_interval: %f\n", opt_interval);
+	khlib_debug("ti: {tv_sec = %ld, tv_nsec = %ld}\n",ti.tv_sec,ti.tv_nsec);
 	memset(path, '\0', PATH_MAX);
 	snprintf(path, PATH_MAX, path_fmt, opt_battery);
 	signal(SIGPIPE, SIG_IGN);
@@ -113,7 +117,7 @@ main(int argc, char **argv)
 		get_capacity(buf, path);
 		puts(buf);
 		fflush(stdout);
-		snooze(&ti);
+		khlib_sleep(&ti);
 	}
 	return EXIT_SUCCESS;
 }
