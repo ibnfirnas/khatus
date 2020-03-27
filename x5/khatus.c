@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,7 +29,8 @@
 static const char errmsg[] = ERRMSG;
 static const int  errlen   = sizeof(ERRMSG) - 1;
 
-char *argv0;
+char *argv0 = NULL;
+int running = 1;
 
 /* TODO: Convert slot list to slot array. */
 typedef struct Slot Slot;
@@ -139,7 +141,9 @@ slot_log(Slot *s)
 void
 slots_log(Slot *head)
 {
-	for (Slot *s = head; s; s = s->next) {
+	Slot *s = head;
+
+	for (; s; s = s->next) {
 		slot_log(s);
 	}
 }
@@ -171,6 +175,23 @@ slots_assert_fifos_exist(Slot *s)
 		    "Encountered errors with given file paths. See log.\n"
 		);
 }
+
+void
+slot_close(Slot *s)
+{
+	close(s->in_fd);
+	s->in_fd        = -1;
+	s->out_pos_cur  = s->out_pos_lo;
+}
+
+void
+slots_close(Slot *s)
+{
+	for (; s; s = s->next)
+		if (s->in_fd > -1)
+			slot_close(s);
+}
+
 
 void
 slot_expire(Slot *s, struct timespec t, char *buf)
@@ -313,7 +334,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 		switch (errno) {
 		case EINTR:
 			khlib_error(
-			    "pselect temp failure: %d, errno: %d, msg: %s\n",
+			    "pselect interrupted: %d, errno: %d, msg: %s\n",
 			    ready,
 			    errno,
 			    strerror(errno)
@@ -367,10 +388,8 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 				case END_OF_MESSAGE:
 				case END_OF_FILE:
 				case FAILURE:
-					close(s->in_fd);
-					s->in_fd        = -1;
+					slot_close(s);
 					s->in_last_read = t;
-					s->out_pos_cur  = s->out_pos_lo;
 					ready--;
 					break;
 				case RETRY:
@@ -640,7 +659,7 @@ loop(Config *cfg, char *buf, Display *d)
 		tc;  /* time interval correction (ti - td) when td < ti */
 
 	ti = khlib_timespec_of_float(cfg->interval);
-	for (;;) {
+	while (running) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
 		slots_read(cfg, &ti, buf);
 		if (cfg->to_x_root) {
@@ -669,9 +688,18 @@ loop(Config *cfg, char *buf, Display *d)
 	}
 }
 
+void
+terminate(int s)
+{
+	khlib_debug("terminating due to signal %d\n", s);
+	running = 0;
+}
+
 int
 main(int argc, char *argv[])
 {
+	argv0 = argv[0];
+
 	Config cfg = {
 		.interval    = 1.0,
 		.separator   = "|",
@@ -682,10 +710,13 @@ main(int argc, char *argv[])
 	};
 	char *buf;
 	Display *d = NULL;
+	struct sigaction sa;
 
-	/* TODO: Handle signals */
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = terminate;
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGINT , &sa, NULL);
 
-	argv0 = argv[0];
 	opts_parse(&cfg, argc, argv);
 	slots_assert_fifos_exist(cfg.slots);
 	config_stretch_for_separators(&cfg);
@@ -693,5 +724,6 @@ main(int argc, char *argv[])
 	if (cfg.to_x_root && !(d = XOpenDisplay(NULL)))
 		khlib_fatal("XOpenDisplay failed with: %p\n", d);
 	loop(&cfg, buf, d);
+	slots_close(cfg.slots);
 	return EXIT_SUCCESS;
 }
