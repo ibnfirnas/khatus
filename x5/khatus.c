@@ -50,6 +50,7 @@ typedef struct Config Config;
 struct Config {
 	double interval;
 	char * separator;
+	char   expiry_character;
 	Slot * slots;
 	int    slot_count;
 	int    buf_width;
@@ -194,14 +195,17 @@ slots_close(Slot *s)
 
 
 void
-slot_expire(Slot *s, struct timespec t, char *buf)
+slot_expire(Slot *s, struct timespec t, char expiry_character, char *buf)
 {
 	struct timespec td;
 
 	timespecsub(&t, &(s->in_last_read), &td);
 	if (timespeccmp(&td, &(s->out_ttl), >=)) {
-		/* TODO: Maybe configurable expiry character. */
-		memset(buf + s->out_pos_lo, '_', s->out_width);
+		memset(
+		    buf + s->out_pos_lo,
+		    expiry_character,
+		    s->out_width
+		);
 		khlib_warn("Slot expired: \"%s\"\n", s->in_fifo);
 	}
 }
@@ -398,7 +402,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 					assert(0);
 				}
 			} else {
-				slot_expire(s, t, buf);
+				slot_expire(s, t, cfg->expiry_character, buf);
 			}
 		}
 	} while (ready);
@@ -486,9 +490,12 @@ print_usage()
 	    "             | -s SEPARATOR\n"
 	    "             | -x (* Output to X root window *)\n"
 	    "             | -l LOG_LEVEL\n"
+	    "             | -e EXPIRY_CHARACTER\n"
 	    "  SEPARATOR  = string\n"
 	    "  INTERVAL   = float  (* (positive) number of seconds *)\n"
 	    "  LOG_LEVEL  = int  (* %d through %d *)\n"
+	    "  EXPIRY_CHARACTER = string  "
+	    "(* Character with which to fill the slot upon expiration. *)\n"
 	    "\n",
 	    argv0,
 	    Nothing,
@@ -552,6 +559,15 @@ parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
 }
 
 void
+parse_opts_opt_e(Config *cfg, int argc, char *argv[], int i)
+{
+	if (i >= argc)
+		usage("Option -e parameter is missing.\n");
+	cfg->expiry_character = argv[i++][0];
+	opts_parse_any(cfg, argc, argv, i);
+}
+
+void
 parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 {
 	switch (argv[i][1]) {
@@ -570,6 +586,10 @@ parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 	case 'l':
 		/* TODO: Generic set_int */
 		parse_opts_opt_l(cfg, argc, argv, ++i);
+		break;
+	case 'e':
+		/* TODO: Generic set_str */
+		parse_opts_opt_e(cfg, argc, argv, ++i);
 		break;
 	default :
 		usage("Option \"%s\" is invalid\n", argv[i]);
@@ -703,6 +723,7 @@ main(int argc, char *argv[])
 	Config cfg = {
 		.interval    = 1.0,
 		.separator   = "|",
+		.expiry_character = '_',
 		.slots       = NULL,
 		.slot_count  = 0,
 		.buf_width   = 0,
