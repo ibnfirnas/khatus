@@ -50,8 +50,8 @@ struct Config {
 	char * separator;
 	Slot * slots;
 	int    slot_count;
-	int    total_width;
-	int    output_to_x_root_window;
+	int    buf_width;
+	int    to_x_root;
 };
 
 enum read_status {
@@ -60,6 +60,37 @@ enum read_status {
 	RETRY,
 	FAILURE
 };
+
+char *
+buf_create(Config *cfg)
+{
+	int seplen;
+	char *buf;
+	Slot *s;
+
+	buf = calloc(1, cfg->buf_width + 1);
+	if (buf == NULL)
+		khlib_fatal(
+		    "[memory] Failed to allocate buffer of %d bytes",
+		    cfg->buf_width
+		);
+	memset(buf, ' ', cfg->buf_width);
+	buf[cfg->buf_width] = '\0';
+	seplen = strlen(cfg->separator);
+	/* Set the separators */
+	for (s = cfg->slots; s; s = s->next) {
+		/* Skip the first, left-most */
+		if (s->out_pos_lo) {
+			/* Copying only seplen ensures we omit the '\0' byte. */
+			strncpy(
+			    buf + (s->out_pos_lo - seplen),
+			    cfg->separator,
+			    seplen
+			);
+		}
+	}
+	return buf;
+}
 
 Slot *
 slots_rev(Slot *old)
@@ -77,7 +108,7 @@ slots_rev(Slot *old)
 }
 
 void
-slot_print(Slot *s)
+slot_log(Slot *s)
 {
 	khlib_info("Slot "
 	    "{"
@@ -106,11 +137,39 @@ slot_print(Slot *s)
 }
 
 void
-slots_print(Slot *head)
+slots_log(Slot *head)
 {
 	for (Slot *s = head; s; s = s->next) {
-		slot_print(s);
+		slot_log(s);
 	}
+}
+
+void
+slots_assert_fifos_exist(Slot *s)
+{
+	struct stat st;
+	int errors = 0;
+
+	for (; s; s = s->next) {
+		if (lstat(s->in_fifo, &st) < 0) {
+			khlib_error(
+			    "Cannot stat \"%s\". Error: %s\n",
+			    s->in_fifo,
+			    strerror(errno)
+			);
+			errors++;
+			continue;
+		}
+		if (!(st.st_mode & S_IFIFO)) {
+			khlib_error("\"%s\" is not a FIFO\n", s->in_fifo);
+			errors++;
+			continue;
+		}
+	}
+	if (errors)
+		khlib_fatal(
+		    "Encountered errors with given file paths. See log.\n"
+		);
 }
 
 void
@@ -328,7 +387,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 }
 
 void
-config_print(Config *cfg)
+config_log(Config *cfg)
 {
 	khlib_info(
 	    "Config "
@@ -336,15 +395,34 @@ config_print(Config *cfg)
 	    " interval = %f,"
 	    " separator = %s,"
 	    " slot_count = %d,"
-	    " total_width = %d,"
+	    " buf_width = %d,"
 	    " slots = ..."
 	    " }\n",
 	    cfg->interval,
 	    cfg->separator,
 	    cfg->slot_count,
-	    cfg->total_width
+	    cfg->buf_width
 	);
-	slots_print(cfg->slots);
+	slots_log(cfg->slots);
+}
+
+void
+config_stretch_for_separators(Config *cfg)
+{
+	int seplen = strlen(cfg->separator);
+	int prefix = 0;
+	int nslots = 0;
+	Slot *s    = cfg->slots;
+
+	while (s) {
+		s->out_pos_lo  += prefix;
+		s->out_pos_hi  += prefix;
+		s->out_pos_cur  = s->out_pos_lo;
+		prefix         += seplen;
+		nslots++;
+		s = s->next;
+	}
+	cfg->buf_width += (seplen * (nslots - 1));
 }
 
 int
@@ -467,7 +545,7 @@ parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 		parse_opts_opt_s(cfg, argc, argv, ++i);
 		break;
 	case 'x':
-		cfg->output_to_x_root_window = 1;
+		cfg->to_x_root = 1;
 		opts_parse_any(cfg, argc, argv, ++i);
 		break;
 	case 'l':
@@ -513,13 +591,13 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		s->out_width    = atoi(w);
 		s->out_ttl      = khlib_timespec_of_float(atof(t));
 		s->in_last_read = in_last_read;
-		s->out_pos_lo   = cfg->total_width;
+		s->out_pos_lo   = cfg->buf_width;
 		s->out_pos_cur  = s->out_pos_lo;
 		s->out_pos_hi   = s->out_pos_lo + s->out_width - 1;
 		s->next		= cfg->slots;
 
 		cfg->slots        = s;
-		cfg->total_width += s->out_width;
+		cfg->buf_width += s->out_width;
 		cfg->slot_count++;
 	} else {
 		khlib_fatal("[memory] Allocation failure.");
@@ -546,108 +624,26 @@ opts_parse(Config *cfg, int argc, char *argv[])
 {
 	opts_parse_any(cfg, argc, argv, 1);
 	cfg->slots = slots_rev(cfg->slots);
+	config_log(cfg);
+	if (cfg->slots == NULL)
+		usage("No slot specs were given!\n");
 }
 
-int
-main(int argc, char *argv[])
+void
+loop(Config *cfg, char *buf, Display *d)
 {
-	Config cfg = {
-		.interval    = 1.0,
-		.separator   = "|",
-		.slots       = NULL,
-		.slot_count  = 0,
-		.total_width = 0,
-		.output_to_x_root_window = 0,
-	};
-
-	int width  = 0;
-	int nslots = 0;
-	int seplen = 0;
-	int prefix = 0;
-	int errors = 0;
-	char *buf;
-	Display *d = NULL;
-	struct stat st;
 	struct timespec
 		t0,  /* time stamp. before reading slots */
 		t1,  /* time stamp. after  reading slots */
 		ti,  /* time interval desired    (t1 - t0) */
 		td,  /* time interval measured   (t1 - t0) */
 		tc;  /* time interval correction (ti - td) when td < ti */
-	Slot *s;
 
-	argv0 = argv[0];
-
-	opts_parse(&cfg, argc, argv);
-	khlib_debug("argv0 = %s\n", argv0);
-	config_print(&cfg);
-
-	ti = khlib_timespec_of_float(cfg.interval);
-
-	if (cfg.slots == NULL)
-		usage("No slot specs were given!\n");
-
-	/* 1st pass to check file existence and type */
-	for (s = cfg.slots; s; s = s->next) {
-		if (lstat(s->in_fifo, &st) < 0) {
-			khlib_error(
-			    "Cannot stat \"%s\". Error: %s\n",
-			    s->in_fifo,
-			    strerror(errno)
-			);
-			errors++;
-			continue;
-		}
-		if (!(st.st_mode & S_IFIFO)) {
-			khlib_error("\"%s\" is not a FIFO\n", s->in_fifo);
-			errors++;
-			continue;
-		}
-	}
-	if (errors)
-		khlib_fatal(
-		    "Encountered errors with given file paths. See log.\n"
-		);
-
-	width  = cfg.total_width;
-	seplen = strlen(cfg.separator);
-
-	/* 2nd pass to make space for separators */
-	for (s = cfg.slots; s; s = s->next) {
-		s->out_pos_lo  += prefix;
-		s->out_pos_hi += prefix;
-		s->out_pos_cur = s->out_pos_lo;
-		prefix += seplen;
-		nslots++;
-	}
-	width += (seplen * (nslots - 1));
-	buf = calloc(1, width + 1);
-	if (buf == NULL)
-		khlib_fatal(
-		    "[memory] Failed to allocate buffer of %d bytes",
-		    width
-		);
-	memset(buf, ' ', width);
-	buf[width] = '\0';
-	/* 3rd pass to set the separators */
-	for (s = cfg.slots; s; s = s->next) {
-		if (s->out_pos_lo) {  /* Skip the first, left-most */
-			/* Copying only seplen ensures we omit the '\0' byte. */
-			strncpy(
-			    buf + (s->out_pos_lo - seplen),
-			    cfg.separator,
-			    seplen
-			);
-		}
-	}
-
-	if (cfg.output_to_x_root_window && !(d = XOpenDisplay(NULL)))
-		khlib_fatal("XOpenDisplay failed with: %p\n", d);
-	/* TODO: Handle signals */
+	ti = khlib_timespec_of_float(cfg->interval);
 	for (;;) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
-		slots_read(&cfg, &ti, buf);
-		if (cfg.output_to_x_root_window) {
+		slots_read(cfg, &ti, buf);
+		if (cfg->to_x_root) {
 			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
 				khlib_fatal("XStoreName failed.\n");
 			XFlush(d);
@@ -671,5 +667,31 @@ main(int argc, char *argv[])
 			khlib_sleep(&tc);
 		}
 	}
+}
+
+int
+main(int argc, char *argv[])
+{
+	Config cfg = {
+		.interval    = 1.0,
+		.separator   = "|",
+		.slots       = NULL,
+		.slot_count  = 0,
+		.buf_width   = 0,
+		.to_x_root   = 0,
+	};
+	char *buf;
+	Display *d = NULL;
+
+	/* TODO: Handle signals */
+
+	argv0 = argv[0];
+	opts_parse(&cfg, argc, argv);
+	slots_assert_fifos_exist(cfg.slots);
+	config_stretch_for_separators(&cfg);
+	buf = buf_create(&cfg);
+	if (cfg.to_x_root && !(d = XOpenDisplay(NULL)))
+		khlib_fatal("XOpenDisplay failed with: %p\n", d);
+	loop(&cfg, buf, d);
 	return EXIT_SUCCESS;
 }
