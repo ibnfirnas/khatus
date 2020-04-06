@@ -18,4 +18,4 @@ obsolete earlier ones, they're just different):
 | __x2__ | Legacy   | Bash, AWK | Debian 10, Ubuntu 18.04 | Sensors are child processes, IPC via parent pipe. |
 | __x3__ | Archived | OCaml     | Debian 10               | Re-write and refinement of __x2__ |
 | __x4__ | Archived | Dash, AWK | Debian 10               | Sensors are opaque daemons, cache is a file tree |
-| __x5__ | Current  | C         |            Ubuntu 18.04 | Sensors are opaque daemons, IPC via [pselect](https://en.wikipedia.org/wiki/Select_(Unix))ed FIFOs. |
+| __x5__ | [Graduated](https://github.com/xandkar/pista) | C         |            Ubuntu 18.04 | Sensors are opaque daemons, IPC via [pselect](https://en.wikipedia.org/wiki/Select_(Unix))ed FIFOs. |
