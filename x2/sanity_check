@@ -15,6 +15,10 @@
 # - USB CableCreation : enxa0cec8c818ab
 # - USB StarTech      : enx00133b9c9bdb
 
+# disk io devices
+#----------------
+# - Dell XPS 13 : nvme0n1
+
 ETH='enx00133b9c9bdb'
 WIFI='wlp0s20f3'
 
@@ -22,6 +26,7 @@ WIFI='wlp0s20f3'
     --dir_bin ./bin \
     --wifi_interface "$WIFI" \
     --screen_brightness_device_name intel_backlight \
+    --disk_io_device nvme0n1 \
 | stdbuf -o L tee \
     >(stdbuf -o L ./bin/khatus_bar \
         -v Opt_Mpd_Song_Max_Chars=10 \

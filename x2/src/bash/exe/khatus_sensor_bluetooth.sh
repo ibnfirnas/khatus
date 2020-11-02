@@ -7,13 +7,14 @@ FS1='|'  # Fields separator, level 1 (a record's fields)
 FS2=':'  # Fields separator, level 2 (a field's subfields)
 
 count_powered_controllers() {
-    bluetoothctl -- show | grep -c 'Powered: yes'
+    echo show | bluetoothctl | grep -c 'Powered: yes'
 }
 
 count_connected_devices() {
-    bluetoothctl -- paired-devices \
-    | awk '{print $2}' \
-    | xargs -I % bluetoothctl -- info % \
+    echo paired-devices \
+    | bluetoothctl \
+    | awk '/^Device +[0-9a-zA-Z][0-9a-zA-Z]:/ {print $2}' \
+    | xargs -I % sh -c 'echo info % | bluetoothctl' \
     | grep -c 'Connected: yes'
 }
 
